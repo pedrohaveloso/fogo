@@ -1,0 +1,439 @@
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  AGENT_ROLES,
+  AGENT_ROLE_KEYS,
+  AGENT_STATUSES,
+  AGENT_STATUS_LABELS,
+  EQUIPMENT_TYPES,
+  SHIFTS,
+  SHIFT_KEYS,
+  type AgentRole,
+  type AgentStatus,
+  type Shift,
+} from "../../shared/catalog.ts";
+import type { Agent } from "../../shared/types.ts";
+import { api, ApiError } from "../api.ts";
+import {
+  ConfirmDialog,
+  ErrorSummary,
+  Field,
+  issuesToErrors,
+  type Errors,
+} from "../components/form.tsx";
+import { useLive, useMeta } from "../live.ts";
+import { LocationPicker } from "../map/LocationPicker.tsx";
+import { Link, navigate } from "../router.tsx";
+import { showToast } from "../toast.tsx";
+
+type Draft = {
+  name: string;
+  badge: string;
+  role: AgentRole;
+  rank: string;
+  phone: string;
+  shift: Shift;
+  status: AgentStatus;
+  baseName: string;
+  baseNeighborhoodId: string;
+  lat: string;
+  lng: string;
+  vehicleId: string;
+};
+
+const LABELS: Record<string, string> = {
+  name: "Nome completo",
+  badge: "Matrícula",
+  role: "Função",
+  rank: "Graduação ou cargo",
+  phone: "Telefone ou rádio",
+  shift: "Turno",
+  status: "Situação",
+  baseName: "Base de atuação",
+  baseNeighborhoodId: "Bairro da base",
+  lat: "Latitude",
+  lng: "Longitude",
+  vehicleId: "Veículo",
+};
+
+const EMPTY: Draft = {
+  name: "",
+  badge: "",
+  role: "traffic_agent",
+  rank: "",
+  phone: "",
+  shift: "morning",
+  status: "off_duty",
+  baseName: "",
+  baseNeighborhoodId: "",
+  lat: "",
+  lng: "",
+  vehicleId: "",
+};
+
+function fromAgent(agent: Agent): Draft {
+  return {
+    name: agent.name,
+    badge: agent.badge,
+    role: agent.role,
+    rank: agent.rank,
+    phone: agent.phone,
+    shift: agent.shift,
+    status: agent.status,
+    baseName: agent.baseName,
+    baseNeighborhoodId: agent.baseNeighborhoodId,
+    lat: String(agent.lat),
+    lng: String(agent.lng),
+    vehicleId: agent.vehicleId === null ? "" : String(agent.vehicleId),
+  };
+}
+
+export function AgentFormPage({ id }: { id: number | null }) {
+  const meta = useMeta();
+  const { snapshot } = useLive();
+  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [loaded, setLoaded] = useState(id === null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (id === null) {
+      return;
+    }
+    api
+      .get<{ agent: Agent }>(`/agents/${id}`)
+      .then((data) => {
+        setDraft(fromAgent(data.agent));
+        setLoaded(true);
+      })
+      .catch((error: unknown) =>
+        setLoadError(
+          error instanceof ApiError ? error.message : "Não foi possível carregar o agente.",
+        ),
+      );
+  }, [id]);
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setDraft((current) => ({ ...current, [key]: value }));
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setErrors({});
+    const payload = {
+      ...draft,
+      lat: draft.lat === "" ? null : Number(draft.lat),
+      lng: draft.lng === "" ? null : Number(draft.lng),
+      vehicleId: draft.vehicleId === "" ? null : Number(draft.vehicleId),
+    };
+    try {
+      const saved =
+        id === null
+          ? await api.post<Agent>("/agents", payload)
+          : await api.put<Agent>(`/agents/${id}`, payload);
+      showToast(
+        id === null ? `${saved.name} cadastrado(a).` : `Cadastro de ${saved.name} atualizado.`,
+      );
+      navigate("/agentes");
+    } catch (error) {
+      setErrors(
+        error instanceof ApiError && error.issues.length > 0
+          ? issuesToErrors(error.issues)
+          : { form: error instanceof ApiError ? error.message : "Não foi possível salvar." },
+      );
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    setConfirmDelete(false);
+    try {
+      await api.delete(`/agents/${id}`);
+      showToast(`${draft.name} removido(a) do cadastro.`);
+      navigate("/agentes");
+    } catch (error) {
+      setErrors({ form: error instanceof ApiError ? error.message : "Não foi possível excluir." });
+    }
+  };
+
+  if (loadError) {
+    return (
+      <main className="page">
+        <p className="error-box">{loadError}</p>
+        <Link href="/agentes">Voltar para a lista</Link>
+      </main>
+    );
+  }
+  if (!meta || !loaded) {
+    return (
+      <main className="page">
+        <p className="hint" role="status">
+          Carregando...
+        </p>
+      </main>
+    );
+  }
+
+  const vehicleType = draft.role === "traffic_agent" ? "agent_motorcycle" : "patrol_vehicle";
+  const taken = new Set(
+    snapshot?.agents
+      .filter((agent) => agent.id !== id && agent.vehicleId !== null)
+      .map((agent) => agent.vehicleId),
+  );
+  const vehicles = (snapshot?.equipment ?? []).filter(
+    (item) =>
+      item.type === vehicleType &&
+      (vehicleType === "agent_motorcycle" || item.agency === AGENT_ROLES[draft.role].agency) &&
+      (!taken.has(item.id) || String(item.id) === draft.vehicleId),
+  );
+  const location =
+    draft.lat && draft.lng ? { lat: Number(draft.lat), lng: Number(draft.lng) } : null;
+
+  return (
+    <main className="page" style={{ maxWidth: 1100 }}>
+      <div className="page-head">
+        <div>
+          <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
+          <p>
+            Agentes com situação "Disponível" ou "Em atendimento" aparecem no mapa da central e
+            entram no cálculo de reforço.
+          </p>
+        </div>
+        <Link href="/agentes" className="button">
+          Voltar para a lista
+        </Link>
+      </div>
+      <form
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        style={{ display: "grid", gap: 16 }}
+      >
+        <ErrorSummary errors={errors} labels={LABELS} />
+        <fieldset className="form-section">
+          <legend>Identificação</legend>
+          <div className="form-grid">
+            <Field path="name" label={LABELS["name"]!} error={errors["name"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  value={draft.name}
+                  autoComplete="off"
+                  onChange={(event) => set("name", event.target.value)}
+                />
+              )}
+            </Field>
+            <Field path="badge" label={LABELS["badge"]!} error={errors["badge"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  value={draft.badge}
+                  autoComplete="off"
+                  onChange={(event) => set("badge", event.target.value)}
+                />
+              )}
+            </Field>
+            <Field path="role" label={LABELS["role"]!} error={errors["role"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.role}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      role: event.target.value as AgentRole,
+                      vehicleId: "",
+                    }))
+                  }
+                >
+                  {AGENT_ROLE_KEYS.map((key) => (
+                    <option key={key} value={key}>
+                      {AGENT_ROLES[key].label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="rank" label={LABELS["rank"]!} error={errors["rank"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  value={draft.rank}
+                  onChange={(event) => set("rank", event.target.value)}
+                />
+              )}
+            </Field>
+            <Field path="phone" label={LABELS["phone"]!} error={errors["phone"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  type="tel"
+                  value={draft.phone}
+                  onChange={(event) => set("phone", event.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+        </fieldset>
+        <fieldset className="form-section">
+          <legend>Escala e situação</legend>
+          <div className="form-grid">
+            <Field path="shift" label={LABELS["shift"]!} error={errors["shift"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.shift}
+                  onChange={(event) => set("shift", event.target.value as Shift)}
+                >
+                  {SHIFT_KEYS.map((key) => (
+                    <option key={key} value={key}>
+                      {SHIFTS[key]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="status" label={LABELS["status"]!} error={errors["status"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.status}
+                  onChange={(event) => set("status", event.target.value as AgentStatus)}
+                >
+                  {AGENT_STATUSES.map((key) => (
+                    <option key={key} value={key}>
+                      {AGENT_STATUS_LABELS[key]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="vehicleId" label={LABELS["vehicleId"]!} error={errors["vehicleId"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.vehicleId}
+                  onChange={(event) => set("vehicleId", event.target.value)}
+                >
+                  <option value="">Sem veículo (a pé)</option>
+                  {vehicles.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {EQUIPMENT_TYPES[item.type].label}{" "}
+                      {String(item.attributes["plate"] ?? item.serialNumber)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          </div>
+        </fieldset>
+        <fieldset className="form-section">
+          <legend>Base e posição</legend>
+          <div className="form-grid">
+            <Field path="baseName" label={LABELS["baseName"]!} error={errors["baseName"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  placeholder="Ex.: Base GCM Zona Norte"
+                  value={draft.baseName}
+                  onChange={(event) => set("baseName", event.target.value)}
+                />
+              )}
+            </Field>
+            <Field
+              path="baseNeighborhoodId"
+              label={LABELS["baseNeighborhoodId"]!}
+              error={errors["baseNeighborhoodId"]}
+            >
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.baseNeighborhoodId}
+                  onChange={(event) => {
+                    const neighborhood = meta.neighborhoods.find(
+                      (item) => item.id === event.target.value,
+                    );
+                    setDraft((current) => ({
+                      ...current,
+                      baseNeighborhoodId: event.target.value,
+                      lat: current.lat || (neighborhood ? neighborhood.lat.toFixed(6) : ""),
+                      lng: current.lng || (neighborhood ? neighborhood.lng.toFixed(6) : ""),
+                    }));
+                  }}
+                >
+                  <option value="">Selecione o bairro</option>
+                  {meta.neighborhoods.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="lat" label={LABELS["lat"]!} error={errors["lat"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  inputMode="decimal"
+                  value={draft.lat}
+                  onChange={(event) => set("lat", event.target.value)}
+                />
+              )}
+            </Field>
+            <Field path="lng" label={LABELS["lng"]!} error={errors["lng"]}>
+              {(props) => (
+                <input
+                  {...props}
+                  inputMode="decimal"
+                  value={draft.lng}
+                  onChange={(event) => set("lng", event.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+          <LocationPicker
+            center={meta.city.center}
+            value={location}
+            onChange={(value) =>
+              setDraft((current) => ({
+                ...current,
+                lat: value.lat.toFixed(6),
+                lng: value.lng.toFixed(6),
+              }))
+            }
+          />
+          <p className="hint">
+            A posição é atualizada pelo rastreador quando o agente está em serviço. Use o mapa para
+            definir a posição inicial.
+          </p>
+        </fieldset>
+        <div className="form-actions">
+          {id !== null && (
+            <button
+              type="button"
+              className="button button-danger"
+              onClick={() => setConfirmDelete(true)}
+              style={{ marginRight: "auto" }}
+            >
+              Excluir agente
+            </button>
+          )}
+          <Link href="/agentes" className="button">
+            Cancelar
+          </Link>
+          <button type="submit" className="button button-primary" disabled={saving}>
+            {saving ? "Salvando..." : id === null ? "Cadastrar agente" : "Salvar alterações"}
+          </button>
+        </div>
+      </form>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Excluir este agente?"
+        message={`O cadastro de ${draft.name} será removido. Atendimentos em andamento voltam para a fila de ocorrências.`}
+        confirmLabel="Excluir agente"
+        onConfirm={() => void remove()}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    </main>
+  );
+}

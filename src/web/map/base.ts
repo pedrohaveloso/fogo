@@ -1,0 +1,179 @@
+import {
+  Map as MapLibreMap,
+  NavigationControl,
+  setWorkerUrl,
+  type StyleSpecification,
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  AGENT_STATUSES,
+  EQUIPMENT_STATUSES,
+  EQUIPMENT_TYPE_KEYS,
+  STATUS_COLORS,
+} from "../../shared/catalog.ts";
+import { AGENT_STATUS_COLORS } from "../colors.ts";
+import { AGENT_GLYPH, STATUS_SHAPES, TYPE_GLYPHS, shapePath, type MarkerShape } from "../icons.tsx";
+
+setWorkerUrl(workerUrl);
+
+export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const STYLE_TIMEOUT_MS = 5000;
+const MARKER_SIZE = 30;
+const PIXEL_RATIO = 2;
+const RING = "#1b1f24";
+
+const FALLBACK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#15181c" } }],
+};
+
+let stylePromise: Promise<{ style: StyleSpecification; online: boolean }> | null = null;
+
+function loadStyle(): Promise<{ style: StyleSpecification; online: boolean }> {
+  stylePromise ??= fetch(MAP_STYLE_URL, { signal: AbortSignal.timeout(STYLE_TIMEOUT_MS) })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      return { style: (await response.json()) as StyleSpecification, online: true };
+    })
+    .catch(() => {
+      stylePromise = null;
+      return { style: FALLBACK_STYLE, online: false };
+    });
+  return stylePromise;
+}
+
+function darkInk(color: string): boolean {
+  return color === STATUS_COLORS.maintenance;
+}
+
+function drawMarker(
+  shape: MarkerShape,
+  fill: string,
+  glyph: string,
+  glyphColor: string,
+): ImageData {
+  const size = MARKER_SIZE * PIXEL_RATIO;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.scale(PIXEL_RATIO, PIXEL_RATIO);
+  const outline = shape.startsWith("outline");
+  const path = new Path2D(shapePath(shape, MARKER_SIZE));
+
+  context.lineJoin = "round";
+  context.strokeStyle = RING;
+  context.lineWidth = 4;
+  context.stroke(path);
+  context.fillStyle = outline ? "#23282e" : fill;
+  context.fill(path);
+  if (outline) {
+    context.strokeStyle = fill;
+    context.lineWidth = 2;
+    context.setLineDash(shape === "outline-circle" ? [3, 2.5] : []);
+    context.stroke(path);
+    context.setLineDash([]);
+  }
+
+  const glyphSize = 15;
+  const offset = (MARKER_SIZE - glyphSize) / 2;
+  context.save();
+  context.translate(offset, offset);
+  context.scale(glyphSize / 24, glyphSize / 24);
+  context.strokeStyle = glyphColor;
+  context.lineWidth = 2.4;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.stroke(new Path2D(glyph));
+  context.restore();
+  return context.getImageData(0, 0, size, size);
+}
+
+export function equipmentImageId(type: string, status: string): string {
+  return `equipment-${type}-${status}`;
+}
+
+export function agentImageId(status: string): string {
+  return `agent-${status}`;
+}
+
+function registerImages(map: MapLibreMap): void {
+  for (const type of EQUIPMENT_TYPE_KEYS) {
+    for (const status of EQUIPMENT_STATUSES) {
+      const color = STATUS_COLORS[status];
+      const shape = STATUS_SHAPES[status];
+      const glyphColor = shape.startsWith("outline")
+        ? "#c1c7ce"
+        : darkInk(color)
+          ? "#1b1f24"
+          : "#ffffff";
+      map.addImage(
+        equipmentImageId(type, status),
+        drawMarker(shape, color, TYPE_GLYPHS[type], glyphColor),
+        {
+          pixelRatio: PIXEL_RATIO,
+        },
+      );
+    }
+  }
+  for (const status of AGENT_STATUSES) {
+    map.addImage(
+      agentImageId(status),
+      drawMarker("shield", AGENT_STATUS_COLORS[status], AGENT_GLYPH, "#ffffff"),
+      {
+        pixelRatio: PIXEL_RATIO,
+      },
+    );
+  }
+}
+
+export type MapHandle = { map: MapLibreMap; online: boolean };
+
+export function useMap(
+  container: RefObject<HTMLDivElement | null>,
+  options: { center: [number, number]; zoom: number },
+): MapHandle | null {
+  const [handle, setHandle] = useState<MapHandle | null>(null);
+  const initial = useRef(options);
+
+  useEffect(() => {
+    let disposed = false;
+    let instance: MapLibreMap | null = null;
+    void loadStyle().then(({ style, online }) => {
+      if (disposed || !container.current) {
+        return;
+      }
+      instance = new MapLibreMap({
+        container: container.current,
+        style,
+        center: initial.current.center,
+        zoom: initial.current.zoom,
+        minZoom: 10,
+        maxZoom: 18,
+        attributionControl: { compact: true },
+        cooperativeGestures: false,
+      });
+      instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
+      const map = instance;
+      map.on("load", () => {
+        if (disposed) {
+          return;
+        }
+        registerImages(map);
+        setHandle({ map, online });
+      });
+    });
+    return () => {
+      disposed = true;
+      instance?.remove();
+      setHandle(null);
+    };
+  }, [container]);
+
+  return handle;
+}

@@ -1,0 +1,10 @@
+services:
+  fogo:
+    build: .
+    ports:
+      - "3210:3210"
+    volumes:
+      - fogo-data:/app/storage
+
+volumes:
+  fogo-data:

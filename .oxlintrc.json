@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "unicorn", "oxc", "react", "jsx-a11y", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "import/no-cycle": "error",
+    "react/react-in-jsx-scope": "off",
+    "unicorn/no-array-sort": "off",
+    "import/no-unassigned-import": [
+      "error",
+      {
+        "allow": ["**/*.css"]
+      }
+    ],
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "ignorePatterns": ["dist", "node_modules", "data"],
+  "overrides": [
+    {
+      "files": ["src/server/routes/operations.ts", "scripts/build-geo.ts"],
+      "rules": {
+        "no-await-in-loop": "off"
+      }
+    },
+    {
+      "files": ["src/web/map/base.ts"],
+      "rules": {
+        "unicorn/no-array-fill-with-reference-type": "off"
+      }
+    }
+  ]
+}

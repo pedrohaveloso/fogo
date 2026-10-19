@@ -6,7 +6,7 @@ import {
   type AgentRole,
   type OccurrenceKind,
 } from "../shared/catalog.ts";
-import { distanceKm, moveTowards, type LngLat } from "../shared/geo.ts";
+import { distanceKm, type LngLat } from "../shared/geo.ts";
 import {
   DAY,
   HOUR,
@@ -29,6 +29,14 @@ import { transaction, type Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import { agingFactor, failureRatePerDay, type DemandModel } from "./patterns.ts";
 import { createRandom, type Random } from "./random.ts";
+import {
+  advance,
+  placeOnRoad,
+  setDestination,
+  type Journey,
+  type RoadNetwork,
+  type TravelMode,
+} from "./roads.ts";
 import { listAgents } from "./repositories/agents.ts";
 import {
   completeMaintenance,
@@ -53,17 +61,12 @@ import { OCCURRENCE_DESCRIPTIONS } from "./seed/texts.ts";
 
 export type SimulatorOptions = {
   liveMultiplier: number;
-  movementSpeedup: number;
   tickMs: number;
   seed: number;
   seededAt: number;
 };
 
-const PATROL_KMH = 12;
-const RESPONSE_KMH = 45;
-const VEHICLE_KMH = 25;
 const MAX_TICK_MS = 10_000;
-const ARRIVAL_KM = 0.03;
 const STALE_OCCURRENCE_MS = 3 * HOUR;
 const CATCH_UP_HOURS = 48;
 const ANOMALY_MIN_VOLUME = 150;
@@ -78,6 +81,58 @@ const DISPATCH_ROLES: Record<OccurrenceKind, AgentRole[]> = {
   vandalism: ["municipal_guard", "military_police"],
 };
 
+const ON_FOOT = Number.POSITIVE_INFINITY;
+
+const AGENT_MODES = {
+  foot: {
+    patrol: { kmh: 4.5, followsOneWay: false, limitFactor: ON_FOOT },
+    response: { kmh: 7, followsOneWay: false, limitFactor: ON_FOOT },
+    rest: [2, 6],
+  },
+  car: {
+    patrol: { kmh: 30, followsOneWay: true, limitFactor: 1 },
+    response: { kmh: 60, followsOneWay: true, limitFactor: 1.2 },
+    rest: [1, 4],
+  },
+  motorcycle: {
+    patrol: { kmh: 30, followsOneWay: true, limitFactor: 1 },
+    response: { kmh: 65, followsOneWay: true, limitFactor: 1.3 },
+    rest: [1, 4],
+  },
+} as const satisfies Record<
+  string,
+  { patrol: TravelMode; response: TravelMode; rest: RestMinutes }
+>;
+
+const TAXI: TravelMode = { kmh: 40, followsOneWay: true, limitFactor: 1 };
+const TAXI_REST: RestMinutes = [1, 5];
+const ENFORCEMENT: TravelMode = { kmh: 15, followsOneWay: true, limitFactor: 1 };
+const ENFORCEMENT_REST: RestMinutes = [0.5, 2];
+const SCOOTER_KMH = 20;
+const SCOOTER_REST: RestMinutes = [10, 45];
+const SCOOTER_TRIP_KM = 2.5;
+const SCOOTER_BATTERY_PER_KM = 3;
+const SCOOTER_MIN_BATTERY = 15;
+const FOOT_PATROL_KM = 1;
+const MAX_RESPONSE_MS = 20 * MINUTE;
+const RESYNC_KM = 0.05;
+
+type RestMinutes = readonly [number, number];
+
+function agentVehicle(agent: Agent, byId: Map<number, Equipment>): Equipment | undefined {
+  const vehicle = agent.vehicleId === null ? undefined : byId.get(agent.vehicleId);
+  return vehicle?.status === "operational" ? vehicle : undefined;
+}
+
+function agentModes(vehicle: Equipment | undefined) {
+  if (!vehicle) {
+    return AGENT_MODES.foot;
+  }
+  return vehicle.type === "agent_motorcycle" || vehicle.attributes["vehicleKind"] === "motorcycle"
+    ? AGENT_MODES.motorcycle
+    : AGENT_MODES.car;
+}
+
 type Repair = { phase: "malfunction" | "maintenance"; until: number; preventive: boolean };
 type FlowOverride = { mode: "stuck" | "spike"; until: number };
 type Burst = { neighborhoodId: string; kind: OccurrenceKind; remaining: number };
@@ -87,13 +142,15 @@ export type Simulator = ReturnType<typeof createSimulator>;
 export function createSimulator(
   db: Database,
   city: CityDataset,
+  roads: RoadNetwork,
   hub: LiveHub,
   demand: DemandModel,
   options: SimulatorOptions,
 ) {
   const random: Random = createRandom(options.seed);
   const multiplier = options.liveMultiplier;
-  const targets = new Map<string, LngLat>();
+  const journeys = new Map<string, Journey>();
+  const resting = new Map<string, number>();
   const arrivals = new Map<number, number>();
   const silent = new Map<number, number>();
   const overrides = new Map<number, FlowOverride>();
@@ -111,30 +168,65 @@ export function createSimulator(
     baseVolumes.set(row.equipment_id, row.base_volume);
   }
 
-  const streetPoints = city.streets.map((street): LngLat => [street.lng, street.lat]);
-  const streetsByRegion = new Map<string, LngLat[]>();
-  for (const street of city.streets) {
-    const region =
-      city.neighborhoods.find((item) => item.id === street.neighborhoodId)?.regionId ?? "center";
-    const list = streetsByRegion.get(region) ?? [];
-    list.push([street.lng, street.lat]);
-    streetsByRegion.set(region, list);
-  }
   const regionOf = new Map(city.neighborhoods.map((item) => [item.id, item.regionId]));
+  const allNodes = Array.from({ length: roads.nodeCount }, (_, index) => index);
+  const nodesByRegion = new Map<string, number[]>();
+  for (const node of allNodes) {
+    const point = roads.point(node);
+    const owner = city.neighborhoods.reduce((best, item) =>
+      distanceKm(point, [item.lng, item.lat]) < distanceKm(point, [best.lng, best.lat])
+        ? item
+        : best,
+    );
+    const list = nodesByRegion.get(owner.regionId) ?? [];
+    list.push(node);
+    nodesByRegion.set(owner.regionId, list);
+  }
+  const regionNodes = (regionId: string | undefined) =>
+    (regionId && nodesByRegion.get(regionId)) || allNodes;
 
-  const kmPerMs = (kmh: number) => (kmh * options.movementSpeedup) / HOUR;
   const perTick = (meanIntervalMs: number, dt: number) => random.chance(dt / meanIntervalMs);
 
-  function patrolTarget(key: string, regionId: string | null): LngLat {
-    const existing = targets.get(key);
-    if (existing) {
+  function onRoad(point: LngLat): LngLat {
+    return roads.point(roads.nearestNode(point));
+  }
+
+  function journeyFor(key: string, position: LngLat): Journey {
+    const existing = journeys.get(key);
+    if (existing && distanceKm(existing.position, position) <= RESYNC_KM) {
       return existing;
     }
-    const pool = (regionId && streetsByRegion.get(regionId)) || streetPoints;
-    const [lng, lat] = random.pick(pool);
-    const target: LngLat = [lng + random.normal(0, 0.0008), lat + random.normal(0, 0.0008)];
-    targets.set(key, target);
-    return target;
+    const journey = placeOnRoad(roads, position);
+    journeys.set(key, journey);
+    resting.delete(key);
+    return journey;
+  }
+
+  function roam(
+    key: string,
+    position: LngLat,
+    mode: TravelMode,
+    dt: number,
+    now: number,
+    [minRest, maxRest]: RestMinutes,
+    destinations: (from: LngLat) => readonly number[],
+  ): number {
+    const previous = journeys.get(key);
+    const journey = journeyFor(key, position);
+    if (journey.path.length === 0) {
+      const until = resting.get(key);
+      if (until === undefined) {
+        const phase = journey === previous ? 1 : random.next();
+        resting.set(key, now + phase * (minRest + random.next() * (maxRest - minRest)) * MINUTE);
+        return 0;
+      }
+      if (now < until) {
+        return 0;
+      }
+      resting.delete(key);
+      setDestination(roads, journey, random.pick(destinations(journey.position)), mode);
+    }
+    return advance(roads, journey, mode, dt);
   }
 
   function flowVolume(item: Equipment): number {
@@ -208,7 +300,9 @@ export function createSimulator(
     equipment: Equipment[],
   ): Occurrence {
     let equipmentId: number | null = null;
-    const location = occurrenceLocation(random, city, neighborhoodId);
+    const sampled = occurrenceLocation(random, city, neighborhoodId);
+    const [lng, lat] = onRoad([sampled.lng, sampled.lat]);
+    const location = { lat, lng };
     if (kind === "vandalism" || kind === "traffic_light_out") {
       const candidates = equipment.filter(
         (item) =>
@@ -347,16 +441,19 @@ export function createSimulator(
           continue;
         }
         const point: LngLat = [occurrence.lng, occurrence.lat];
-        const candidates = [...agentById.values()].filter((agent) => agent.status === "available");
+        const etaHours = (agent: Agent) =>
+          distanceKm([agent.lng, agent.lat], point) /
+          agentModes(agentVehicle(agent, byId)).response.kmh;
+        const candidates = [...agentById.values()].filter(
+          (agent) => agent.status === "available" && etaHours(agent) * HOUR <= MAX_RESPONSE_MS,
+        );
         const preferred = candidates.filter((agent) => roles.includes(agent.role));
         const pool = preferred.length > 0 ? preferred : occurrence.severity >= 3 ? candidates : [];
         if (pool.length === 0) {
           continue;
         }
         const nearest = pool.reduce((best, agent) =>
-          distanceKm([agent.lng, agent.lat], point) < distanceKm([best.lng, best.lat], point)
-            ? agent
-            : best,
+          etaHours(agent) < etaHours(best) ? agent : best,
         );
         assignOccurrence(db, occurrence.id, nearest.id);
         db.prepare(
@@ -381,6 +478,9 @@ export function createSimulator(
 
       for (const agent of agentById.values()) {
         let position: LngLat = [agent.lng, agent.lat];
+        const key = `agent-${agent.id}`;
+        const vehicle = agentVehicle(agent, byId);
+        const modes = agentModes(vehicle);
         if (agent.status === "responding" && agent.occurrenceId !== null) {
           const occurrence = getOccurrence(db, agent.occurrenceId);
           if (!occurrence || occurrence.status === "resolved") {
@@ -390,9 +490,15 @@ export function createSimulator(
             agent.status = "available";
             agent.occurrenceId = null;
           } else {
-            const destination: LngLat = [occurrence.lng, occurrence.lat];
-            position = moveTowards(position, destination, kmPerMs(RESPONSE_KMH) * dt);
-            if (distanceKm(position, destination) <= ARRIVAL_KM) {
+            const journey = journeyFor(key, position);
+            const destination = roads.nearestNode([occurrence.lng, occurrence.lat]);
+            if (journey.destination !== destination) {
+              setDestination(roads, journey, destination, modes.response);
+            }
+            resting.delete(key);
+            advance(roads, journey, modes.response, dt);
+            position = journey.position;
+            if (journey.path.length === 0) {
               const arrivedAt = arrivals.get(occurrence.id) ?? now;
               arrivals.set(occurrence.id, arrivedAt);
               if (
@@ -411,12 +517,12 @@ export function createSimulator(
             }
           }
         } else if (agent.status === "available") {
-          const key = `agent-${agent.id}`;
-          const target = patrolTarget(key, regionOf.get(agent.baseNeighborhoodId) ?? null);
-          position = moveTowards(position, target, kmPerMs(PATROL_KMH) * dt);
-          if (distanceKm(position, target) <= ARRIVAL_KM) {
-            targets.delete(key);
-          }
+          roam(key, position, modes.patrol, dt, now, modes.rest, (from) =>
+            vehicle
+              ? regionNodes(regionOf.get(agent.baseNeighborhoodId))
+              : roads.nodesWithin(from, FOOT_PATROL_KM),
+          );
+          position = journeys.get(key)!.position;
         }
         if (position[0] !== agent.lng || position[1] !== agent.lat || agent.status !== "off_duty") {
           updateAgentPosition.run(position[1], position[0], now, agent.id);
@@ -428,8 +534,7 @@ export function createSimulator(
           status: agent.status,
           occurrenceId: agent.occurrenceId,
         });
-        const vehicle = agent.vehicleId === null ? undefined : byId.get(agent.vehicleId);
-        if (vehicle && vehicle.status === "operational" && agent.status !== "off_duty") {
+        if (vehicle && agent.status !== "off_duty") {
           updateVehicle.run(position[1], position[0], now, vehicle.id);
           moving.push({
             id: vehicle.id,
@@ -451,37 +556,35 @@ export function createSimulator(
         ) {
           continue;
         }
-        let position: LngLat = [item.currentLng ?? item.lng, item.currentLat ?? item.lat];
+        const key = `equipment-${item.id}`;
+        const stored: LngLat = [item.currentLng ?? item.lng, item.currentLat ?? item.lat];
         let battery = item.battery;
         if (item.type === "e_scooter") {
-          if (random.chance(0.25)) {
-            const target = patrolTarget(
-              `equipment-${item.id}`,
-              regionOf.get(item.neighborhoodId) ?? null,
-            );
-            position = moveTowards(position, target, kmPerMs(15) * dt);
-            if (distanceKm(position, target) <= ARRIVAL_KM) {
-              targets.delete(`equipment-${item.id}`);
+          const parked = (journeys.get(key)?.path.length ?? 0) === 0;
+          if (parked && (battery ?? 100) < SCOOTER_MIN_BATTERY) {
+            if (perTick(30 * MINUTE, dt)) {
+              battery = 100;
             }
-            battery = Math.max(0, (battery ?? 100) - random.next() * 0.6);
-          } else if ((battery ?? 100) < 10 && random.chance(0.05)) {
-            battery = 100;
+          } else {
+            const maxSpeed = item.attributes["maxSpeed"];
+            const mode: TravelMode = {
+              kmh: typeof maxSpeed === "number" ? Math.min(maxSpeed, SCOOTER_KMH) : SCOOTER_KMH,
+              followsOneWay: true,
+              limitFactor: 1,
+            };
+            const km = roam(key, stored, mode, dt, now, SCOOTER_REST, (from) =>
+              roads.nodesWithin(from, SCOOTER_TRIP_KM),
+            );
+            battery = Math.max(0, (battery ?? 100) - km * SCOOTER_BATTERY_PER_KM);
           }
-        } else if (
-          item.type === "transport_vehicle" ||
-          item.type === "parking_enforcement_vehicle"
-        ) {
-          const target = patrolTarget(
-            `equipment-${item.id}`,
-            item.type === "parking_enforcement_vehicle" ? "center" : null,
-          );
-          position = moveTowards(position, target, kmPerMs(VEHICLE_KMH) * dt);
-          if (distanceKm(position, target) <= ARRIVAL_KM) {
-            targets.delete(`equipment-${item.id}`);
-          }
+        } else if (item.type === "transport_vehicle") {
+          roam(key, stored, TAXI, dt, now, TAXI_REST, () => allNodes);
+        } else if (item.type === "parking_enforcement_vehicle") {
+          roam(key, stored, ENFORCEMENT, dt, now, ENFORCEMENT_REST, () => regionNodes("center"));
         } else {
           continue;
         }
+        const position = journeys.get(key)?.position ?? stored;
         db.prepare(
           "UPDATE equipment SET current_lat = ?, current_lng = ?, battery = ? WHERE id = ?",
         ).run(position[1], position[0], battery, item.id);
@@ -720,13 +823,10 @@ export function createSimulator(
     if (change.status === "off_duty") {
       const base = city.neighborhoods.find((item) => item.id === agent.baseNeighborhoodId);
       if (base) {
-        db.prepare("UPDATE agents SET lat = ?, lng = ? WHERE id = ?").run(
-          base.lat,
-          base.lng,
-          agent.id,
-        );
-        agent.lat = base.lat;
-        agent.lng = base.lng;
+        const [lng, lat] = onRoad([base.lng, base.lat]);
+        db.prepare("UPDATE agents SET lat = ?, lng = ? WHERE id = ?").run(lat, lng, agent.id);
+        agent.lat = lat;
+        agent.lng = lng;
       }
     }
   }

@@ -14,7 +14,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=build /app/dist ./dist
 COPY src ./src
-COPY data/marilia.json ./data/marilia.json
+COPY data/marilia.json data/marilia-roads.json ./data/
 USER node
 VOLUME /app/storage
 EXPOSE 3210

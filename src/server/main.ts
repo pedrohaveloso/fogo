@@ -2,7 +2,7 @@ import { existsSync, rmSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createApp } from "./app.ts";
-import { city } from "./city.ts";
+import { city, roads } from "./city.ts";
 import { getSetting, openDatabase } from "./db.ts";
 import { createLiveHub } from "./live.ts";
 import { createDemandModel } from "./patterns.ts";
@@ -12,7 +12,7 @@ import { createSimulator } from "./simulator.ts";
 
 const port = Number(process.env["PORT"] ?? 3210);
 const databasePath = process.env["FOGO_DB"] ?? "data/fogo.db";
-const liveMultiplier = Number(process.env["FOGO_LIVE_MULTIPLIER"] ?? 60);
+const liveMultiplier = Number(process.env["FOGO_LIVE_MULTIPLIER"] ?? 20);
 const simulationEnabled = process.env["FOGO_SIMULATION"] !== "off";
 const seed = Number(process.env["FOGO_SEED"] ?? 20261027);
 const webRoot = "dist/web";
@@ -57,9 +57,8 @@ if (existsSync(webRoot)) {
   app.get("*", (c, next) => (c.req.path.startsWith("/api/") ? next() : page(c, next)));
 }
 
-const simulator = createSimulator(db, city, hub, createDemandModel(city, seededAt), {
+const simulator = createSimulator(db, city, roads, hub, createDemandModel(city, seededAt), {
   liveMultiplier,
-  movementSpeedup: 6,
   tickMs: 2000,
   seed: seed ^ Date.now(),
   seededAt,

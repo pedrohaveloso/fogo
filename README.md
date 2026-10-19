@@ -57,7 +57,9 @@ A situação de cada equipamento aparece pela cor e também pela forma do marcad
 
 No topo ficam os indicadores: total de equipamentos, disponibilidade, operacionais, indisponíveis, agentes em atividade, ocorrências abertas e manutenções urgentes. À esquerda estão os filtros (tipo, situação, região, bairro, órgão, manutenção e busca) e a situação de cada região. À direita fica a lista de alertas, que podem ser reconhecidos ou localizados no mapa. Clicar em qualquer marcador abre os detalhes, com histórico de situação e a telemetria das últimas 48 horas.
 
-Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o papel dos dispositivos IoT: movimenta agentes e veículos, gera ocorrências segundo o padrão histórico de cada bairro, despacha o agente disponível mais próximo, registra falhas, reparos, manutenções preventivas, furtos e quedas de comunicação, e acumula as contagens dos sensores. Para a demonstração ter movimento, ocorrências e falhas acontecem 60 vezes mais rápido que na vida real. Os modelos de previsão descontam essa aceleração.
+Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o papel dos dispositivos IoT: movimenta agentes e veículos, gera ocorrências segundo o padrão histórico de cada bairro, despacha o agente disponível que chega mais rápido, registra falhas, reparos, manutenções preventivas, furtos e quedas de comunicação, e acumula as contagens dos sensores. Para a demonstração ter movimento, ocorrências e falhas acontecem 20 vezes mais rápido que na vida real. Os modelos de previsão descontam essa aceleração.
+
+O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h na ronda e a 7 km/h a caminho de uma ocorrência. Viaturas e motos patrulham a 30 km/h e vão a um chamado a até 60 e 65 km/h. Táxis e mototáxis rodam a 40 km/h, o veículo de fiscalização a 15 km/h e os patinetes a 15 ou 20 km/h, conforme o limitador. Veículos respeitam a mão de direção e o limite de cada trecho; só viaturas e motos em atendimento passam um pouco do limite. O despacho só considera quem chega em até 20 minutos.
 
 ### Cidade preditiva
 
@@ -75,6 +77,8 @@ Cada bloco da página explica o que está sendo previsto, com quais dados e como
 
 Os bairros, ruas e pontos de referência de Marília vêm do OpenStreetMap (licença ODbL), e os CEPs foram conferidos no ViaCEP. O script `pnpm geo` refaz a base em `data/marilia.json`. Ele precisa de internet e leva uns quatro minutos por causa do intervalo entre consultas ao ViaCEP. Os limites dos bairros são células de Voronoi em torno dos pontos de cada bairro, recortadas pelo contorno urbano.
 
+A malha viária usada no deslocamento fica em `data/marilia-roads.json`, com mão de direção e limite de velocidade de cada trecho. O script `pnpm roads` refaz o arquivo. Rode depois do `pnpm geo`, porque ele recorta as ruas pelo contorno urbano de `data/marilia.json`.
+
 Equipamentos, agentes, histórico de ocorrências e telemetria são simulados. O gerador cria padrões que um sistema real teria: picos de trânsito no começo da manhã e no fim da tarde, mais ocorrências de segurança nas noites de sexta e sábado, bairros comerciais com mais estacionamento irregular, equipamentos com manutenção atrasada falhando mais, uma frota de patinetes envelhecendo e alguns bairros com ocorrências em alta nas últimas semanas. A parte preditiva precisa descobrir esses padrões sozinha.
 
 ## Configuração
@@ -83,7 +87,7 @@ Equipamentos, agentes, histórico de ocorrências e telemetria são simulados. O
 | ---------------------- | -------------- | ------------------------------------------------------- |
 | `PORT`                 | `3210`         | Porta HTTP                                              |
 | `FOGO_DB`              | `data/fogo.db` | Caminho do banco SQLite                                 |
-| `FOGO_LIVE_MULTIPLIER` | `60`           | Aceleração de ocorrências e falhas na simulação ao vivo |
+| `FOGO_LIVE_MULTIPLIER` | `20`           | Aceleração de ocorrências e falhas na simulação ao vivo |
 | `FOGO_SIMULATION`      | ligada         | Use `off` para desligar o simulador                     |
 | `FOGO_SEED`            | `20261027`     | Semente do gerador de dados                             |
 
@@ -95,8 +99,8 @@ TypeScript nos dois lados. O servidor usa Hono, o SQLite embutido no Node.js (`n
 src/shared/   tipos, catálogo de equipamentos, geografia e horário de Marília
 src/server/   API, banco, simulador, gerador de dados e modelos de previsão
 src/web/      interface
-scripts/      geração da base geográfica e servidor de desenvolvimento
-data/         base geográfica de Marília (o banco também fica aqui)
+scripts/      geração da base geográfica e da malha viária, e servidor de desenvolvimento
+data/         base geográfica e malha viária de Marília (o banco também fica aqui)
 ```
 
 Os modelos de previsão ficam em `src/server/predictions/`, um arquivo por modelo, todos como funções puras testadas com dados sintéticos.

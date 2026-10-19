@@ -1,8 +1,16 @@
+import { readFileSync } from "node:fs";
 import dataset from "../../data/marilia.json" with { type: "json" };
 import { distanceKm, type LngLat } from "../shared/geo.ts";
 import type { CityDataset, Neighborhood } from "../shared/types.ts";
+import { createRoadNetwork, type RoadData } from "./roads.ts";
 
 export const city = dataset as CityDataset;
+
+export const roads = createRoadNetwork(
+  JSON.parse(
+    readFileSync(new URL("../../data/marilia-roads.json", import.meta.url), "utf8"),
+  ) as RoadData,
+);
 
 export const neighborhoodsById = new Map(city.neighborhoods.map((item) => [item.id, item]));
 export const regionsById = new Map(city.regions.map((item) => [item.id, item]));

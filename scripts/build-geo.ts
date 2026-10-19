@@ -7,23 +7,14 @@ import {
   voronoiCells,
   type LngLat,
 } from "../src/shared/geo.ts";
+import { overpass, USER_AGENT, type OsmElement } from "./overpass.ts";
 
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const USER_AGENT = "fogo-dataset/1.0";
 const BBOX = { south: -22.275, north: -22.15, west: -50.03, east: -49.88 };
 const CENTER_KM = 1.3;
 const MIN_STREETS_PER_NEIGHBORHOOD = 6;
 const CEP_STREETS_PER_NEIGHBORHOOD = 6;
 const URBAN_MARGIN = 1.03;
 const OUTPUT = new URL("../data/marilia.json", import.meta.url);
-
-type OsmElement = {
-  type: string;
-  lat?: number;
-  lon?: number;
-  center?: { lat: number; lon: number };
-  tags?: Record<string, string>;
-};
 
 type ViaCepAddress = { cep: string; logradouro: string; bairro: string };
 
@@ -53,19 +44,6 @@ const REGION_NAMES = {
 } as const;
 
 type RegionId = keyof typeof REGION_NAMES;
-
-async function overpass(query: string): Promise<OsmElement[]> {
-  const response = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    body: new URLSearchParams({ data: `[out:json][timeout:150];${query}` }),
-  });
-  if (!response.ok) {
-    throw new Error(`Overpass respondeu ${response.status}`);
-  }
-  const body = (await response.json()) as { elements: OsmElement[] };
-  return body.elements;
-}
 
 function position(element: OsmElement): LngLat | null {
   const lat = element.center?.lat ?? element.lat;

@@ -3,15 +3,17 @@ import { EQUIPMENT_TYPES, OCCURRENCE_KINDS, regionWith } from "../../shared/cata
 import { localParts } from "../../shared/time.ts";
 import type {
   Anomaly,
+  AnomalyKind,
   BacktestResult,
   FailureRiskReport,
   RiskForecast,
+  RiskLevel,
   StaffingPlan,
   TrendReport,
   TrendSeries,
 } from "../../shared/types.ts";
 import { RISK_COLORS } from "../colors.ts";
-import { RiskTag } from "../components/badges.tsx";
+import { LevelPlate, Meter, RiskTag } from "../components/badges.tsx";
 import { LineChart } from "../components/charts/LineChart.tsx";
 import { WeekHeatmap } from "../components/charts/WeekHeatmap.tsx";
 import {
@@ -21,6 +23,7 @@ import {
   formatInteger,
   formatPercent,
   formatShortDate,
+  formatSigned,
 } from "../format.ts";
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { useMeta } from "../live.ts";
@@ -30,10 +33,29 @@ import { useNow } from "../useNow.ts";
 
 const HORIZONS = [2, 4, 6, 8, 12, 24];
 const REGION_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181"];
+const ANOMALY_PREVIEW = 6;
+const MUTED_MARK = "#6b7079";
+
+const ANOMALY_LABELS: Record<AnomalyKind, string> = {
+  flow_drop: "Queda de fluxo",
+  flow_spike: "Pico de fluxo",
+  silent_device: "Leitura zerada",
+  occurrence_spike: "Concentração de ocorrências",
+};
+
+function anomalyLevel(anomaly: Anomaly): "critical" | "warning" {
+  return anomaly.kind === "occurrence_spike" || anomaly.kind === "silent_device"
+    ? "critical"
+    : "warning";
+}
+
+function riskMark(level: RiskLevel): string {
+  return level === "low" ? MUTED_MARK : RISK_COLORS[level];
+}
 
 function Explain({ what, data, use }: { what: ReactNode; data: ReactNode; use: ReactNode }) {
   return (
-    <details className="explain">
+    <details className="explain disclosure">
       <summary>Como esta previsão funciona</summary>
       <dl>
         <dt>O que é previsto</dt>
@@ -74,26 +96,29 @@ function RiskSection({ hours }: { hours: number }) {
           {counts.critical} crítico(s), {counts.high} alto(s), {counts.moderate} moderado(s)
         </p>
       </div>
-      <div className="grid-2">
-        <div>
+      <div className="risk-layout">
+        <div className="risk-map-column">
           <RiskMap
             meta={meta}
             risks={data.neighborhoods}
             selected={selected}
             onSelect={setSelected}
           />
-          <div className="legend" style={{ marginTop: 8 }}>
+          <div className="legend">
             {(["critical", "high", "moderate", "low"] as const).map((level) => (
               <RiskTag key={level} level={level} />
             ))}
           </div>
           {selectedRisk && (
-            <div className="panel" style={{ marginTop: 10, background: "var(--surface-2)" }}>
-              <h3>{selectedRisk.name}</h3>
+            <div className="risk-detail" role="status">
+              <div className="risk-detail-head">
+                <h3>{selectedRisk.name}</h3>
+                <RiskTag level={selectedRisk.level} />
+              </div>
               <p className="hint">
                 {regionName(selectedRisk.regionId)}, índice {Math.round(selectedRisk.score)} de 100
               </p>
-              <p style={{ marginTop: 6 }}>
+              <p>
                 {formatDecimal(selectedRisk.expected)} ocorrência(s) esperada(s) até as{" "}
                 {formatHour((data.startHour + hours) % 24)}, com pico às{" "}
                 {formatHour(selectedRisk.peakHour)}. Mais prováveis:{" "}
@@ -103,7 +128,7 @@ function RiskSection({ hours }: { hours: number }) {
                 .
               </p>
               {selectedRisk.coveragePenalty > 0 && (
-                <p className="hint" style={{ marginTop: 6 }}>
+                <p className="hint">
                   Câmeras, radares ou semáforos fora de operação no bairro aumentam o índice em{" "}
                   {formatPercent(selectedRisk.coveragePenalty * 100)}.
                 </p>
@@ -121,15 +146,14 @@ function RiskSection({ hours }: { hours: number }) {
               <li key={item.neighborhoodId}>
                 <button
                   type="button"
-                  className="risk-row row-button"
-                  style={{ width: "100%", fontWeight: 400 }}
+                  className="risk-row"
                   aria-pressed={selected === item.neighborhoodId}
                   onClick={() => setSelected(item.neighborhoodId)}
                 >
-                  <span className="hint">{index + 1}</span>
+                  <span className="risk-rank">{index + 1}</span>
                   <span>
-                    <strong>{item.name}</strong>
-                    <span className="hint" style={{ display: "block" }}>
+                    <span className="risk-name">{item.name}</span>
+                    <span className="cell-sub">
                       {OCCURRENCE_KINDS[item.topKinds[0]!.kind].label}, pico às{" "}
                       {formatHour(item.peakHour)}
                       {item.trendPct >= 25
@@ -137,22 +161,10 @@ function RiskSection({ hours }: { hours: number }) {
                         : ""}
                     </span>
                   </span>
-                  <span className="meter" aria-hidden="true">
-                    <span
-                      style={{
-                        width: `${item.score}%`,
-                        background:
-                          RISK_COLORS[item.level] === RISK_COLORS.low
-                            ? "#6b7079"
-                            : RISK_COLORS[item.level],
-                      }}
-                    />
-                  </span>
-                  <span style={{ textAlign: "right" }}>
+                  <Meter value={item.score} color={riskMark(item.level)} />
+                  <span className="risk-score">
                     <strong>{Math.round(item.score)}</strong>
-                    <span style={{ display: "block" }}>
-                      <RiskTag level={item.level} />
-                    </span>
+                    <RiskTag level={item.level} />
                   </span>
                 </button>
               </li>
@@ -226,6 +238,9 @@ function StaffingSection({ hours }: { hours: number }) {
               <th scope="col" className="num">
                 Agentes ativos
               </th>
+              <th scope="col" className="num">
+                Saldo
+              </th>
               <th scope="col">Pico</th>
               <th scope="col">Recomendação</th>
             </tr>
@@ -239,10 +254,16 @@ function StaffingSection({ hours }: { hours: number }) {
                 <td className="num">{formatDecimal(region.expectedOccurrences)}</td>
                 <td className="num">{formatDecimal(region.workloadHours)}</td>
                 <td className="num">{region.requiredAgents}</td>
-                <td className="num" style={{ color: region.gap > 0 ? "#ff9d9d" : undefined }}>
-                  {region.activeAgents}
+                <td className="num">{region.activeAgents}</td>
+                <td className="num">
+                  <span
+                    className="balance"
+                    data-tone={region.gap > 0 ? "deficit" : region.gap < 0 ? "surplus" : undefined}
+                  >
+                    {formatSigned(-region.gap)}
+                  </span>
                 </td>
-                <td>{region.peakWindow}</td>
+                <td style={{ whiteSpace: "nowrap" }}>{region.peakWindow}</td>
                 <td>{region.action}</td>
               </tr>
             ))}
@@ -250,7 +271,7 @@ function StaffingSection({ hours }: { hours: number }) {
         </table>
       </div>
       {data.moves.length > 0 && (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 16 }}>
           <h3 className="section-title">Remanejamento sugerido</h3>
           <ul className="insights">
             {data.moves.map((move) => (
@@ -274,14 +295,25 @@ function StaffingSection({ hours }: { hours: number }) {
 function AnomalySection() {
   const meta = useMeta();
   const { data, error } = useFetch<Anomaly[]>("/predictions/anomalies", 15_000);
+  const [showAll, setShowAll] = useState(false);
   if (!data || !meta) {
     return <Loading error={error} />;
   }
+  const ordered = data.toSorted(
+    (a, b) =>
+      Number(anomalyLevel(b) === "critical") - Number(anomalyLevel(a) === "critical") ||
+      b.score - a.score,
+  );
+  const shown = showAll ? ordered : ordered.slice(0, ANOMALY_PREVIEW);
   return (
     <section className="panel" aria-labelledby="anomalies-title">
       <div className="panel-head">
         <h2 id="anomalies-title">Comportamentos fora do padrão</h2>
-        <p>Atualizado a cada 15 segundos</p>
+        <p>
+          {data.length === 0
+            ? "Atualizado a cada 15 segundos"
+            : `${data.length} agora, atualizado a cada 15 segundos`}
+        </p>
       </div>
       {data.length === 0 ? (
         <p className="empty">
@@ -289,29 +321,45 @@ function AnomalySection() {
           esperado para o horário.
         </p>
       ) : (
-        <ul className="alert-list">
-          {data.map((anomaly) => (
-            <li
-              key={anomaly.id}
-              className="alert"
-              data-level={
-                anomaly.kind === "occurrence_spike" || anomaly.kind === "silent_device"
-                  ? "critical"
-                  : "warning"
-              }
-            >
-              <span className="alert-title">{anomaly.title}</span>
-              <span className="alert-detail">{anomaly.detail}</span>
-              <span className="alert-meta">
-                {meta.neighborhoods.find((item) => item.id === anomaly.neighborhoodId)?.name},
-                desvio de {formatDecimal(anomaly.score)}{" "}
-                {anomaly.kind === "occurrence_spike"
-                  ? "(escala logarítmica da improbabilidade)"
-                  : "desvios-padrão"}
-              </span>
-            </li>
-          ))}
+        <ul className="alert-list anomaly-grid">
+          {shown.map((anomaly) => {
+            const level = anomalyLevel(anomaly);
+            return (
+              <li key={anomaly.id} className="alert" data-level={level}>
+                <div className="alert-head">
+                  <span className="alert-kind">
+                    <LevelPlate level={level} />
+                    {ANOMALY_LABELS[anomaly.kind]}
+                  </span>
+                  <span>
+                    {meta.neighborhoods.find((item) => item.id === anomaly.neighborhoodId)?.name}
+                  </span>
+                </div>
+                <span className="alert-title">{anomaly.title}</span>
+                <span className="alert-detail">{anomaly.detail}</span>
+                <span className="alert-detail">
+                  Desvio de {formatDecimal(anomaly.score)}{" "}
+                  {anomaly.kind === "occurrence_spike"
+                    ? "na escala logarítmica da improbabilidade"
+                    : "desvios-padrão"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
+      )}
+      {data.length > ANOMALY_PREVIEW && (
+        <button
+          type="button"
+          className="button button-small"
+          style={{ marginTop: 12 }}
+          aria-expanded={showAll}
+          onClick={() => setShowAll(!showAll)}
+        >
+          {showAll
+            ? `Mostrar só as ${ANOMALY_PREVIEW} primeiras`
+            : `Mostrar todas as ${data.length}`}
+        </button>
       )}
       <Explain
         what="Sensores que pararam de contar, quedas ou picos de fluxo de veículos e concentrações de ocorrências que fogem do normal para o horário."
@@ -328,6 +376,7 @@ function FailureSection() {
   if (!data || !meta) {
     return <Loading error={error} />;
   }
+  const highest = Math.max(...data.items.map((item) => item.probability7d), 0.01);
   return (
     <section className="panel" aria-labelledby="failures-title">
       <div className="panel-head">
@@ -343,9 +392,7 @@ function FailureSection() {
             <tr>
               <th scope="col">Equipamento</th>
               <th scope="col">Bairro</th>
-              <th scope="col" className="num">
-                Chance de falha
-              </th>
+              <th scope="col">Chance de falha</th>
               <th scope="col">Por quê</th>
               <th scope="col">Recomendação</th>
             </tr>
@@ -358,9 +405,7 @@ function FailureSection() {
                     <Glyph d={TYPE_GLYPHS[item.type]} />
                     <span>
                       <strong>{item.serialNumber}</strong>
-                      <span className="hint" style={{ display: "block" }}>
-                        {EQUIPMENT_TYPES[item.type].label}
-                      </span>
+                      <span className="cell-sub">{EQUIPMENT_TYPES[item.type].label}</span>
                     </span>
                   </span>
                 </td>
@@ -371,18 +416,14 @@ function FailureSection() {
                     )?.name
                   }
                 </td>
-                <td className="num">
-                  <strong>{formatPercent(item.probability7d * 100)}</strong>
+                <td>
+                  <span className="probability">
+                    <strong>{formatPercent(item.probability7d * 100)}</strong>
+                    <Meter value={item.probability7d} max={highest} color="#ec835a" />
+                  </span>
                 </td>
                 <td>
-                  <ul
-                    style={{
-                      margin: 0,
-                      paddingLeft: 16,
-                      color: "var(--ink-2)",
-                      fontSize: "0.86rem",
-                    }}
-                  >
+                  <ul className="factor-list">
                     {item.factors.slice(0, 3).map((factor) => (
                       <li key={factor}>{factor}</li>
                     ))}
@@ -416,7 +457,15 @@ function usageTrend(series: TrendSeries): string {
   return `${weekly > 0 ? "Alta" : "Queda"} de ${formatDecimal(Math.abs(weekly))}% por semana, média de ${formatCompact(average)} por dia`;
 }
 
-function TrendChart({ series, unit }: { series: TrendSeries; unit: "percent" | "count" }) {
+function TrendChart({
+  series,
+  unit,
+  height,
+}: {
+  series: TrendSeries;
+  unit: "percent" | "count";
+  height?: number;
+}) {
   const values = [...series.values, ...series.projection.map((item) => item.value)];
   const labels = [...series.days, ...series.projection.map((item) => item.day)].map(
     formatShortDate,
@@ -438,6 +487,7 @@ function TrendChart({ series, unit }: { series: TrendSeries; unit: "percent" | "
       yFormat={(value) => (unit === "percent" ? formatPercent(value) : formatCompact(value))}
       yMin={unit === "percent" ? Math.max(0, Math.floor(Math.min(...values) / 10) * 10) : 0}
       yMax={unit === "percent" ? 100 : undefined}
+      {...(height ? { height } : {})}
     />
   );
 }
@@ -458,7 +508,7 @@ function TrendSection() {
         <p>Histórico com projeção pela tendência recente</p>
       </div>
       {data.insights.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
           <h3 className="section-title">O que mudou nas últimas semanas</h3>
           <ul className="insights">
             {data.insights.map((insight) => (
@@ -469,20 +519,25 @@ function TrendSection() {
       )}
       <div className="grid-2">
         <div>
-          <h3 className="section-title">Disponibilidade dos equipamentos</h3>
-          <fieldset className="tabs" style={{ marginBottom: 10 }}>
-            <legend className="visually-hidden">Tipo de equipamento</legend>
-            {data.availability.map((series) => (
-              <button
-                key={series.key}
-                type="button"
-                aria-pressed={series.key === availability?.key}
-                onClick={() => setAvailabilityKey(series.key)}
+          <div className="chart-head">
+            <h3 className="section-title">Disponibilidade dos equipamentos</h3>
+            <div className="field chart-select">
+              <label htmlFor="availability-type" className="visually-hidden">
+                Tipo de equipamento
+              </label>
+              <select
+                id="availability-type"
+                value={availability?.key}
+                onChange={(event) => setAvailabilityKey(event.target.value)}
               >
-                {series.key === "all" ? "Todos" : series.label}
-              </button>
-            ))}
-          </fieldset>
+                {data.availability.map((series) => (
+                  <option key={series.key} value={series.key}>
+                    {series.key === "all" ? "Todos os tipos" : series.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           {availability && <TrendChart series={availability} unit="percent" />}
           {availability && (
             <p className="hint">
@@ -493,7 +548,9 @@ function TrendSection() {
           )}
         </div>
         <div>
-          <h3 className="section-title">Ocorrências por semana e região</h3>
+          <div className="chart-head">
+            <h3 className="section-title">Ocorrências por semana e região</h3>
+          </div>
           <LineChart
             title="Ocorrências por semana em cada região"
             series={data.occurrences.map((series, index) => ({
@@ -508,14 +565,14 @@ function TrendSection() {
         </div>
       </div>
       {data.usage.length > 0 && (
-        <div style={{ marginTop: 18 }}>
+        <div style={{ marginTop: 24 }}>
           <h3 className="section-title">Utilização dos equipamentos nas últimas 4 semanas</h3>
           <div className="grid-3">
             {data.usage.map((series) => (
-              <div key={series.key}>
-                <p style={{ fontWeight: 600 }}>{series.label}</p>
+              <div key={series.key} className="small-multiple">
+                <p className="small-multiple-title">{series.label}</p>
                 <p className="hint">{usageTrend(series)}</p>
-                <TrendChart series={series} unit="count" />
+                <TrendChart series={series} unit="count" height={170} />
               </div>
             ))}
           </div>
@@ -535,6 +592,7 @@ function BacktestSection() {
   if (!data) {
     return <Loading error={error} />;
   }
+  const rateScale = Math.max(data.topHitRate, data.baselineTopHitRate, 1);
   return (
     <section className="panel" aria-labelledby="backtest-title">
       <div className="panel-head">
@@ -542,22 +600,29 @@ function BacktestSection() {
         <p>Teste com os últimos {data.days} dias, sem que o modelo os tenha visto</p>
       </div>
       <div className="stat-row">
-        <div>
+        <div className="stat">
           <div className="stat-value">{formatPercent(data.topHitRate)}</div>
           <p className="stat-label">
             das ocorrências caíram nos 10% de blocos de 4 horas que o modelo apontou como mais
-            arriscados (a média histórica simples acertaria {formatPercent(data.baselineTopHitRate)}
-            )
+            arriscados
           </p>
+          <div className="compare">
+            <span>Modelo</span>
+            <Meter value={data.topHitRate} max={rateScale} color="#3987e5" />
+            <span>{formatPercent(data.topHitRate)}</span>
+            <span>Média simples</span>
+            <Meter value={data.baselineTopHitRate} max={rateScale} color={MUTED_MARK} />
+            <span>{formatPercent(data.baselineTopHitRate)}</span>
+          </div>
         </div>
-        <div>
+        <div className="stat">
           <div className="stat-value">{formatPercent(data.improvementPct)}</div>
           <p className="stat-label">
             menos erro que a média histórica simples ao prever quantas ocorrências cada região terá
             em cada bloco de 4 horas
           </p>
         </div>
-        <div>
+        <div className="stat">
           <div className="stat-value">{formatDecimal(data.modelMae)}</div>
           <p className="stat-label">
             ocorrências de erro médio por região e bloco de 4 horas ({data.evaluatedCells} blocos
@@ -587,31 +652,36 @@ export function PredictionsPage() {
             quais dados.
           </p>
         </div>
-        <fieldset className="field chip-fieldset">
-          <legend className="label">Horizonte da previsão</legend>
-          <div className="tabs">
-            {HORIZONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={hours === value}
-                onClick={() => setHours(value)}
-              >
-                {value} h
-              </button>
-            ))}
-          </div>
-        </fieldset>
+      </div>
+      <div className="horizon-bar">
+        <span id="horizon-label" className="label">
+          Horizonte da previsão
+        </span>
+        <div className="segmented" role="group" aria-labelledby="horizon-label">
+          {HORIZONS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={hours === value}
+              onClick={() => setHours(value)}
+            >
+              {value} h
+            </button>
+          ))}
+        </div>
+        <span className="hint horizon-hint">
+          Vale para o risco por bairro e o reforço de agentes.
+        </span>
       </div>
       <RiskSection hours={hours} />
+      <StaffingSection hours={hours} />
       <div className="grid-2">
         <WeeklySection />
-        <AnomalySection />
+        <BacktestSection />
       </div>
-      <StaffingSection hours={hours} />
+      <AnomalySection />
       <FailureSection />
       <TrendSection />
-      <BacktestSection />
     </main>
   );
 }

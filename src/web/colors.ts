@@ -1,5 +1,10 @@
-import type { AgentStatus, Severity } from "../shared/catalog.ts";
-import type { AlertLevel, HealthLevel, RiskLevel } from "../shared/types.ts";
+import {
+  AVAILABILITY_ATTENTION_PCT,
+  AVAILABILITY_CRITICAL_PCT,
+  type AgentStatus,
+  type Severity,
+} from "../shared/catalog.ts";
+import type { AlertCategory, AlertLevel, HealthLevel, RiskLevel } from "../shared/types.ts";
 
 export const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
   available: "#3987e5",
@@ -47,6 +52,16 @@ export const ALERT_LABELS: Record<AlertLevel, string> = {
   info: "Aviso",
 };
 
+export const ALERT_CATEGORY_LABELS: Record<AlertCategory, string> = {
+  equipment: "Equipamento",
+  maintenance: "Manutenção",
+  telemetry: "Telemetria",
+  occurrence: "Ocorrência",
+  region: "Região",
+  anomaly: "Anomalia",
+  staffing: "Efetivo",
+};
+
 export const SEQUENTIAL_BLUE = [
   "#13304f",
   "#184f95",
@@ -56,3 +71,13 @@ export const SEQUENTIAL_BLUE = [
   "#9ec5f4",
   "#cde2fb",
 ];
+
+export function availabilityLevel(pct: number): HealthLevel {
+  if (pct < AVAILABILITY_CRITICAL_PCT) {
+    return "critical";
+  }
+  if (pct < AVAILABILITY_ATTENTION_PCT) {
+    return "attention";
+  }
+  return "normal";
+}

@@ -1,51 +1,81 @@
+import type { ReactNode } from "react";
 import type { Kpis } from "../../shared/types.ts";
+import { HEALTH_COLORS, availabilityLevel } from "../colors.ts";
 import { formatInteger, formatPercent } from "../format.ts";
+import { Meter } from "./badges.tsx";
 
-export function KpiStrip({ kpis }: { kpis: Kpis }) {
+type Tone = "critical" | "warning" | undefined;
+
+function Kpi({
+  label,
+  value,
+  tone,
+  children,
+}: {
+  label: string;
+  value: string;
+  tone?: Tone;
+  children: ReactNode;
+}) {
+  return (
+    <div className="kpi" data-tone={tone}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      {children}
+    </div>
+  );
+}
+
+export function KpiStrip({ kpis, waiting }: { kpis: Kpis; waiting: number }) {
   const urgentMaintenance = kpis.maintenanceImmediate + kpis.maintenanceOverdue;
+  const availability = availabilityLevel(kpis.availabilityPct);
+  const availabilityTone: Tone =
+    availability === "critical" ? "critical" : availability === "attention" ? "warning" : undefined;
   return (
     <section className="kpi-strip" aria-label="Indicadores gerais">
-      <div className="kpi">
-        <div className="kpi-label">Equipamentos cadastrados</div>
-        <div className="kpi-value">{formatInteger(kpis.equipmentTotal)}</div>
+      <Kpi label="Equipamentos cadastrados" value={formatInteger(kpis.equipmentTotal)}>
         <div className="kpi-note">
           {kpis.notInstalled} a instalar, {kpis.disabled} desativados
         </div>
-      </div>
-      <div className="kpi">
-        <div className="kpi-label">Disponibilidade</div>
-        <div className="kpi-value">{formatPercent(kpis.availabilityPct, 1)}</div>
-        <div className="availability-bar" role="presentation">
-          <span style={{ width: `${kpis.availabilityPct}%` }} />
-        </div>
-      </div>
-      <div className="kpi">
-        <div className="kpi-label">Operacionais</div>
-        <div className="kpi-value">{formatInteger(kpis.operational)}</div>
+      </Kpi>
+      <Kpi
+        label="Disponibilidade"
+        value={formatPercent(kpis.availabilityPct, 1)}
+        tone={availabilityTone}
+      >
+        <Meter value={kpis.availabilityPct} color={HEALTH_COLORS[availability]} />
+      </Kpi>
+      <Kpi label="Operacionais" value={formatInteger(kpis.operational)}>
         <div className="kpi-note">funcionando agora</div>
-      </div>
-      <div className="kpi" data-tone={kpis.unavailable > 0 ? "critical" : undefined}>
-        <div className="kpi-label">Indisponíveis</div>
-        <div className="kpi-value">{formatInteger(kpis.unavailable)}</div>
+      </Kpi>
+      <Kpi
+        label="Indisponíveis"
+        value={formatInteger(kpis.unavailable)}
+        tone={kpis.unavailable > 0 ? "critical" : undefined}
+      >
         <div className="kpi-note">falha, manutenção ou furto</div>
-      </div>
-      <div className="kpi">
-        <div className="kpi-label">Agentes em atividade</div>
-        <div className="kpi-value">{formatInteger(kpis.agentsActive)}</div>
+      </Kpi>
+      <Kpi label="Agentes em atividade" value={formatInteger(kpis.agentsActive)}>
         <div className="kpi-note">
           {kpis.agentsOnDuty} em serviço de {kpis.agentsTotal}
         </div>
-      </div>
-      <div className="kpi" data-tone={kpis.openOccurrences > 0 ? "warning" : undefined}>
-        <div className="kpi-label">Ocorrências abertas</div>
-        <div className="kpi-value">{formatInteger(kpis.openOccurrences)}</div>
-        <div className="kpi-note">{kpis.criticalAlerts} alertas críticos</div>
-      </div>
-      <div className="kpi" data-tone={urgentMaintenance > 0 ? "warning" : undefined}>
-        <div className="kpi-label">Manutenção urgente</div>
-        <div className="kpi-value">{formatInteger(urgentMaintenance)}</div>
+      </Kpi>
+      <Kpi
+        label="Ocorrências abertas"
+        value={formatInteger(kpis.openOccurrences)}
+        tone={waiting > 0 ? "warning" : undefined}
+      >
+        <div className="kpi-note">
+          {waiting === 0 ? "todas com equipe" : `${waiting} aguardando equipe`}
+        </div>
+      </Kpi>
+      <Kpi
+        label="Manutenção urgente"
+        value={formatInteger(urgentMaintenance)}
+        tone={urgentMaintenance > 0 ? "warning" : undefined}
+      >
         <div className="kpi-note">{kpis.maintenanceDueSoon} previstas em 7 dias</div>
-      </div>
+      </Kpi>
     </section>
   );
 }

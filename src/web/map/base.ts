@@ -15,6 +15,7 @@ import {
 } from "../../shared/catalog.ts";
 import { AGENT_STATUS_COLORS } from "../colors.ts";
 import { AGENT_GLYPH, STATUS_SHAPES, TYPE_GLYPHS, shapePath, type MarkerShape } from "../icons.tsx";
+import { tintBasemap } from "./basemap.ts";
 
 setWorkerUrl(workerUrl);
 
@@ -22,12 +23,15 @@ export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 const STYLE_TIMEOUT_MS = 5000;
 const MARKER_SIZE = 30;
 const PIXEL_RATIO = 2;
-const RING = "#1b1f24";
+const HATCH_TILE = 10;
+const RING = "#111417";
+
+export const CRITICAL_HATCH = "hatch-critical";
 
 const FALLBACK_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": "#15181c" } }],
+  layers: [{ id: "background", type: "background", paint: { "background-color": RING } }],
 };
 
 let stylePromise: Promise<{ style: StyleSpecification; online: boolean }> | null = null;
@@ -38,7 +42,7 @@ function loadStyle(): Promise<{ style: StyleSpecification; online: boolean }> {
       if (!response.ok) {
         throw new Error(String(response.status));
       }
-      return { style: (await response.json()) as StyleSpecification, online: true };
+      return { style: tintBasemap((await response.json()) as StyleSpecification), online: true };
     })
     .catch(() => {
       stylePromise = null;
@@ -70,7 +74,7 @@ function drawMarker(
   context.strokeStyle = RING;
   context.lineWidth = 4;
   context.stroke(path);
-  context.fillStyle = outline ? "#23282e" : fill;
+  context.fillStyle = outline ? "#1f2328" : fill;
   context.fill(path);
   if (outline) {
     context.strokeStyle = fill;
@@ -94,6 +98,23 @@ function drawMarker(
   return context.getImageData(0, 0, size, size);
 }
 
+function drawHatch(color: string): ImageData {
+  const size = HATCH_TILE * PIXEL_RATIO;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.strokeStyle = color;
+  context.lineWidth = 1.6 * PIXEL_RATIO;
+  context.beginPath();
+  for (const offset of [-size, 0, size]) {
+    context.moveTo(offset - 1, size + 1);
+    context.lineTo(offset + size + 1, -1);
+  }
+  context.stroke();
+  return context.getImageData(0, 0, size, size);
+}
+
 export function equipmentImageId(type: string, status: string): string {
   return `equipment-${type}-${status}`;
 }
@@ -103,6 +124,7 @@ export function agentImageId(status: string): string {
 }
 
 function registerImages(map: MapLibreMap): void {
+  map.addImage(CRITICAL_HATCH, drawHatch("rgba(208, 59, 59, 0.9)"), { pixelRatio: PIXEL_RATIO });
   for (const type of EQUIPMENT_TYPE_KEYS) {
     for (const status of EQUIPMENT_STATUSES) {
       const color = STATUS_COLORS[status];

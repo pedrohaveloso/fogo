@@ -44,18 +44,21 @@ O botão "Buscar CEP" preenche rua, bairro e coordenadas, primeiro pela base loc
 
 Os agentes (agentes de trânsito, guardas municipais e policiais militares) têm matrícula, graduação, turno, base, situação e o veículo que usam.
 
+As listas de equipamentos e de agentes começam com um resumo: a frota por tipo, com quantos estão parados, e o efetivo por situação. Clicar em um desses cartões filtra a lista.
+
 ### Central de operações
 
 A tela inicial mostra o mapa de Marília com:
 
-- os bairros coloridos pela situação (normal, atenção ou crítico);
-- os equipamentos agrupados quando estão próximos, com o número de indisponíveis em cada grupo;
-- os agentes em serviço e as ocorrências abertas;
+- os bairros que pedem atenção com contorno tracejado, como faixa de pista, e os críticos com zebrado vermelho;
+- os equipamentos agrupados quando estão próximos, com um selo vermelho que conta os parados de cada grupo;
+- os agentes em serviço, com uma linha pontilhada até a ocorrência que cada um atende;
+- as ocorrências abertas, que pulsam enquanto esperam equipe;
 - um mapa de calor opcional das ocorrências dos últimos 30 dias.
 
-A situação de cada equipamento aparece pela cor e também pela forma do marcador, seguindo as placas de trânsito: círculo para operacional, losango para mau funcionamento, quadrado para manutenção, octógono para furtado e contorno para não instalado ou desativado. Assim a informação não depende só da cor.
+A interface usa a linguagem da sinalização viária. O zebrado marca o que é crítico (bairros, alertas e indicadores) e o tracejado marca o que pede atenção. A situação de cada equipamento aparece pela cor e também pela forma do marcador, como nas placas de trânsito: círculo para operacional, losango para mau funcionamento, quadrado para manutenção, octógono para furtado e contorno para não instalado ou desativado. Assim a informação não depende só da cor. A legenda fica junto das camadas, no canto do mapa.
 
-No topo ficam os indicadores: total de equipamentos, disponibilidade, operacionais, indisponíveis, agentes em atividade, ocorrências abertas e manutenções urgentes. À esquerda estão os filtros (tipo, situação, região, bairro, órgão, manutenção e busca) e a situação de cada região. À direita fica a lista de alertas, que podem ser reconhecidos ou localizados no mapa. Clicar em qualquer marcador abre os detalhes, com histórico de situação e a telemetria das últimas 48 horas.
+No topo ficam os indicadores: total de equipamentos, disponibilidade, operacionais, indisponíveis, agentes em atividade, ocorrências abertas e manutenções urgentes. À esquerda ficam a busca e o filtro de situação, com tipo, região, bairro, órgão e manutenção em "Mais filtros", e logo abaixo a situação de cada região. À direita fica a lista de alertas, que podem ser reconhecidos ou localizados no mapa. Clicar em qualquer marcador abre os detalhes, com histórico de situação e a telemetria das últimas 48 horas.
 
 Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o papel dos dispositivos IoT: movimenta agentes e veículos, gera ocorrências segundo o padrão histórico de cada bairro, despacha o agente disponível que chega mais rápido, registra falhas, reparos, manutenções preventivas, furtos e quedas de comunicação, e acumula as contagens dos sensores. Para a demonstração ter movimento, ocorrências e falhas acontecem 20 vezes mais rápido que na vida real. Os modelos de previsão descontam essa aceleração.
 
@@ -63,15 +66,15 @@ O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h
 
 ### Cidade preditiva
 
-Cada bloco da página explica o que está sendo previsto, com quais dados e como usar o resultado. Os modelos aprendem com os dados do banco. Nenhum deles consulta o gerador de dados.
+Cada bloco da página explica o que está sendo previsto, com quais dados e como usar o resultado. Os modelos aprendem com os dados do banco. Nenhum deles consulta o gerador de dados. O horizonte da previsão fica fixo no topo da página e vale para o risco por bairro e para o reforço de agentes.
 
 - Risco por bairro nas próximas horas: combina a participação de cada bairro em cada tipo de ocorrência, o padrão da cidade por dia da semana e hora (12 semanas, com peso maior para as recentes) e a tendência das duas últimas semanas. O resultado é pesado pela gravidade típica de cada tipo e aumenta quando câmeras, radares ou semáforos do bairro estão parados. O índice de 0 a 100 é o percentil do bairro neste horário entre todos os bairros e horários da semana.
+- Reforço de agentes: compara a carga prevista de cada região (ocorrências vezes o tempo médio de atendimento) com o efetivo ativo, mostra o saldo de cada uma e sugere remanejamentos.
 - Padrão semanal: um mapa de calor com as ocorrências esperadas por dia e hora.
-- Reforço de agentes: compara a carga prevista de cada região (ocorrências vezes o tempo médio de atendimento) com o efetivo ativo e sugere remanejamentos.
+- Qualidade do modelo: um backtest treina o modelo de risco sem os últimos 7 dias e compara a previsão com o que aconteceu. Na base de demonstração, os 10% de blocos de 4 horas apontados como mais arriscados concentram entre 17% e 24% das ocorrências, contra cerca de 10% da média histórica simples. O erro por região fica cerca de 15% menor.
 - Comportamentos fora do padrão: sensores com leitura zerada, quedas e picos de fluxo (escore z contra o mesmo horário das quatro semanas anteriores) e concentrações de ocorrências (teste de Poisson contra o esperado).
 - Risco de falha em 7 dias: estima, pelo histórico, a taxa de falha de cada tipo de equipamento e quanto a manutenção vencida aumenta essa taxa. Com isso monta a fila de manutenção preventiva.
 - Tendências: disponibilidade por tipo de equipamento com projeção de 30 dias, ocorrências por região e uso de totens, cancelas e sensores de fluxo. Só viram aviso as variações estatisticamente significativas.
-- Qualidade do modelo: um backtest treina o modelo de risco sem os últimos 7 dias e compara a previsão com o que aconteceu. Na base de demonstração, os 10% de blocos de 4 horas apontados como mais arriscados concentram entre 17% e 24% das ocorrências, contra cerca de 10% da média histórica simples. O erro por região fica cerca de 15% menor.
 
 ## Dados
 

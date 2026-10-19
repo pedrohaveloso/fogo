@@ -53,6 +53,13 @@ export const AGENCY_LABELS: Record<Agency, string> = {
   operator: "Operadora privada/concessionária",
 };
 
+export const AGENCY_SHORT_LABELS: Record<Agency, string> = {
+  mobility: "Mobilidade Urbana",
+  municipal_guard: "Guarda Municipal",
+  military_police: "Polícia Militar",
+  operator: "Concessionária",
+};
+
 export type AttributeSpec =
   | { key: string; label: string; kind: "boolean" }
   | { key: string; label: string; kind: "number"; unit?: string; min: number; max: number }
@@ -359,3 +366,6 @@ export const UNAVAILABLE_STATUSES: readonly EquipmentStatus[] = [
 export function countsTowardAvailability(status: EquipmentStatus): boolean {
   return status !== "not_installed" && status !== "disabled";
 }
+
+export const AVAILABILITY_ATTENTION_PCT = 85;
+export const AVAILABILITY_CRITICAL_PCT = 60;

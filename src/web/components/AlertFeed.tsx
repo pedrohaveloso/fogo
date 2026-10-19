@@ -1,12 +1,19 @@
 import { useState } from "react";
 import type { Alert, AlertCategory } from "../../shared/types.ts";
 import { api } from "../api.ts";
-import { ALERT_LABELS } from "../colors.ts";
+import { ALERT_CATEGORY_LABELS } from "../colors.ts";
 import { formatRelative } from "../format.ts";
+import { LevelPlate } from "./badges.tsx";
 
-type FilterKey = "all" | "critical" | "equipment" | "occurrence" | "anomaly" | "maintenance";
+export type AlertFilterKey =
+  | "all"
+  | "critical"
+  | "equipment"
+  | "occurrence"
+  | "anomaly"
+  | "maintenance";
 
-const FILTERS: { key: FilterKey; label: string; categories?: AlertCategory[] }[] = [
+const FILTERS: { key: AlertFilterKey; label: string; categories?: AlertCategory[] }[] = [
   { key: "all", label: "Todos" },
   { key: "critical", label: "Críticos" },
   { key: "occurrence", label: "Ocorrências", categories: ["occurrence", "region", "staffing"] },
@@ -16,24 +23,37 @@ const FILTERS: { key: FilterKey; label: string; categories?: AlertCategory[] }[]
 ];
 
 const VISIBLE_LIMIT = 60;
+const FRESH_MS = 6_000;
+
+export function matchesAlertFilter(alert: Alert, key: AlertFilterKey): boolean {
+  if (key === "all") {
+    return true;
+  }
+  if (key === "critical") {
+    return alert.level === "critical";
+  }
+  return FILTERS.find((item) => item.key === key)?.categories?.includes(alert.category) ?? false;
+}
+
+export function isFreshAlert(alert: Alert, generatedAt: string): boolean {
+  return (
+    alert.level === "critical" &&
+    !alert.acknowledged &&
+    Date.parse(alert.since) >= Date.parse(generatedAt) - FRESH_MS
+  );
+}
 
 type Props = {
   alerts: Alert[];
   now: number;
+  generatedAt: string;
   onLocate: (alert: Alert) => void;
 };
 
-export function AlertFeed({ alerts, now, onLocate }: Props) {
-  const [filter, setFilter] = useState<FilterKey>("all");
+export function AlertFeed({ alerts, now, generatedAt, onLocate }: Props) {
+  const [filter, setFilter] = useState<AlertFilterKey>("all");
   const [pending, setPending] = useState<string | null>(null);
-  const definition = FILTERS.find((item) => item.key === filter)!;
-  const visible = alerts.filter((alert) =>
-    filter === "all"
-      ? true
-      : filter === "critical"
-        ? alert.level === "critical"
-        : (definition.categories ?? []).includes(alert.category),
-  );
+  const visible = alerts.filter((alert) => matchesAlertFilter(alert, filter));
   const critical = alerts.filter(
     (alert) => alert.level === "critical" && !alert.acknowledged,
   ).length;
@@ -50,25 +70,30 @@ export function AlertFeed({ alerts, now, onLocate }: Props) {
 
   return (
     <section aria-labelledby="alerts-title">
-      <h2 id="alerts-title" className="section-title">
-        Alertas
-        <small>
-          {critical} crítico{critical === 1 ? "" : "s"} sem reconhecimento
-        </small>
-      </h2>
-      <fieldset className="tabs" style={{ marginBottom: 10 }}>
-        <legend className="visually-hidden">Filtrar alertas</legend>
-        {FILTERS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            aria-pressed={filter === item.key}
-            onClick={() => setFilter(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </fieldset>
+      <div className="feed-head">
+        <h2 id="alerts-title" className="section-title">
+          Alertas
+          <small>
+            {critical} crítico{critical === 1 ? "" : "s"} sem reconhecimento
+          </small>
+        </h2>
+        <fieldset className="segmented" data-wrap="true">
+          <legend className="visually-hidden">Filtrar alertas</legend>
+          {FILTERS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              aria-pressed={filter === item.key}
+              onClick={() => setFilter(item.key)}
+            >
+              {item.label}
+              <span className="segmented-count">
+                {alerts.filter((alert) => matchesAlertFilter(alert, item.key)).length}
+              </span>
+            </button>
+          ))}
+        </fieldset>
+      </div>
       {visible.length === 0 ? (
         <p className="empty">
           Nenhum alerta nesta categoria. A cidade está operando dentro do esperado.
@@ -81,32 +106,36 @@ export function AlertFeed({ alerts, now, onLocate }: Props) {
               className="alert"
               data-level={alert.level}
               data-ack={alert.acknowledged}
+              data-fresh={isFreshAlert(alert, generatedAt)}
             >
-              <span className="alert-title">{alert.title}</span>
-              <span className="alert-detail">{alert.detail}</span>
-              <div className="alert-meta">
-                <span>
-                  {ALERT_LABELS[alert.level]}, {formatRelative(alert.since, now)}
+              <div className="alert-head">
+                <span className="alert-kind">
+                  <LevelPlate level={alert.level} />
+                  {ALERT_CATEGORY_LABELS[alert.category]}
+                  {alert.acknowledged && ", reconhecido"}
                 </span>
-                <span className="alert-actions">
-                  {alert.lat !== null && (
-                    <button
-                      type="button"
-                      className="button button-small button-ghost"
-                      onClick={() => onLocate(alert)}
-                    >
-                      Ver no mapa
-                    </button>
-                  )}
+                <time dateTime={alert.since}>{formatRelative(alert.since, now)}</time>
+              </div>
+              <span className="alert-title">{alert.title}</span>
+              {!alert.acknowledged && <span className="alert-detail">{alert.detail}</span>}
+              <div className="alert-actions">
+                {alert.lat !== null && (
                   <button
                     type="button"
-                    className="button button-small"
-                    disabled={pending === alert.id}
-                    onClick={() => void toggleAck(alert)}
+                    className="button button-small button-ghost"
+                    onClick={() => onLocate(alert)}
                   >
-                    {alert.acknowledged ? "Reabrir" : "Reconhecer"}
+                    Ver no mapa
                   </button>
-                </span>
+                )}
+                <button
+                  type="button"
+                  className="button button-small"
+                  disabled={pending === alert.id}
+                  onClick={() => void toggleAck(alert)}
+                >
+                  {alert.acknowledged ? "Reabrir" : "Reconhecer"}
+                </button>
               </div>
             </li>
           ))}

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { formatTime } from "./format.ts";
+import { AGENT_GLYPH, BrandMark, Glyph, MAP_GLYPH, TREND_GLYPH, TYPE_GLYPHS } from "./icons.tsx";
 import { useLive } from "./live.ts";
 import { AgentFormPage } from "./pages/AgentFormPage.tsx";
 import { AgentListPage } from "./pages/AgentListPage.tsx";
@@ -12,16 +13,32 @@ import { Toast } from "./toast.tsx";
 import { useNow } from "./useNow.ts";
 
 const NAV = [
-  { href: "/", label: "Central de operações", match: (path: string) => path === "/" },
+  {
+    href: "/",
+    label: "Central de operações",
+    short: "Central",
+    glyph: MAP_GLYPH,
+    match: (path: string) => path === "/",
+  },
   {
     href: "/equipamentos",
     label: "Equipamentos",
+    short: "Equipamentos",
+    glyph: TYPE_GLYPHS.camera,
     match: (path: string) => path.startsWith("/equipamentos"),
   },
-  { href: "/agentes", label: "Agentes", match: (path: string) => path.startsWith("/agentes") },
+  {
+    href: "/agentes",
+    label: "Agentes",
+    short: "Agentes",
+    glyph: AGENT_GLYPH,
+    match: (path: string) => path.startsWith("/agentes"),
+  },
   {
     href: "/previsoes",
     label: "Cidade preditiva",
+    short: "Previsões",
+    glyph: TREND_GLYPH,
     match: (path: string) => path.startsWith("/previsoes"),
   },
 ];
@@ -77,12 +94,12 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <Link href="/" className="brand" aria-label="F.O.G.O., página inicial">
-          <span className="brand-sign" aria-hidden="true">
-            <span>F</span>
+        <Link href="/" className="brand" aria-label="F.O.G.O. Marília, página inicial">
+          <BrandMark />
+          <span className="brand-text" aria-hidden="true">
+            <span className="brand-name">F.O.G.O.</span>
+            <span className="brand-city">Marília, SP</span>
           </span>
-          <span className="brand-name">F.O.G.O.</span>
-          <span className="brand-city">Marília, SP</span>
         </Link>
         <nav className="nav" aria-label="Principal">
           {NAV.map((item) => (
@@ -91,7 +108,11 @@ export function App() {
               href={item.href}
               aria-current={item.match(pathname) ? "page" : undefined}
             >
-              {item.label}
+              <span className="nav-icon">
+                <Glyph d={item.glyph} size={20} />
+              </span>
+              <span className="nav-full">{item.label}</span>
+              <span className="nav-short">{item.short}</span>
             </Link>
           ))}
         </nav>

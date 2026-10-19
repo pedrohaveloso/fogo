@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   AGENT_ROLES,
   AGENT_ROLE_KEYS,
@@ -9,10 +9,11 @@ import {
   type AgentRole,
   type AgentStatus,
 } from "../../shared/catalog.ts";
-import { AgentGlyph, AgentStatusBadge } from "../components/badges.tsx";
-import { formatRelative } from "../format.ts";
+import { AgentGlyph, AgentShield, AgentStatusBadge } from "../components/badges.tsx";
+import { formatInteger, formatRelative } from "../format.ts";
 import { useLive, useMeta } from "../live.ts";
 import { Link, navigate } from "../router.tsx";
+import { agentStatusCounts } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
 export function AgentListPage() {
@@ -55,21 +56,46 @@ export function AgentListPage() {
 
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
   const vehicles = new Map(snapshot.equipment.map((item) => [item.id, item]));
+  const counts = agentStatusCounts(snapshot.agents);
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-head">
         <div>
           <h1>Agentes</h1>
           <p>
             Agentes de trânsito, guardas municipais e policiais que atuam nas operações de
-            mobilidade e segurança.
+            mobilidade e segurança. {formatInteger(counts.available + counts.responding)} em
+            atividade agora, de {formatInteger(snapshot.agents.length)} cadastrados.
           </p>
         </div>
         <Link href="/agentes/novo" className="button button-primary">
           Cadastrar agente
         </Link>
       </div>
+      <section
+        aria-label="Agentes por situação"
+        className="summary-tiles"
+        style={{ "--tiles": 4 } as CSSProperties}
+      >
+        {AGENT_STATUSES.map((key) => (
+          <button
+            key={key}
+            type="button"
+            className="summary-tile"
+            aria-pressed={status === key}
+            onClick={() => setStatus(status === key ? "" : key)}
+          >
+            <span className="summary-icon">
+              <AgentShield status={key} size={20} />
+            </span>
+            <span className="summary-text">
+              <span className="summary-label">{AGENT_STATUS_LABELS[key]}</span>
+              <span className="summary-count">{formatInteger(counts[key])}</span>
+            </span>
+          </button>
+        ))}
+      </section>
       <div className="toolbar panel">
         <div className="field">
           <label htmlFor="agent-search">Buscar</label>
@@ -126,11 +152,11 @@ export function AgentListPage() {
             ))}
           </select>
         </div>
-        <p className="hint" style={{ alignSelf: "center" }}>
+        <p className="hint toolbar-count">
           {rows.length} de {snapshot.agents.length} agentes
         </p>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" data-sticky="page">
         <table>
           <caption className="visually-hidden">Lista de agentes</caption>
           <thead>
@@ -165,11 +191,11 @@ export function AgentListPage() {
                       <AgentGlyph />
                       {agent.name}
                     </button>
-                    <div className="hint">Matrícula {agent.badge}</div>
+                    <span className="cell-sub">Matrícula {agent.badge}</span>
                   </td>
                   <td>
                     {AGENT_ROLES[agent.role].label}
-                    {agent.rank && <div className="hint">{agent.rank}</div>}
+                    {agent.rank && <span className="cell-sub">{agent.rank}</span>}
                   </td>
                   <td>
                     <AgentStatusBadge status={agent.status} />
@@ -177,7 +203,7 @@ export function AgentListPage() {
                   <td>{SHIFTS[agent.shift]}</td>
                   <td>
                     {agent.baseName}
-                    <div className="hint">{names.get(agent.baseNeighborhoodId)}</div>
+                    <span className="cell-sub">{names.get(agent.baseNeighborhoodId)}</span>
                   </td>
                   <td>
                     {vehicle

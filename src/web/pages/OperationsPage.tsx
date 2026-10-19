@@ -1,7 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { EQUIPMENT_STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../shared/catalog.ts";
 import type { Alert } from "../../shared/types.ts";
-import { AGENT_STATUS_COLORS, SEVERITY_COLORS } from "../colors.ts";
 import { AlertFeed } from "../components/AlertFeed.tsx";
 import { DetailDrawer } from "../components/DetailDrawer.tsx";
 import { KpiStrip } from "../components/KpiStrip.tsx";
@@ -12,19 +10,11 @@ import {
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
 import { RegionHealthList } from "../components/RegionHealthList.tsx";
-import { StatusShape, shapePath } from "../icons.tsx";
 import { useLive, useMeta } from "../live.ts";
+import { LayerPanel } from "../map/LayerPanel.tsx";
 import { OperationsMap, type MapLayers, type Selection } from "../map/OperationsMap.tsx";
 import { useFetch } from "../useFetch.ts";
 import { useNow } from "../useNow.ts";
-
-const LAYER_LABELS: Record<keyof MapLayers, string> = {
-  health: "Situação dos bairros",
-  equipment: "Equipamentos",
-  agents: "Agentes em serviço",
-  occurrences: "Ocorrências abertas",
-  heat: "Mapa de calor (30 dias)",
-};
 
 export function OperationsPage() {
   const meta = useMeta();
@@ -110,11 +100,13 @@ export function OperationsPage() {
   const occurrences = regionNeighborhoods
     ? snapshot.occurrences.filter((item) => regionNeighborhoods.has(item.neighborhoodId))
     : snapshot.occurrences;
+  const waiting = snapshot.occurrences.filter((item) => item.status === "open").length;
+  const filtered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
   return (
     <main className="ops">
       <h1 className="visually-hidden">Central de operações</h1>
-      <KpiStrip kpis={snapshot.kpis} />
+      <KpiStrip kpis={snapshot.kpis} waiting={waiting} />
       <div className="ops-side ops-side-left">
         <OperationsFilters
           meta={meta}
@@ -144,46 +136,21 @@ export function OperationsPage() {
           focus={focus}
           onSelect={setSelected}
         />
-        <fieldset className="map-overlay map-layers">
-          <legend className="visually-hidden">Camadas do mapa</legend>
-          {(Object.keys(LAYER_LABELS) as (keyof MapLayers)[]).map((key) => (
-            <label key={key} className="check" style={{ minHeight: 28 }}>
-              <input
-                type="checkbox"
-                checked={layers[key]}
-                onChange={(event) => setLayers({ ...layers, [key]: event.target.checked })}
-              />
-              {LAYER_LABELS[key]}
-            </label>
-          ))}
-        </fieldset>
-        <div className="map-overlay map-legend" aria-label="Legenda do mapa">
-          {EQUIPMENT_STATUSES.map((status) => (
-            <span key={status} className="legend-item">
-              <StatusShape status={status} color={STATUS_COLORS[status]} size={14} />
-              {STATUS_LABELS[status]}
+        <LayerPanel layers={layers} onChange={setLayers} />
+        {filtered && (
+          <div className="map-overlay map-filter-note" role="status">
+            <span>
+              Filtro ativo: {equipment.length} de {snapshot.equipment.length} equipamentos no mapa
             </span>
-          ))}
-          <span className="legend-item">
-            <svg viewBox="0 0 14 14" width={14} height={14} aria-hidden="true">
-              <path d={shapePath("shield", 14)} fill={AGENT_STATUS_COLORS.available} />
-            </svg>
-            Agente disponível
-          </span>
-          <span className="legend-item">
-            <svg viewBox="0 0 14 14" width={14} height={14} aria-hidden="true">
-              <path d={shapePath("shield", 14)} fill={AGENT_STATUS_COLORS.responding} />
-            </svg>
-            Agente em atendimento
-          </span>
-          <span className="legend-item">
-            <span
-              className="level-dot"
-              style={{ background: SEVERITY_COLORS[4], borderRadius: "50%" }}
-            />
-            Ocorrência (cor = gravidade)
-          </span>
-        </div>
+            <button
+              type="button"
+              className="button button-small"
+              onClick={() => setFilters(EMPTY_FILTERS)}
+            >
+              Limpar filtros
+            </button>
+          </div>
+        )}
         {selected && (
           <DetailDrawer
             key={`${selected.kind}-${selected.id}`}
@@ -204,7 +171,12 @@ export function OperationsPage() {
         )}
       </div>
       <div className="ops-side ops-side-right">
-        <AlertFeed alerts={snapshot.alerts} now={now} onLocate={locate} />
+        <AlertFeed
+          alerts={snapshot.alerts}
+          now={now}
+          generatedAt={snapshot.generatedAt}
+          onLocate={locate}
+        />
       </div>
     </main>
   );

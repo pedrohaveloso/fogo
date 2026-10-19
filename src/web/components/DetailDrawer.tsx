@@ -31,6 +31,7 @@ import {
 } from "../format.ts";
 import type { Selection } from "../map/OperationsMap.tsx";
 import { Link } from "../router.tsx";
+import { CLOSE_GLYPH, Glyph } from "../icons.tsx";
 import { useFetch } from "../useFetch.ts";
 import { AgentStatusBadge, HealthTag, SeverityBadge, StatusBadge, TypeLabel } from "./badges.tsx";
 import { LineChart } from "./charts/LineChart.tsx";
@@ -109,7 +110,7 @@ function EquipmentPanel({
   const readings = data?.readings ?? [];
   return (
     <>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="badge-row">
         <StatusBadge status={item.status} />
         <span className="badge">{MAINTENANCE_LABELS[item.maintenanceNeed]}</span>
       </div>
@@ -347,7 +348,7 @@ function OccurrencePanel({
 
   return (
     <>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="badge-row">
         <SeverityBadge severity={occurrence.severity} />
         <span className="badge">
           {occurrence.status === "responding" ? "Em atendimento" : "Aguardando equipe"}
@@ -472,12 +473,15 @@ export function DetailDrawer({
   }, [onClose]);
 
   let title = "";
+  let kind = "";
   let body: ReactNode = null;
   if (selection.kind === "equipment") {
+    kind = "Equipamento";
     const item = snapshot.equipment.find((entry) => entry.id === selection.id);
     title = item ? `${EQUIPMENT_TYPES[item.type].label} ${item.serialNumber}` : "Equipamento";
     body = <EquipmentPanel id={selection.id} live={item} now={now} meta={meta} />;
   } else if (selection.kind === "agent") {
+    kind = "Agente";
     const agent = snapshot.agents.find((entry) => entry.id === selection.id);
     title = agent?.name ?? "Agente";
     body = (
@@ -490,6 +494,7 @@ export function DetailDrawer({
       />
     );
   } else if (selection.kind === "occurrence") {
+    kind = "Ocorrência";
     const occurrence = snapshot.occurrences.find((entry) => entry.id === selection.id);
     title = occurrence ? OCCURRENCE_KINDS[occurrence.kind].label : "Ocorrência encerrada";
     body = occurrence ? (
@@ -498,6 +503,7 @@ export function DetailDrawer({
       <p className="hint">Esta ocorrência já foi encerrada.</p>
     );
   } else {
+    kind = "Bairro";
     title = meta.neighborhoods.find((entry) => entry.id === selection.id)?.name ?? "Bairro";
     body = (
       <NeighborhoodPanel id={selection.id} snapshot={snapshot} onFilter={onFilterNeighborhood} />
@@ -507,17 +513,21 @@ export function DetailDrawer({
   return (
     <aside className="drawer" aria-labelledby="drawer-title">
       <div className="drawer-head">
-        <h2 id="drawer-title" style={{ fontSize: "1.25rem" }}>
-          {title}
-        </h2>
+        <div>
+          <p className="drawer-kind">{kind}</p>
+          <h2 id="drawer-title" className="drawer-title">
+            {title}
+          </h2>
+        </div>
         <button
           ref={closeRef}
           type="button"
-          className="button button-small button-ghost"
+          className="button button-ghost button-icon"
           onClick={onClose}
           aria-label="Fechar detalhes"
+          title="Fechar (Esc)"
         >
-          Fechar
+          <Glyph d={CLOSE_GLYPH} size={18} />
         </button>
       </div>
       <div className="drawer-body">{body}</div>

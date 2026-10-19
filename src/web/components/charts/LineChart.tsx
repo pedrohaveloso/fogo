@@ -1,4 +1,6 @@
 import { useId, useState, type PointerEvent } from "react";
+import { useElementWidth } from "../../useElementWidth.ts";
+import { labelPositions, niceTicks } from "./scale.ts";
 
 export type LineSeries = {
   key: string;
@@ -19,23 +21,9 @@ type Props = {
   description?: string;
 };
 
-const WIDTH = 640;
-const PAD = { top: 12, right: 16, bottom: 26, left: 44 };
-
-function niceTicks(min: number, max: number, count = 4): number[] {
-  if (max === min) {
-    return [min];
-  }
-  const raw = (max - min) / count;
-  const magnitude = 10 ** Math.floor(Math.log10(raw));
-  const step =
-    [1, 2, 2.5, 5, 10].map((factor) => factor * magnitude).find((value) => value >= raw) ?? raw;
-  const ticks: number[] = [];
-  for (let value = Math.ceil(min / step) * step; value <= max + step * 0.001; value += step) {
-    ticks.push(Number(value.toFixed(6)));
-  }
-  return ticks;
-}
+const PAD = { top: 12, right: 14, bottom: 26, left: 46 };
+const LABEL_SPACING = 64;
+const SURFACE = "#1f2328";
 
 function linePath(points: [number, number][]): string {
   return points
@@ -54,6 +42,7 @@ export function LineChart({
   description,
 }: Props) {
   const [hover, setHover] = useState<number | null>(null);
+  const [box, width] = useElementWidth<HTMLDivElement>(640);
   const titleId = useId();
   const values = series.flatMap((item) =>
     item.values.filter((value): value is number => value !== null),
@@ -63,17 +52,13 @@ export function LineChart({
   const high = rawHigh === low ? low + 1 : rawHigh;
   const ticks = niceTicks(low, high);
   const top = Math.max(high, ticks.at(-1) ?? high);
-  const innerWidth = WIDTH - PAD.left - PAD.right;
+  const innerWidth = Math.max(40, width - PAD.left - PAD.right);
   const innerHeight = height - PAD.top - PAD.bottom;
   const count = xLabels.length;
   const x = (index: number) =>
     PAD.left + (count <= 1 ? innerWidth / 2 : (index / (count - 1)) * innerWidth);
   const y = (value: number) => PAD.top + innerHeight - ((value - low) / (top - low)) * innerHeight;
-
-  const labelEvery = Math.max(1, Math.ceil(count / 6));
-  const xTicks = xLabels.flatMap((label, position) =>
-    position % labelEvery === 0 || position === count - 1 ? [{ label, position }] : [],
-  );
+  const xTicks = labelPositions(count, innerWidth, LABEL_SPACING);
 
   const onMove = (event: PointerEvent<SVGRectElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -81,7 +66,7 @@ export function LineChart({
     setHover(Math.min(count - 1, Math.max(0, Math.round(ratio * (count - 1)))));
   };
 
-  const tooltipLeft = hover === null ? "0" : `${(x(hover) / WIDTH) * 100}%`;
+  const tooltipLeft = hover === null ? 0 : x(hover);
 
   return (
     <figure style={{ margin: 0 }}>
@@ -95,10 +80,12 @@ export function LineChart({
           ))}
         </div>
       )}
-      <div className="chart-box">
+      <div ref={box} className="chart-box">
         <svg
           className="chart"
-          viewBox={`0 0 ${WIDTH} ${height}`}
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-labelledby={titleId}
         >
@@ -107,7 +94,7 @@ export function LineChart({
             <g key={tick}>
               <line
                 x1={PAD.left}
-                x2={WIDTH - PAD.right}
+                x2={width - PAD.right}
                 y1={y(tick)}
                 y2={y(tick)}
                 stroke="#2f353c"
@@ -118,9 +105,14 @@ export function LineChart({
               </text>
             </g>
           ))}
-          {xTicks.map((tick) => (
-            <text key={tick.position} x={x(tick.position)} y={height - 6} textAnchor="middle">
-              {tick.label}
+          {xTicks.map((position) => (
+            <text
+              key={position}
+              x={x(position)}
+              y={height - 6}
+              textAnchor={position === 0 ? "start" : position === count - 1 ? "end" : "middle"}
+            >
+              {xLabels[position]}
             </text>
           ))}
           {series.map((item) => {
@@ -160,7 +152,7 @@ export function LineChart({
                     cy={last[1]}
                     r={4}
                     fill={item.color}
-                    stroke="#23282e"
+                    stroke={SURFACE}
                     strokeWidth={2}
                   />
                 )}
@@ -187,7 +179,7 @@ export function LineChart({
                   cy={y(value)}
                   r={4}
                   fill={item.color}
-                  stroke="#23282e"
+                  stroke={SURFACE}
                   strokeWidth={2}
                 />
               );
@@ -203,7 +195,10 @@ export function LineChart({
           />
         </svg>
         {hover !== null && (
-          <div className="chart-tooltip" style={{ left: tooltipLeft, top: 0 }}>
+          <div
+            className="chart-tooltip"
+            style={{ left: Math.min(Math.max(tooltipLeft, 70), width - 70), top: 0 }}
+          >
             <strong>{xLabels[hover]}</strong>
             {series.map((item) => {
               const value = item.values[hover];

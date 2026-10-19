@@ -2,8 +2,8 @@ import type { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 import type { Meta, NeighborhoodRisk } from "../../shared/types.ts";
 import { RISK_COLORS } from "../colors.ts";
-import { useMap } from "./base.ts";
-import { neighborhoodFeatures } from "./geojson.ts";
+import { CRITICAL_HATCH, useMap } from "./base.ts";
+import { idFilter, neighborhoodFeatures } from "./geojson.ts";
 
 type Props = {
   meta: Meta;
@@ -47,14 +47,21 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
           "match",
           ["coalesce", ["feature-state", "level"], "low"],
           "critical",
-          0.55,
-          "high",
           0.42,
+          "high",
+          0.38,
           "moderate",
-          0.22,
+          0.2,
           0,
         ],
       },
+    });
+    map.addLayer({
+      id: "risk-hatch",
+      type: "fill",
+      source: "risk",
+      filter: idFilter([]),
+      paint: { "fill-pattern": CRITICAL_HATCH, "fill-opacity": 0.7 },
     });
     map.addLayer({
       id: "risk-line",
@@ -64,8 +71,8 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
         "line-color": [
           "case",
           ["boolean", ["feature-state", "selected"], false],
-          "#ffc20e",
-          "#4b545e",
+          "#ffffff",
+          "rgba(255, 255, 255, 0.16)",
         ],
         "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1],
       },
@@ -94,10 +101,16 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
         { level: risk.level, selected: risk.neighborhoodId === selected },
       );
     }
+    handle.map.setFilter(
+      "risk-hatch",
+      idFilter(
+        risks.filter((risk) => risk.level === "critical").map((risk) => risk.neighborhoodId),
+      ),
+    );
   }, [handle, risks, selected]);
 
   return (
-    <div className="picker-map" style={{ height: 560 }}>
+    <div className="risk-map">
       <div
         ref={container}
         className="map"

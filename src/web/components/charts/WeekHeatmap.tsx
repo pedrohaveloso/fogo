@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { WEEKDAY_LABELS } from "../../../shared/time.ts";
 import { SEQUENTIAL_BLUE } from "../../colors.ts";
 import { formatDecimal, formatHour } from "../../format.ts";
+import { useElementWidth } from "../../useElementWidth.ts";
 
 type Props = {
   matrix: number[][];
@@ -10,11 +11,11 @@ type Props = {
 };
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
-const CELL_W = 24;
 const CELL_H = 22;
 const GAP = 2;
 const LEFT = 36;
 const TOP = 18;
+const MIN_CELL = 15;
 
 function colorFor(value: number, max: number): string {
   if (max <= 0) {
@@ -29,31 +30,30 @@ function colorFor(value: number, max: number): string {
 
 export function WeekHeatmap({ matrix, current, title }: Props) {
   const [hover, setHover] = useState<{ dow: number; hour: number } | null>(null);
+  const [box, available] = useElementWidth<HTMLDivElement>(640);
   const titleId = useId();
   const max = Math.max(...matrix.flat());
-  const width = LEFT + 24 * (CELL_W + GAP);
+  const cellW = Math.max(MIN_CELL, Math.floor((available - LEFT) / 24) - GAP);
+  const width = LEFT + 24 * (cellW + GAP);
   const height = TOP + 7 * (CELL_H + GAP) + 4;
   const shown = hover ?? current;
   const value = matrix[shown.dow]?.[shown.hour] ?? 0;
 
   return (
     <figure style={{ margin: 0 }}>
-      <div style={{ overflowX: "auto" }}>
+      <div ref={box} className="heatmap-scroll">
         <svg
           className="chart"
+          width={width}
+          height={height}
           viewBox={`0 0 ${width} ${height}`}
-          style={{ minWidth: 560 }}
+          style={{ width, maxWidth: "none" }}
           role="img"
           aria-labelledby={titleId}
         >
           <title id={titleId}>{title}</title>
           {HOURS.filter((hour) => hour % 3 === 0).map((hour) => (
-            <text
-              key={hour}
-              x={LEFT + hour * (CELL_W + GAP) + CELL_W / 2}
-              y={12}
-              textAnchor="middle"
-            >
+            <text key={hour} x={LEFT + hour * (cellW + GAP) + cellW / 2} y={12} textAnchor="middle">
               {formatHour(hour)}
             </text>
           ))}
@@ -66,9 +66,9 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
                 <rect
                   key={hour}
                   className="heatmap-cell"
-                  x={LEFT + hour * (CELL_W + GAP)}
+                  x={LEFT + hour * (cellW + GAP)}
                   y={TOP + dow * (CELL_H + GAP)}
-                  width={CELL_W}
+                  width={cellW}
                   height={CELL_H}
                   rx={3}
                   fill={colorFor(row[hour] ?? 0, max)}
@@ -79,9 +79,9 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
             </g>
           ))}
           <rect
-            x={LEFT + current.hour * (CELL_W + GAP) - 1.5}
+            x={LEFT + current.hour * (cellW + GAP) - 1.5}
             y={TOP + current.dow * (CELL_H + GAP) - 1.5}
-            width={CELL_W + 3}
+            width={cellW + 3}
             height={CELL_H + 3}
             rx={4}
             fill="none"
@@ -91,34 +91,16 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
           />
         </svg>
       </div>
-      <figcaption
-        className="hint"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-          marginTop: 6,
-        }}
-      >
+      <figcaption className="hint heatmap-caption">
         <span>
           {hover ? "" : "Agora: "}
           {WEEKDAY_LABELS[shown.dow]}, {formatHour(shown.hour)}: {formatDecimal(value)}{" "}
           ocorrência(s) por hora na cidade
         </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span className="heatmap-scale">
           menos
           {SEQUENTIAL_BLUE.map((color) => (
-            <span
-              key={color}
-              style={{
-                width: 14,
-                height: 10,
-                background: color,
-                borderRadius: 2,
-                display: "inline-block",
-              }}
-            />
+            <span key={color} style={{ background: color }} />
           ))}
           mais
         </span>

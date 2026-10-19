@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Meta } from "../../shared/types.ts";
 import { NOW, makeEquipment } from "../../server/test-fixtures.ts";
-import { EMPTY_FILTERS, matchesFilters } from "./OperationsFilters.tsx";
+import { EMPTY_FILTERS, advancedFilterCount, matchesFilters } from "./OperationsFilters.tsx";
 
 const meta = {
   neighborhoods: [
@@ -51,5 +51,24 @@ describe("matchesFilters", () => {
     expect(matchesFilters(stolen, { ...EMPTY_FILTERS, maintenance: "immediate" }, meta, NOW)).toBe(
       true,
     );
+  });
+});
+
+describe("advancedFilterCount", () => {
+  it("counts only the filters kept behind the disclosure", () => {
+    expect(advancedFilterCount(EMPTY_FILTERS)).toBe(0);
+    expect(
+      advancedFilterCount({ ...EMPTY_FILTERS, search: "radar", statuses: ["operational"] }),
+    ).toBe(0);
+    expect(
+      advancedFilterCount({
+        ...EMPTY_FILTERS,
+        type: "radar",
+        regionId: "south",
+        neighborhoodId: "fragata",
+        agency: "mobility",
+        maintenance: "soon",
+      }),
+    ).toBe(5);
   });
 });

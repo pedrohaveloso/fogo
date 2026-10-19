@@ -94,9 +94,27 @@ type Props = {
   onChange: (filters: EquipmentFilters) => void;
   matching: number;
   total: number;
+  expanded?: boolean;
 };
 
-export function OperationsFilters({ meta, filters, onChange, matching, total }: Props) {
+export function advancedFilterCount(filters: EquipmentFilters): number {
+  return [
+    filters.type,
+    filters.regionId,
+    filters.neighborhoodId,
+    filters.agency,
+    filters.maintenance,
+  ].filter(Boolean).length;
+}
+
+export function OperationsFilters({
+  meta,
+  filters,
+  onChange,
+  matching,
+  total,
+  expanded = false,
+}: Props) {
   const neighborhoods = meta.neighborhoods.filter(
     (item) => !filters.regionId || item.regionId === filters.regionId,
   );
@@ -110,21 +128,24 @@ export function OperationsFilters({ meta, filters, onChange, matching, total }: 
         : [...filters.statuses, status],
     );
   const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const advanced = advancedFilterCount(filters);
 
   return (
     <section aria-labelledby="filters-title" className="filters">
       <h2 id="filters-title" className="section-title">
-        Filtros
+        Filtrar equipamentos
         <small>
-          {matching} de {total} equipamentos
+          {matching} de {total}
         </small>
       </h2>
       <div className="field">
-        <label htmlFor="filter-search">Buscar</label>
+        <label htmlFor="filter-search" className="visually-hidden">
+          Buscar equipamento
+        </label>
         <input
           id="filter-search"
           type="search"
-          placeholder="Série, marca, rua..."
+          placeholder="Buscar por série, marca ou rua"
           value={filters.search}
           onChange={(event) => set("search", event.target.value)}
         />
@@ -146,81 +167,88 @@ export function OperationsFilters({ meta, filters, onChange, matching, total }: 
           ))}
         </div>
       </fieldset>
-      <div className="field">
-        <label htmlFor="filter-type">Tipo de equipamento</label>
-        <select
-          id="filter-type"
-          value={filters.type}
-          onChange={(event) => set("type", event.target.value as EquipmentType | "")}
-        >
-          <option value="">Todos os tipos</option>
-          {EQUIPMENT_TYPE_KEYS.map((type) => (
-            <option key={type} value={type}>
-              {EQUIPMENT_TYPES[type].label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="filter-region">Região</label>
-        <select
-          id="filter-region"
-          value={filters.regionId}
-          onChange={(event) =>
-            onChange({ ...filters, regionId: event.target.value, neighborhoodId: "" })
-          }
-        >
-          <option value="">Toda a cidade</option>
-          {meta.regions.map((region) => (
-            <option key={region.id} value={region.id}>
-              {region.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="filter-neighborhood">Bairro</label>
-        <select
-          id="filter-neighborhood"
-          value={filters.neighborhoodId}
-          onChange={(event) => set("neighborhoodId", event.target.value)}
-        >
-          <option value="">Todos os bairros</option>
-          {neighborhoods.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="filter-agency">Órgão responsável</label>
-        <select
-          id="filter-agency"
-          value={filters.agency}
-          onChange={(event) => set("agency", event.target.value as Agency | "")}
-        >
-          <option value="">Todos os órgãos</option>
-          {AGENCIES.map((agency) => (
-            <option key={agency} value={agency}>
-              {AGENCY_LABELS[agency]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="filter-maintenance">Manutenção</label>
-        <select
-          id="filter-maintenance"
-          value={filters.maintenance}
-          onChange={(event) => set("maintenance", event.target.value as MaintenanceFilter)}
-        >
-          <option value="">Qualquer situação</option>
-          <option value="immediate">Manutenção imediata</option>
-          <option value="overdue">Manutenção vencida</option>
-          <option value="soon">Prevista nos próximos 7 dias</option>
-        </select>
-      </div>
+      <details className="disclosure filters-more" open={expanded}>
+        <summary>
+          {advanced === 0
+            ? "Mais filtros"
+            : `Mais filtros (${advanced} ${advanced === 1 ? "ativo" : "ativos"})`}
+        </summary>
+        <div className="field">
+          <label htmlFor="filter-type">Tipo de equipamento</label>
+          <select
+            id="filter-type"
+            value={filters.type}
+            onChange={(event) => set("type", event.target.value as EquipmentType | "")}
+          >
+            <option value="">Todos os tipos</option>
+            {EQUIPMENT_TYPE_KEYS.map((type) => (
+              <option key={type} value={type}>
+                {EQUIPMENT_TYPES[type].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="filter-region">Região</label>
+          <select
+            id="filter-region"
+            value={filters.regionId}
+            onChange={(event) =>
+              onChange({ ...filters, regionId: event.target.value, neighborhoodId: "" })
+            }
+          >
+            <option value="">Toda a cidade</option>
+            {meta.regions.map((region) => (
+              <option key={region.id} value={region.id}>
+                {region.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="filter-neighborhood">Bairro</label>
+          <select
+            id="filter-neighborhood"
+            value={filters.neighborhoodId}
+            onChange={(event) => set("neighborhoodId", event.target.value)}
+          >
+            <option value="">Todos os bairros</option>
+            {neighborhoods.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="filter-agency">Órgão responsável</label>
+          <select
+            id="filter-agency"
+            value={filters.agency}
+            onChange={(event) => set("agency", event.target.value as Agency | "")}
+          >
+            <option value="">Todos os órgãos</option>
+            {AGENCIES.map((agency) => (
+              <option key={agency} value={agency}>
+                {AGENCY_LABELS[agency]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="filter-maintenance">Manutenção</label>
+          <select
+            id="filter-maintenance"
+            value={filters.maintenance}
+            onChange={(event) => set("maintenance", event.target.value as MaintenanceFilter)}
+          >
+            <option value="">Qualquer situação</option>
+            <option value="immediate">Manutenção imediata</option>
+            <option value="overdue">Manutenção vencida</option>
+            <option value="soon">Prevista nos próximos 7 dias</option>
+          </select>
+        </div>
+      </details>
       {active && (
         <button
           type="button"

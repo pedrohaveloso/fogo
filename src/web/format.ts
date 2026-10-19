@@ -81,3 +81,13 @@ export function formatRelative(iso: string | null, now: number): string {
 export function formatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}h`;
 }
+
+export function formatSigned(value: number): string {
+  if (value > 0) {
+    return `+${integer.format(value)}`;
+  }
+  if (value < 0) {
+    return `−${integer.format(-value)}`;
+  }
+  return "0";
+}

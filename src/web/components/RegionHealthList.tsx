@@ -1,6 +1,7 @@
 import type { AreaHealth } from "../../shared/types.ts";
+import { HEALTH_COLORS, availabilityLevel } from "../colors.ts";
 import { formatPercent } from "../format.ts";
-import { HealthTag } from "./badges.tsx";
+import { HealthTag, Meter } from "./badges.tsx";
 
 type Props = {
   regions: AreaHealth[];
@@ -11,6 +12,10 @@ type Props = {
 };
 
 const LEVEL_ORDER = { critical: 0, attention: 1, normal: 2 } as const;
+
+function plural(count: number, singular: string, pluralForm: string): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
 
 export function RegionHealthList({
   regions,
@@ -31,6 +36,7 @@ export function RegionHealthList({
       <section aria-labelledby="regions-title">
         <h2 id="regions-title" className="section-title">
           Situação por região
+          <small>selecione para filtrar</small>
         </h2>
         <ul className="region-list">
           {regions.map((region) => (
@@ -38,17 +44,24 @@ export function RegionHealthList({
               <button
                 type="button"
                 className="region"
+                data-level={region.level}
                 aria-pressed={selectedRegion === region.id}
                 onClick={() => onSelectRegion(selectedRegion === region.id ? "" : region.id)}
               >
-                <span className="region-name">{region.name}</span>
-                <span />
-                <HealthTag level={region.level} />
+                <span className="region-top">
+                  <span className="region-name">{region.name}</span>
+                  <HealthTag level={region.level} />
+                </span>
+                <span className="region-availability">
+                  <Meter
+                    value={region.availabilityPct}
+                    color={HEALTH_COLORS[availabilityLevel(region.availabilityPct)]}
+                  />
+                  <span>{formatPercent(region.availabilityPct)} disponível</span>
+                </span>
                 <span className="region-meta">
-                  {formatPercent(region.availabilityPct)} disponível, {region.openOccurrences}{" "}
-                  ocorrência
-                  {region.openOccurrences === 1 ? "" : "s"}, {region.agentsActive} agente
-                  {region.agentsActive === 1 ? "" : "s"} na área
+                  {plural(region.openOccurrences, "ocorrência aberta", "ocorrências abertas")},{" "}
+                  {plural(region.agentsActive, "agente na área", "agentes na área")}
                 </span>
                 {region.reasons.length > 0 && (
                   <span className="region-meta">{region.reasons.join("; ")}</span>
@@ -72,11 +85,13 @@ export function RegionHealthList({
                 <button
                   type="button"
                   className="region"
+                  data-level={item.level}
                   onClick={() => onSelectNeighborhood(item.id)}
                 >
-                  <span className="region-name">{item.name}</span>
-                  <span />
-                  <HealthTag level={item.level} />
+                  <span className="region-top">
+                    <span className="region-name">{item.name}</span>
+                    <HealthTag level={item.level} />
+                  </span>
                   <span className="region-meta">{item.reasons.join("; ")}</span>
                 </button>
               </li>

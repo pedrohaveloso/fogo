@@ -23,6 +23,40 @@ export const TYPE_GLYPHS: Record<EquipmentType, string> = {
 
 export const AGENT_GLYPH = "M9 7.5a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M6 19.5a6 6 0 0 1 12 0";
 
+export const MAP_GLYPH = "M9 4.5L3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2z M9 4.5v13 M15 6.5v13";
+
+export const TREND_GLYPH = "M3.5 17l5-5 4 3.5 7.5-8.5 M15 7h5v5";
+
+export const CLOSE_GLYPH = "M6.5 6.5l11 11 M17.5 6.5l-11 11";
+
+export function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <rect
+        x="4.7"
+        y="4.7"
+        width="22.6"
+        height="22.6"
+        rx="3"
+        transform="rotate(45 16 16)"
+        fill="#ffc20e"
+      />
+      <rect
+        x="7.5"
+        y="7.5"
+        width="17"
+        height="17"
+        rx="1.6"
+        transform="rotate(45 16 16)"
+        fill="none"
+        stroke="#15171a"
+        strokeWidth="1.4"
+      />
+      <path d="M13.3 10.6h6.2v2.3h-3.6v2.1h3.3v2.3h-3.3v4.2h-2.6z" fill="#15171a" />
+    </svg>
+  );
+}
+
 export function Glyph({ d, size = 18, label }: { d: string; size?: number; label?: string }) {
   return (
     <svg

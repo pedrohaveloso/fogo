@@ -7,6 +7,7 @@ import {
   EQUIPMENT_TYPE_KEYS,
   MAINTENANCE_LABELS,
   MAINTENANCE_NEEDS,
+  STATUS_COLORS,
   STATUS_LABELS,
   type Agency,
   type AttributeSpec,
@@ -28,9 +29,11 @@ import {
   ConfirmDialog,
   ErrorSummary,
   Field,
+  OptionGroup,
   issuesToErrors,
   type Errors,
 } from "../components/form.tsx";
+import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import { useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -136,6 +139,14 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
       attributes: {},
     }));
 
+  const changeStatus = (status: EquipmentStatus) =>
+    setDraft((current) => ({
+      ...current,
+      status,
+      installedAt: status === "not_installed" ? "" : current.installedAt || localDate(Date.now()),
+      maintenanceNeed: status === "malfunction" ? "immediate" : current.maintenanceNeed,
+    }));
+
   const searchCep = async () => {
     setLookup("Buscando CEP...");
     try {
@@ -231,7 +242,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
   );
 
   return (
-    <main className="page" style={{ maxWidth: 1100 }}>
+    <main className="page page-narrow">
       <div className="page-head">
         <div>
           <h1>{id === null ? "Cadastrar equipamento" : `Editar ${draft.serialNumber}`}</h1>
@@ -241,30 +252,23 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           Voltar para a lista
         </Link>
       </div>
-      <form
-        onSubmit={(event) => void submit(event)}
-        noValidate
-        style={{ display: "grid", gap: 16 }}
-      >
+      <form className="form" onSubmit={(event) => void submit(event)} noValidate>
         <ErrorSummary errors={errors} labels={{ ...LABELS, ...attributeLabels }} />
         <fieldset className="form-section">
           <legend>Identificação</legend>
+          <OptionGroup
+            name="type"
+            label={LABELS["type"]!}
+            error={errors["type"]}
+            value={draft.type}
+            onChange={changeType}
+            options={EQUIPMENT_TYPE_KEYS.map((type) => ({
+              value: type,
+              label: EQUIPMENT_TYPES[type].label,
+              icon: <Glyph d={TYPE_GLYPHS[type]} size={20} />,
+            }))}
+          />
           <div className="form-grid">
-            <Field path="type" label={LABELS["type"]!} error={errors["type"]}>
-              {(props) => (
-                <select
-                  {...props}
-                  value={draft.type}
-                  onChange={(event) => changeType(event.target.value as EquipmentType)}
-                >
-                  {EQUIPMENT_TYPE_KEYS.map((type) => (
-                    <option key={type} value={type}>
-                      {EQUIPMENT_TYPES[type].label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
             <Field
               path="serialNumber"
               label={LABELS["serialNumber"]!}
@@ -312,33 +316,6 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                 </select>
               )}
             </Field>
-            <Field path="status" label={LABELS["status"]!} error={errors["status"]}>
-              {(props) => (
-                <select
-                  {...props}
-                  value={draft.status}
-                  onChange={(event) => {
-                    const status = event.target.value as EquipmentStatus;
-                    setDraft((current) => ({
-                      ...current,
-                      status,
-                      installedAt:
-                        status === "not_installed"
-                          ? ""
-                          : current.installedAt || localDate(Date.now()),
-                      maintenanceNeed:
-                        status === "malfunction" ? "immediate" : current.maintenanceNeed,
-                    }));
-                  }}
-                >
-                  {EQUIPMENT_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
             <Field path="installedAt" label={LABELS["installedAt"]!} error={errors["installedAt"]}>
               {(props) => (
                 <input
@@ -351,6 +328,19 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               )}
             </Field>
           </div>
+          <OptionGroup
+            name="status"
+            label={LABELS["status"]!}
+            error={errors["status"]}
+            value={draft.status}
+            onChange={changeStatus}
+            compact
+            options={EQUIPMENT_STATUSES.map((status) => ({
+              value: status,
+              label: STATUS_LABELS[status],
+              icon: <StatusShape status={status} color={STATUS_COLORS[status]} size={14} />,
+            }))}
+          />
         </fieldset>
 
         <fieldset className="form-section">
@@ -363,7 +353,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               hint="Busque o CEP para preencher rua, bairro e coordenadas."
             >
               {(props) => (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="input-row">
                   <input
                     {...props}
                     inputMode="numeric"
@@ -498,22 +488,18 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
 
         <fieldset className="form-section">
           <legend>Manutenção</legend>
-          <div className="field">
-            <span className="label">{LABELS["maintenanceNeed"]}</span>
-            <div className="chip-group" role="radiogroup" aria-label={LABELS["maintenanceNeed"]}>
-              {MAINTENANCE_NEEDS.map((need) => (
-                <label key={need} className="check" style={{ marginRight: 12 }}>
-                  <input
-                    type="radio"
-                    name="maintenanceNeed"
-                    checked={draft.maintenanceNeed === need}
-                    onChange={() => set("maintenanceNeed", need)}
-                  />
-                  {MAINTENANCE_LABELS[need]}
-                </label>
-              ))}
-            </div>
-          </div>
+          <OptionGroup
+            name="maintenanceNeed"
+            label={LABELS["maintenanceNeed"]!}
+            error={errors["maintenanceNeed"]}
+            value={draft.maintenanceNeed}
+            onChange={(need) => set("maintenanceNeed", need)}
+            compact
+            options={MAINTENANCE_NEEDS.map((need) => ({
+              value: need,
+              label: MAINTENANCE_LABELS[need],
+            }))}
+          />
           <div className="form-grid">
             <Field
               path="maintenanceIntervalDays"
@@ -551,7 +537,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               error={errors["nextMaintenanceAt"]}
             >
               {(props) => (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="input-row">
                   <input
                     {...props}
                     type="date"
@@ -620,7 +606,6 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               type="button"
               className="button button-danger"
               onClick={() => setConfirmDelete(true)}
-              style={{ marginRight: "auto" }}
             >
               Excluir equipamento
             </button>

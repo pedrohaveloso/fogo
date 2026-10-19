@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
-import { AGENCY_LABELS, EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
+import {
+  AGENCY_SHORT_LABELS,
+  EQUIPMENT_TYPES,
+  STATUS_COLORS,
+  STATUS_LABELS,
+} from "../../shared/catalog.ts";
 import { daysBetween, localDate } from "../../shared/time.ts";
 import type { Equipment } from "../../shared/types.ts";
 import { StatusBadge } from "../components/badges.tsx";
@@ -9,17 +14,17 @@ import {
   matchesFilters,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
-import { formatDate, formatRelative } from "../format.ts";
-import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
+import { formatDate, formatInteger, formatRelative } from "../format.ts";
+import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { Link, navigate } from "../router.tsx";
+import { fleetSummary } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
-type SortKey = "serial" | "type" | "status" | "neighborhood" | "maintenance" | "seen";
+type SortKey = "serial" | "status" | "neighborhood" | "maintenance" | "seen";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "serial", label: "Equipamento" },
-  { key: "type", label: "Tipo" },
   { key: "status", label: "Situação" },
   { key: "neighborhood", label: "Local" },
   { key: "maintenance", label: "Próxima manutenção" },
@@ -41,6 +46,8 @@ export function EquipmentListPage() {
     [meta],
   );
 
+  const fleet = useMemo(() => fleetSummary(snapshot?.equipment ?? []), [snapshot]);
+
   const rows = useMemo(() => {
     if (!snapshot || !meta) {
       return [];
@@ -49,8 +56,6 @@ export function EquipmentListPage() {
       switch (sort.key) {
         case "serial":
           return item.serialNumber;
-        case "type":
-          return EQUIPMENT_TYPES[item.type].label;
         case "status":
           return STATUS_LABELS[item.status];
         case "neighborhood":
@@ -85,32 +90,64 @@ export function EquipmentListPage() {
   }
 
   const today = localDate(now);
+  const down = fleet.reduce((sum, entry) => sum + entry.down, 0);
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-head">
         <div>
           <h1>Equipamentos</h1>
           <p>
             Inventário dos equipamentos de trânsito e segurança instalados ou previstos para
-            Marília.
+            Marília. {formatInteger(snapshot.equipment.length)} cadastrados, {formatInteger(down)}{" "}
+            fora de operação agora.
           </p>
         </div>
         <Link href="/equipamentos/novo" className="button button-primary">
           Cadastrar equipamento
         </Link>
       </div>
+      <section aria-label="Equipamentos por tipo" className="summary-tiles">
+        {fleet.map((entry) => (
+          <button
+            key={entry.type}
+            type="button"
+            className="summary-tile"
+            aria-pressed={filters.type === entry.type}
+            onClick={() =>
+              setFilters({ ...filters, type: filters.type === entry.type ? "" : entry.type })
+            }
+          >
+            <span className="summary-icon">
+              <Glyph d={TYPE_GLYPHS[entry.type]} size={20} />
+            </span>
+            <span className="summary-text">
+              <span className="summary-label">{EQUIPMENT_TYPES[entry.type].plural}</span>
+              <span className="summary-figures">
+                <span className="summary-count">{formatInteger(entry.total)}</span>
+                {entry.down > 0 && (
+                  <span className="summary-down">
+                    <StatusShape status="malfunction" color={STATUS_COLORS.malfunction} size={11} />
+                    {entry.down} {entry.down === 1 ? "parado" : "parados"}
+                  </span>
+                )}
+              </span>
+            </span>
+          </button>
+        ))}
+      </section>
       <div className="inventory-layout">
-        <aside className="panel">
+        <aside className="panel inventory-filters">
           <OperationsFilters
             meta={meta}
             filters={filters}
             onChange={setFilters}
             matching={rows.length}
             total={snapshot.equipment.length}
+            expanded
           />
         </aside>
-        <div className="table-wrap" style={{ maxHeight: "calc(100dvh - 200px)" }}>
+        <div className="table-wrap" data-sticky="page">
           <table>
             <caption className="visually-hidden">
               Lista de equipamentos, ordenável pelas colunas
@@ -131,7 +168,7 @@ export function EquipmentListPage() {
                   >
                     <button
                       type="button"
-                      className="row-button"
+                      className="sort-button"
                       onClick={() =>
                         setSort((current) => ({
                           key: column.key,
@@ -141,7 +178,9 @@ export function EquipmentListPage() {
                       }
                     >
                       {column.label}
-                      {sort.key === column.key ? (sort.direction === 1 ? " ▲" : " ▼") : ""}
+                      <span className="sort-arrow" aria-hidden="true">
+                        {sort.key === column.key ? (sort.direction === 1 ? "▲" : "▼") : ""}
+                      </span>
                     </button>
                   </th>
                 ))}
@@ -162,6 +201,7 @@ export function EquipmentListPage() {
                   item.nextMaintenanceAt && item.status !== "stolen"
                     ? daysBetween(today, item.nextMaintenanceAt)
                     : null;
+                const address = `${item.street}, ${item.reference}`;
                 return (
                   <tr key={item.id}>
                     <td>
@@ -173,35 +213,28 @@ export function EquipmentListPage() {
                         <Glyph d={TYPE_GLYPHS[item.type]} size={18} />
                         {item.serialNumber}
                       </button>
-                      <div className="hint">
-                        {item.brand} {item.model}
-                      </div>
+                      <span className="cell-sub">{EQUIPMENT_TYPES[item.type].label}</span>
                     </td>
-                    <td>{EQUIPMENT_TYPES[item.type].label}</td>
                     <td>
                       <StatusBadge status={item.status} />
                     </td>
                     <td>
                       {names.get(item.neighborhoodId)}
-                      <div className="hint">
-                        {item.street}, {item.reference}
-                      </div>
+                      <span className="cell-sub cell-clip" title={address}>
+                        {address}
+                      </span>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       {formatDate(item.nextMaintenanceAt)}
                       {days !== null && days < 0 && (
-                        <div style={{ color: "#ff9d9d", fontSize: "0.85rem" }}>
-                          vencida há {-days} dia(s)
-                        </div>
+                        <span className="cell-alert">vencida há {-days} dia(s)</span>
                       )}
                       {item.maintenanceNeed === "immediate" && (
-                        <div style={{ color: "#ff9d9d", fontSize: "0.85rem" }}>
-                          manutenção imediata
-                        </div>
+                        <span className="cell-alert">manutenção imediata</span>
                       )}
                     </td>
-                    <td>{formatRelative(item.lastSeenAt, now)}</td>
-                    <td>{AGENCY_LABELS[item.agency]}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{formatRelative(item.lastSeenAt, now)}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{AGENCY_SHORT_LABELS[item.agency]}</td>
                   </tr>
                 );
               })}

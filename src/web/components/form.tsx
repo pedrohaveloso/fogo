@@ -50,6 +50,58 @@ export function Field({ path, label, error, hint, children }: FieldProps) {
   );
 }
 
+type Option<T extends string> = { value: T; label: string; icon?: ReactNode };
+
+export function OptionGroup<T extends string>({
+  name,
+  label,
+  options,
+  value,
+  onChange,
+  error,
+  compact = false,
+}: {
+  name: string;
+  label: string;
+  options: Option<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  error: string | undefined;
+  compact?: boolean;
+}) {
+  const id = fieldId(name);
+  return (
+    <fieldset
+      className="field chip-fieldset option-field"
+      data-invalid={Boolean(error)}
+      aria-describedby={error ? `${id}-error` : undefined}
+    >
+      <legend className="label">{label}</legend>
+      <div className="option-grid" data-compact={compact}>
+        {options.map((option, index) => (
+          <label key={option.value} className="option">
+            <input
+              type="radio"
+              id={index === 0 ? id : undefined}
+              name={name}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            {option.icon}
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+      {error && (
+        <span id={`${id}-error`} className="field-error">
+          {error}
+        </span>
+      )}
+    </fieldset>
+  );
+}
+
 export function ErrorSummary({
   errors,
   labels,
@@ -119,11 +171,11 @@ export function ConfirmDialog({
   }, [open]);
   return (
     <dialog ref={ref} onClose={onCancel} aria-labelledby="confirm-title">
-      <h2 id="confirm-title" style={{ fontSize: "1.3rem", marginBottom: 8 }}>
+      <h2 id="confirm-title" className="dialog-title">
         {title}
       </h2>
-      <p style={{ color: "var(--ink-2)" }}>{message}</p>
-      <div className="form-actions" style={{ marginTop: 18 }}>
+      <p className="dialog-body">{message}</p>
+      <div className="dialog-actions">
         <button type="button" className="button" onClick={onCancel}>
           Cancelar
         </button>

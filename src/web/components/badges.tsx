@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import {
   AGENT_STATUS_LABELS,
   EQUIPMENT_TYPES,
@@ -9,9 +10,10 @@ import {
   type EquipmentType,
   type Severity,
 } from "../../shared/catalog.ts";
-import type { HealthLevel, RiskLevel } from "../../shared/types.ts";
+import type { AlertLevel, HealthLevel, RiskLevel } from "../../shared/types.ts";
 import {
   AGENT_STATUS_COLORS,
+  ALERT_LABELS,
   HEALTH_COLORS,
   HEALTH_LABELS,
   RISK_COLORS,
@@ -29,12 +31,18 @@ export function StatusBadge({ status }: { status: EquipmentStatus }) {
   );
 }
 
+export function AgentShield({ status, size = 14 }: { status: AgentStatus; size?: number }) {
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+      <path d={shapePath("shield", size)} fill={AGENT_STATUS_COLORS[status]} />
+    </svg>
+  );
+}
+
 export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   return (
     <span className="badge">
-      <svg viewBox="0 0 14 14" width={14} height={14} aria-hidden="true">
-        <path d={shapePath("shield", 14)} fill={AGENT_STATUS_COLORS[status]} />
-      </svg>
+      <AgentShield status={status} />
       {AGENT_STATUS_LABELS[status]}
     </span>
   );
@@ -44,34 +52,65 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
   return (
     <span className="badge">
       <span
-        className="level-dot"
-        style={{ background: SEVERITY_COLORS[severity], borderRadius: "50%" }}
+        className="key-dot"
+        style={{ "--key-color": SEVERITY_COLORS[severity] } as CSSProperties}
       />
       Gravidade {SEVERITY_LABELS[severity].toLowerCase()}
     </span>
   );
 }
 
+export function HealthSwatch({ level }: { level: HealthLevel }) {
+  if (level === "critical") {
+    return <span className="swatch" data-pattern="zebra" />;
+  }
+  if (level === "attention") {
+    return <span className="swatch" data-pattern="lane" />;
+  }
+  return <span className="swatch" style={{ background: HEALTH_COLORS.normal }} />;
+}
+
 export function HealthTag({ level }: { level: HealthLevel }) {
   return (
     <span className="level-tag">
-      <span className="level-dot" style={{ background: HEALTH_COLORS[level] }} />
+      <HealthSwatch level={level} />
       {HEALTH_LABELS[level]}
     </span>
   );
 }
 
+export function RiskSwatch({ level }: { level: RiskLevel }) {
+  if (level === "critical") {
+    return <span className="swatch" data-pattern="zebra" />;
+  }
+  if (level === "low") {
+    return <span className="swatch" data-pattern="hairline" />;
+  }
+  return <span className="swatch" style={{ background: RISK_COLORS[level] }} />;
+}
+
 export function RiskTag({ level }: { level: RiskLevel }) {
   return (
     <span className="level-tag">
-      <span
-        className="level-dot"
-        style={{
-          background: RISK_COLORS[level],
-          outline: level === "low" ? "1px solid #6b7079" : undefined,
-        }}
-      />
+      <RiskSwatch level={level} />
       {RISK_LABELS[level]}
+    </span>
+  );
+}
+
+export function LevelPlate({ level }: { level: AlertLevel }) {
+  return (
+    <span className="plate" data-level={level}>
+      {ALERT_LABELS[level]}
+    </span>
+  );
+}
+
+export function Meter({ value, max = 100, color }: { value: number; max?: number; color: string }) {
+  const width = max <= 0 ? 0 : Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <span className="meter" role="presentation" style={{ "--meter-color": color } as CSSProperties}>
+      <span style={{ width: `${width}%` }} />
     </span>
   );
 }

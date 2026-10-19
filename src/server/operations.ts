@@ -1,5 +1,7 @@
 import {
   ACTIVE_AGENT_STATUSES,
+  AVAILABILITY_ATTENTION_PCT,
+  AVAILABILITY_CRITICAL_PCT,
   EQUIPMENT_TYPES,
   OCCURRENCE_KINDS,
   SEVERITY_LABELS,
@@ -111,10 +113,10 @@ function healthOf(
     }
   };
 
-  if (countable.length >= 3 && availabilityPct < 60) {
+  if (countable.length >= 3 && availabilityPct < AVAILABILITY_CRITICAL_PCT) {
     raise("critical");
     reasons.push(`Disponibilidade de equipamentos em ${availabilityPct.toFixed(0)}%`);
-  } else if (countable.length >= 2 && availabilityPct < 85) {
+  } else if (countable.length >= 2 && availabilityPct < AVAILABILITY_ATTENTION_PCT) {
     raise("attention");
     reasons.push(`Disponibilidade de equipamentos em ${availabilityPct.toFixed(0)}%`);
   }

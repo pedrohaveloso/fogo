@@ -1,10 +1,15 @@
-import { Marker, type GeoJSONSource, type MapLayerMouseEvent } from "maplibre-gl";
+import {
+  Marker,
+  type ExpressionSpecification,
+  type GeoJSONSource,
+  type MapLayerMouseEvent,
+} from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { OCCURRENCE_KINDS, SEVERITY_LABELS } from "../../shared/catalog.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
-import { HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
-import { useMap } from "./base.ts";
-import { neighborhoodFeatures } from "./geojson.ts";
+import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
+import { CRITICAL_HATCH, useMap } from "./base.ts";
+import { dispatchLines, idFilter, idsAtLevel, neighborhoodFeatures } from "./geojson.ts";
 
 export type Selection =
   | { kind: "equipment"; id: number }
@@ -34,6 +39,10 @@ type Props = {
 };
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
+const MAP_GROUND = "#111417";
+const CLUSTER_BADGE_OFFSET: [number, number] = [13, -13];
+const CLICKABLE_LAYERS = ["equipment-points", "agents", "equipment-clusters", "cluster-badge"];
+const LEVEL: ExpressionSpecification = ["coalesce", ["feature-state", "level"], "normal"];
 
 function point(lng: number, lat: number, properties: Record<string, unknown>) {
   return {
@@ -45,6 +54,23 @@ function point(lng: number, lat: number, properties: Record<string, unknown>) {
 
 function equipmentPosition(item: Equipment): [number, number] {
   return [item.currentLng ?? item.lng, item.currentLat ?? item.lat];
+}
+
+function occurrenceLabel(occurrence: Occurrence): string {
+  const kind = OCCURRENCE_KINDS[occurrence.kind].label;
+  const severity = SEVERITY_LABELS[occurrence.severity].toLowerCase();
+  const state = occurrence.status === "responding" ? "equipe a caminho" : "aguardando equipe";
+  return `${kind}, gravidade ${severity}, ${state}`;
+}
+
+function paintOccurrence(element: HTMLElement, occurrence: Occurrence): void {
+  const color = SEVERITY_COLORS[occurrence.severity];
+  const label = occurrenceLabel(occurrence);
+  element.style.background = color;
+  element.style.color = color;
+  element.dataset["waiting"] = String(occurrence.status === "open");
+  element.setAttribute("aria-label", label);
+  element.title = label;
 }
 
 export function OperationsMap(props: Props) {
@@ -82,6 +108,7 @@ export function OperationsMap(props: Props) {
         ],
       },
     });
+    map.addSource("dispatch", { type: "geojson", data: EMPTY });
     map.addSource("agents", { type: "geojson", data: EMPTY });
     map.addSource("selection", { type: "geojson", data: EMPTY });
 
@@ -92,23 +119,22 @@ export function OperationsMap(props: Props) {
       paint: {
         "fill-color": [
           "match",
-          ["coalesce", ["feature-state", "level"], "normal"],
+          LEVEL,
           "critical",
           HEALTH_COLORS.critical,
           "attention",
           HEALTH_COLORS.attention,
-          "#8a94a6",
+          MAP_GROUND,
         ],
-        "fill-opacity": [
-          "match",
-          ["coalesce", ["feature-state", "level"], "normal"],
-          "critical",
-          0.28,
-          "attention",
-          0.16,
-          0.03,
-        ],
+        "fill-opacity": ["match", LEVEL, "critical", 0.14, "attention", 0.07, 0],
       },
+    });
+    map.addLayer({
+      id: "neighborhood-hatch",
+      type: "fill",
+      source: "neighborhoods",
+      filter: idFilter([]),
+      paint: { "fill-pattern": CRITICAL_HATCH, "fill-opacity": 0.6 },
     });
     map.addLayer({
       id: "neighborhood-line",
@@ -117,15 +143,33 @@ export function OperationsMap(props: Props) {
       paint: {
         "line-color": [
           "match",
-          ["coalesce", ["feature-state", "level"], "normal"],
+          LEVEL,
           "critical",
           HEALTH_COLORS.critical,
-          "attention",
-          HEALTH_COLORS.attention,
-          "#4b545e",
+          "rgba(255, 255, 255, 0.13)",
         ],
-        "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1],
+        "line-width": ["match", LEVEL, "critical", 1.6, 0.8],
       },
+    });
+    map.addLayer({
+      id: "neighborhood-attention",
+      type: "line",
+      source: "neighborhoods",
+      filter: idFilter([]),
+      layout: { "line-cap": "butt" },
+      paint: {
+        "line-color": HEALTH_COLORS.attention,
+        "line-width": 1.4,
+        "line-opacity": 0.8,
+        "line-dasharray": [3, 2],
+      },
+    });
+    map.addLayer({
+      id: "neighborhood-selected",
+      type: "line",
+      source: "neighborhoods",
+      filter: idFilter([]),
+      paint: { "line-color": "#ffffff", "line-width": 2.5 },
     });
     map.addLayer({
       id: "heat",
@@ -153,15 +197,45 @@ export function OperationsMap(props: Props) {
       },
     });
     map.addLayer({
+      id: "dispatch",
+      type: "line",
+      source: "dispatch",
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": AGENT_STATUS_COLORS.responding,
+        "line-width": 2.5,
+        "line-dasharray": [0.1, 2],
+        "line-opacity": 0.7,
+      },
+    });
+    map.addLayer({
       id: "equipment-clusters",
       type: "circle",
       source: "equipment",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": ["case", [">", ["get", "down"], 0], "#3a2a2c", "#26332a"],
-        "circle-stroke-color": ["case", [">", ["get", "down"], 0], "#d03b3b", "#0ca30c"],
+        "circle-color": "#1f2328",
+        "circle-stroke-color": [
+          "case",
+          [">", ["get", "down"], 0],
+          HEALTH_COLORS.critical,
+          HEALTH_COLORS.normal,
+        ],
         "circle-stroke-width": 2,
-        "circle-radius": ["step", ["get", "point_count"], 15, 10, 19, 30, 24],
+        "circle-radius": ["step", ["get", "point_count"], 15, 10, 17, 30, 19],
+      },
+    });
+    map.addLayer({
+      id: "cluster-badge",
+      type: "circle",
+      source: "equipment",
+      filter: ["all", ["has", "point_count"], [">", ["get", "down"], 0]],
+      paint: {
+        "circle-color": HEALTH_COLORS.critical,
+        "circle-radius": 8,
+        "circle-stroke-color": MAP_GROUND,
+        "circle-stroke-width": 2,
+        "circle-translate": CLUSTER_BADGE_OFFSET,
       },
     });
     if (online) {
@@ -171,24 +245,27 @@ export function OperationsMap(props: Props) {
         source: "equipment",
         filter: ["has", "point_count"],
         layout: {
-          "text-field": [
-            "case",
-            [">", ["get", "down"], 0],
-            [
-              "concat",
-              ["to-string", ["get", "point_count"]],
-              "\n",
-              ["to-string", ["get", "down"]],
-              " ⚠",
-            ],
-            ["to-string", ["get", "point_count"]],
-          ],
+          "text-field": ["to-string", ["get", "point_count"]],
           "text-font": ["Noto Sans Bold"],
-          "text-size": 11,
-          "text-line-height": 1.1,
+          "text-size": 12,
           "text-allow-overlap": true,
+          "text-ignore-placement": true,
         },
         paint: { "text-color": "#eef0f2" },
+      });
+      map.addLayer({
+        id: "cluster-badge-count",
+        type: "symbol",
+        source: "equipment",
+        filter: ["all", ["has", "point_count"], [">", ["get", "down"], 0]],
+        layout: {
+          "text-field": ["to-string", ["get", "down"]],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 10,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: { "text-color": "#ffffff", "text-translate": CLUSTER_BADGE_OFFSET },
       });
     }
     map.addLayer({
@@ -220,8 +297,8 @@ export function OperationsMap(props: Props) {
       paint: {
         "circle-radius": 21,
         "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-color": "#ffc20e",
-        "circle-stroke-width": 3,
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2.5,
       },
     });
 
@@ -231,9 +308,7 @@ export function OperationsMap(props: Props) {
         onSelect({ kind, id });
       }
     };
-    map.on("click", "equipment-points", select("equipment"));
-    map.on("click", "agents", select("agent"));
-    map.on("click", "equipment-clusters", async (event) => {
+    const expandCluster = async (event: MapLayerMouseEvent) => {
       const feature = event.features?.[0];
       const clusterId = feature?.properties["cluster_id"];
       if (!feature || typeof clusterId !== "number" || feature.geometry.type !== "Point") {
@@ -243,20 +318,22 @@ export function OperationsMap(props: Props) {
         .getSource<GeoJSONSource>("equipment")!
         .getClusterExpansionZoom(clusterId);
       map.easeTo({ center: feature.geometry.coordinates as [number, number], zoom });
-    });
+    };
+    map.on("click", "equipment-points", select("equipment"));
+    map.on("click", "agents", select("agent"));
+    map.on("click", "equipment-clusters", (event) => void expandCluster(event));
+    map.on("click", "cluster-badge", (event) => void expandCluster(event));
     map.on("click", "neighborhood-fill", (event) => {
       if (event.defaultPrevented) {
         return;
       }
-      const hits = map.queryRenderedFeatures(event.point, {
-        layers: ["equipment-points", "agents", "equipment-clusters"],
-      });
+      const hits = map.queryRenderedFeatures(event.point, { layers: CLICKABLE_LAYERS });
       const id = event.features?.[0]?.properties["id"];
       if (hits.length === 0 && typeof id === "string") {
         onSelect({ kind: "neighborhood", id });
       }
     });
-    for (const layer of ["equipment-points", "agents", "equipment-clusters", "neighborhood-fill"]) {
+    for (const layer of [...CLICKABLE_LAYERS, "neighborhood-fill"]) {
       map.on("mouseenter", layer, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -295,6 +372,15 @@ export function OperationsMap(props: Props) {
   }, [handle, props.agents, props.layers.agents]);
 
   useEffect(() => {
+    const source = handle?.map.getSource<GeoJSONSource>("dispatch");
+    void source?.setData(
+      props.layers.agents && props.layers.occurrences
+        ? dispatchLines(props.agents, props.occurrences)
+        : EMPTY,
+    );
+  }, [handle, props.agents, props.occurrences, props.layers.agents, props.layers.occurrences]);
+
+  useEffect(() => {
     const source = handle?.map.getSource<GeoJSONSource>("heat");
     void source?.setData({
       type: "FeatureCollection",
@@ -307,12 +393,21 @@ export function OperationsMap(props: Props) {
       return;
     }
     const { map } = handle;
+    const visible = props.layers.health;
     for (const area of props.neighborhoodHealth) {
       map.setFeatureState(
         { source: "neighborhoods", id: area.id },
-        { level: props.layers.health ? area.level : "normal" },
+        { level: visible ? area.level : "normal" },
       );
     }
+    map.setFilter(
+      "neighborhood-hatch",
+      idFilter(visible ? idsAtLevel(props.neighborhoodHealth, "critical") : []),
+    );
+    map.setFilter(
+      "neighborhood-attention",
+      idFilter(visible ? idsAtLevel(props.neighborhoodHealth, "attention") : []),
+    );
   }, [handle, props.neighborhoodHealth, props.layers.health]);
 
   useEffect(() => {
@@ -321,12 +416,10 @@ export function OperationsMap(props: Props) {
     }
     const { map } = handle;
     const selected = props.selected;
-    for (const neighborhood of props.meta.neighborhoods) {
-      map.setFeatureState(
-        { source: "neighborhoods", id: neighborhood.id },
-        { selected: selected?.kind === "neighborhood" && selected.id === neighborhood.id },
-      );
-    }
+    map.setFilter(
+      "neighborhood-selected",
+      idFilter(selected?.kind === "neighborhood" ? [selected.id] : []),
+    );
     let position: [number, number] | null = null;
     if (selected?.kind === "equipment") {
       const item = props.equipment.find((entry) => entry.id === selected.id);
@@ -338,7 +431,7 @@ export function OperationsMap(props: Props) {
     void map
       .getSource<GeoJSONSource>("selection")
       ?.setData({ type: "FeatureCollection", features: position ? [point(...position, {})] : [] });
-  }, [handle, props.selected, props.equipment, props.agents, props.meta.neighborhoods]);
+  }, [handle, props.selected, props.equipment, props.agents]);
 
   useEffect(() => {
     if (!handle) {
@@ -354,21 +447,15 @@ export function OperationsMap(props: Props) {
       }
     }
     for (const occurrence of visible) {
-      const label = `${OCCURRENCE_KINDS[occurrence.kind].label}, gravidade ${SEVERITY_LABELS[occurrence.severity].toLowerCase()}`;
       const existing = current.get(occurrence.id);
       if (existing) {
-        const element = existing.getElement();
-        element.style.background = SEVERITY_COLORS[occurrence.severity];
-        element.setAttribute("aria-label", label);
+        paintOccurrence(existing.getElement(), occurrence);
         continue;
       }
       const element = document.createElement("button");
       element.type = "button";
       element.className = "occurrence-marker";
-      element.style.background = SEVERITY_COLORS[occurrence.severity];
-      element.style.color = SEVERITY_COLORS[occurrence.severity];
-      element.setAttribute("aria-label", label);
-      element.title = label;
+      paintOccurrence(element, occurrence);
       element.addEventListener("click", (event) => {
         event.stopPropagation();
         onSelect({ kind: "occurrence", id: occurrence.id });

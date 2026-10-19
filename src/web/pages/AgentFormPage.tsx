@@ -17,9 +17,11 @@ import {
   ConfirmDialog,
   ErrorSummary,
   Field,
+  OptionGroup,
   issuesToErrors,
   type Errors,
 } from "../components/form.tsx";
+import { AgentShield } from "../components/badges.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -191,7 +193,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
     draft.lat && draft.lng ? { lat: Number(draft.lat), lng: Number(draft.lng) } : null;
 
   return (
-    <main className="page" style={{ maxWidth: 1100 }}>
+    <main className="page page-narrow">
       <div className="page-head">
         <div>
           <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
@@ -204,11 +206,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
           Voltar para a lista
         </Link>
       </div>
-      <form
-        onSubmit={(event) => void submit(event)}
-        noValidate
-        style={{ display: "grid", gap: 16 }}
-      >
+      <form className="form" onSubmit={(event) => void submit(event)} noValidate>
         <ErrorSummary errors={errors} labels={LABELS} />
         <fieldset className="form-section">
           <legend>Identificação</legend>
@@ -233,27 +231,6 @@ export function AgentFormPage({ id }: { id: number | null }) {
                 />
               )}
             </Field>
-            <Field path="role" label={LABELS["role"]!} error={errors["role"]}>
-              {(props) => (
-                <select
-                  {...props}
-                  value={draft.role}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      role: event.target.value as AgentRole,
-                      vehicleId: "",
-                    }))
-                  }
-                >
-                  {AGENT_ROLE_KEYS.map((key) => (
-                    <option key={key} value={key}>
-                      {AGENT_ROLES[key].label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
             <Field path="rank" label={LABELS["rank"]!} error={errors["rank"]}>
               {(props) => (
                 <input
@@ -274,40 +251,43 @@ export function AgentFormPage({ id }: { id: number | null }) {
               )}
             </Field>
           </div>
+          <OptionGroup
+            name="role"
+            label={LABELS["role"]!}
+            error={errors["role"]}
+            value={draft.role}
+            compact
+            onChange={(role: AgentRole) =>
+              setDraft((current) => ({ ...current, role, vehicleId: "" }))
+            }
+            options={AGENT_ROLE_KEYS.map((key) => ({ value: key, label: AGENT_ROLES[key].label }))}
+          />
         </fieldset>
         <fieldset className="form-section">
           <legend>Escala e situação</legend>
-          <div className="form-grid">
-            <Field path="shift" label={LABELS["shift"]!} error={errors["shift"]}>
-              {(props) => (
-                <select
-                  {...props}
-                  value={draft.shift}
-                  onChange={(event) => set("shift", event.target.value as Shift)}
-                >
-                  {SHIFT_KEYS.map((key) => (
-                    <option key={key} value={key}>
-                      {SHIFTS[key]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-            <Field path="status" label={LABELS["status"]!} error={errors["status"]}>
-              {(props) => (
-                <select
-                  {...props}
-                  value={draft.status}
-                  onChange={(event) => set("status", event.target.value as AgentStatus)}
-                >
-                  {AGENT_STATUSES.map((key) => (
-                    <option key={key} value={key}>
-                      {AGENT_STATUS_LABELS[key]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
+          <OptionGroup
+            name="shift"
+            label={LABELS["shift"]!}
+            error={errors["shift"]}
+            value={draft.shift}
+            compact
+            onChange={(shift: Shift) => set("shift", shift)}
+            options={SHIFT_KEYS.map((key) => ({ value: key, label: SHIFTS[key] }))}
+          />
+          <OptionGroup
+            name="status"
+            label={LABELS["status"]!}
+            error={errors["status"]}
+            value={draft.status}
+            compact
+            onChange={(status: AgentStatus) => set("status", status)}
+            options={AGENT_STATUSES.map((key) => ({
+              value: key,
+              label: AGENT_STATUS_LABELS[key],
+              icon: <AgentShield status={key} size={16} />,
+            }))}
+          />
+          <div className="form-grid form-grid-wide">
             <Field path="vehicleId" label={LABELS["vehicleId"]!} error={errors["vehicleId"]}>
               {(props) => (
                 <select
@@ -413,7 +393,6 @@ export function AgentFormPage({ id }: { id: number | null }) {
               type="button"
               className="button button-danger"
               onClick={() => setConfirmDelete(true)}
-              style={{ marginRight: "auto" }}
             >
               Excluir agente
             </button>

@@ -97,14 +97,96 @@ type Props = {
   expanded?: boolean;
 };
 
+export function placeFilterCount(filters: EquipmentFilters): number {
+  return [filters.regionId, filters.neighborhoodId, filters.agency, filters.maintenance].filter(
+    Boolean,
+  ).length;
+}
+
 export function advancedFilterCount(filters: EquipmentFilters): number {
-  return [
-    filters.type,
-    filters.regionId,
-    filters.neighborhoodId,
-    filters.agency,
-    filters.maintenance,
-  ].filter(Boolean).length;
+  return (filters.type ? 1 : 0) + placeFilterCount(filters);
+}
+
+export function PlaceFilterFields({
+  idPrefix,
+  meta,
+  filters,
+  onChange,
+}: {
+  idPrefix: string;
+  meta: Meta;
+  filters: EquipmentFilters;
+  onChange: (filters: EquipmentFilters) => void;
+}) {
+  const neighborhoods = meta.neighborhoods.filter(
+    (item) => !filters.regionId || item.regionId === filters.regionId,
+  );
+  return (
+    <>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-region`}>Região</label>
+        <select
+          id={`${idPrefix}-region`}
+          value={filters.regionId}
+          onChange={(event) =>
+            onChange({ ...filters, regionId: event.target.value, neighborhoodId: "" })
+          }
+        >
+          <option value="">Toda a cidade</option>
+          {meta.regions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-neighborhood`}>Bairro</label>
+        <select
+          id={`${idPrefix}-neighborhood`}
+          value={filters.neighborhoodId}
+          onChange={(event) => onChange({ ...filters, neighborhoodId: event.target.value })}
+        >
+          <option value="">Todos os bairros</option>
+          {neighborhoods.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-agency`}>Órgão responsável</label>
+        <select
+          id={`${idPrefix}-agency`}
+          value={filters.agency}
+          onChange={(event) => onChange({ ...filters, agency: event.target.value as Agency | "" })}
+        >
+          <option value="">Todos os órgãos</option>
+          {AGENCIES.map((agency) => (
+            <option key={agency} value={agency}>
+              {AGENCY_LABELS[agency]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-maintenance`}>Manutenção</label>
+        <select
+          id={`${idPrefix}-maintenance`}
+          value={filters.maintenance}
+          onChange={(event) =>
+            onChange({ ...filters, maintenance: event.target.value as MaintenanceFilter })
+          }
+        >
+          <option value="">Qualquer situação</option>
+          <option value="immediate">Manutenção imediata</option>
+          <option value="overdue">Manutenção vencida</option>
+          <option value="soon">Prevista nos próximos 7 dias</option>
+        </select>
+      </div>
+    </>
+  );
 }
 
 export function OperationsFilters({
@@ -115,9 +197,6 @@ export function OperationsFilters({
   total,
   expanded = false,
 }: Props) {
-  const neighborhoods = meta.neighborhoods.filter(
-    (item) => !filters.regionId || item.regionId === filters.regionId,
-  );
   const set = <K extends keyof EquipmentFilters>(key: K, value: EquipmentFilters[K]) =>
     onChange({ ...filters, [key]: value });
   const toggleStatus = (status: EquipmentStatus) =>
@@ -188,66 +267,7 @@ export function OperationsFilters({
             ))}
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="filter-region">Região</label>
-          <select
-            id="filter-region"
-            value={filters.regionId}
-            onChange={(event) =>
-              onChange({ ...filters, regionId: event.target.value, neighborhoodId: "" })
-            }
-          >
-            <option value="">Toda a cidade</option>
-            {meta.regions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="filter-neighborhood">Bairro</label>
-          <select
-            id="filter-neighborhood"
-            value={filters.neighborhoodId}
-            onChange={(event) => set("neighborhoodId", event.target.value)}
-          >
-            <option value="">Todos os bairros</option>
-            {neighborhoods.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="filter-agency">Órgão responsável</label>
-          <select
-            id="filter-agency"
-            value={filters.agency}
-            onChange={(event) => set("agency", event.target.value as Agency | "")}
-          >
-            <option value="">Todos os órgãos</option>
-            {AGENCIES.map((agency) => (
-              <option key={agency} value={agency}>
-                {AGENCY_LABELS[agency]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="filter-maintenance">Manutenção</label>
-          <select
-            id="filter-maintenance"
-            value={filters.maintenance}
-            onChange={(event) => set("maintenance", event.target.value as MaintenanceFilter)}
-          >
-            <option value="">Qualquer situação</option>
-            <option value="immediate">Manutenção imediata</option>
-            <option value="overdue">Manutenção vencida</option>
-            <option value="soon">Prevista nos próximos 7 dias</option>
-          </select>
-        </div>
+        <PlaceFilterFields idPrefix="filter" meta={meta} filters={filters} onChange={onChange} />
       </details>
       {active && (
         <button

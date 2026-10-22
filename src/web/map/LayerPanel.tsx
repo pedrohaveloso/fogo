@@ -12,7 +12,6 @@ import { StatusShape } from "../icons.tsx";
 import type { MapLayers } from "./OperationsMap.tsx";
 
 const SEVERITIES: Severity[] = [1, 2, 3, 4];
-const WIDE_SCREEN = "(min-width: 1025px)";
 
 function LayerItem({
   label,
@@ -47,7 +46,7 @@ export function LayerPanel({
   layers: MapLayers;
   onChange: (layers: MapLayers) => void;
 }) {
-  const [open, setOpen] = useState(() => window.matchMedia(WIDE_SCREEN).matches);
+  const [open, setOpen] = useState(false);
   const toggle = (key: keyof MapLayers) => (checked: boolean) =>
     onChange({ ...layers, [key]: checked });
 

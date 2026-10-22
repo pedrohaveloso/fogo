@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Meta } from "../../shared/types.ts";
 import { NOW, makeEquipment } from "../../server/test-fixtures.ts";
-import { EMPTY_FILTERS, advancedFilterCount, matchesFilters } from "./OperationsFilters.tsx";
+import {
+  EMPTY_FILTERS,
+  advancedFilterCount,
+  matchesFilters,
+  placeFilterCount,
+} from "./OperationsFilters.tsx";
 
 const meta = {
   neighborhoods: [
@@ -70,5 +75,23 @@ describe("advancedFilterCount", () => {
         maintenance: "soon",
       }),
     ).toBe(5);
+  });
+});
+
+describe("placeFilterCount", () => {
+  it("counts only the filters inside the extra menu", () => {
+    expect(placeFilterCount(EMPTY_FILTERS)).toBe(0);
+    expect(
+      placeFilterCount({ ...EMPTY_FILTERS, search: "radar", type: "radar", statuses: ["stolen"] }),
+    ).toBe(0);
+    expect(
+      placeFilterCount({
+        ...EMPTY_FILTERS,
+        regionId: "centro",
+        neighborhoodId: "fragata",
+        agency: "municipal_guard",
+        maintenance: "overdue",
+      }),
+    ).toBe(4);
   });
 });

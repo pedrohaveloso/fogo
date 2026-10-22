@@ -2,10 +2,10 @@ import { useCallback, useMemo, useState } from "react";
 import type { Alert } from "../../shared/types.ts";
 import { AlertFeed } from "../components/AlertFeed.tsx";
 import { DetailDrawer } from "../components/DetailDrawer.tsx";
-import { KpiStrip } from "../components/KpiStrip.tsx";
+import { CityStatus } from "../components/CityStatus.tsx";
+import { MapFilterBar } from "../components/MapFilterBar.tsx";
 import {
   EMPTY_FILTERS,
-  OperationsFilters,
   matchesFilters,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
@@ -28,6 +28,7 @@ export function OperationsPage() {
     occurrences: true,
     heat: false,
   });
+  const [tab, setTab] = useState<"alerts" | "regions">("alerts");
   const [selected, setSelected] = useState<Selection | null>(null);
   const [focus, setFocus] = useState<{ lng: number; lat: number; key: number } | null>(null);
   const heat = useFetch<[number, number][]>(layers.heat ? "/occurrences/heat?days=30" : null);
@@ -101,28 +102,16 @@ export function OperationsPage() {
     ? snapshot.occurrences.filter((item) => regionNeighborhoods.has(item.neighborhoodId))
     : snapshot.occurrences;
   const waiting = snapshot.occurrences.filter((item) => item.status === "open").length;
-  const filtered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const pendingAlerts = snapshot.alerts.filter((alert) => !alert.acknowledged).length;
+  const flaggedRegions = snapshot.regions.filter((region) => region.level !== "normal").length;
+  const tabs = [
+    { key: "alerts", label: "Alertas", count: pendingAlerts },
+    { key: "regions", label: "Regiões", count: flaggedRegions },
+  ] as const;
 
   return (
     <main className="ops">
       <h1 className="visually-hidden">Central de operações</h1>
-      <KpiStrip kpis={snapshot.kpis} waiting={waiting} />
-      <div className="ops-side ops-side-left">
-        <OperationsFilters
-          meta={meta}
-          filters={filters}
-          onChange={setFilters}
-          matching={equipment.length}
-          total={snapshot.equipment.length}
-        />
-        <RegionHealthList
-          regions={snapshot.regions}
-          neighborhoods={snapshot.neighborhoods}
-          selectedRegion={filters.regionId}
-          onSelectRegion={(regionId) => setFilters({ ...filters, regionId, neighborhoodId: "" })}
-          onSelectNeighborhood={focusNeighborhood}
-        />
-      </div>
       <div className="ops-map">
         <OperationsMap
           meta={meta}
@@ -136,21 +125,14 @@ export function OperationsPage() {
           focus={focus}
           onSelect={setSelected}
         />
+        <MapFilterBar
+          meta={meta}
+          filters={filters}
+          onChange={setFilters}
+          matching={equipment.length}
+          total={snapshot.equipment.length}
+        />
         <LayerPanel layers={layers} onChange={setLayers} />
-        {filtered && (
-          <div className="map-overlay map-filter-note" role="status">
-            <span>
-              Filtro ativo: {equipment.length} de {snapshot.equipment.length} equipamentos no mapa
-            </span>
-            <button
-              type="button"
-              className="button button-small"
-              onClick={() => setFilters(EMPTY_FILTERS)}
-            >
-              Limpar filtros
-            </button>
-          </div>
-        )}
         {selected && (
           <DetailDrawer
             key={`${selected.kind}-${selected.id}`}
@@ -170,14 +152,50 @@ export function OperationsPage() {
           />
         )}
       </div>
-      <div className="ops-side ops-side-right">
-        <AlertFeed
-          alerts={snapshot.alerts}
-          now={now}
-          generatedAt={snapshot.generatedAt}
-          onLocate={locate}
-        />
-      </div>
+      <aside className="ops-panel" aria-label="Situação da cidade">
+        <CityStatus city={snapshot.city} kpis={snapshot.kpis} waiting={waiting} />
+        <div className="ops-tabs" role="tablist" aria-label="Painel">
+          {tabs.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              id={`ops-tab-${item.key}`}
+              aria-selected={tab === item.key}
+              aria-controls="ops-tab-panel"
+              onClick={() => setTab(item.key)}
+            >
+              {item.label}
+              <span className="ops-tab-count">{item.count}</span>
+            </button>
+          ))}
+        </div>
+        <div
+          id="ops-tab-panel"
+          className="ops-tab-panel"
+          role="tabpanel"
+          aria-labelledby={`ops-tab-${tab}`}
+        >
+          {tab === "alerts" ? (
+            <AlertFeed
+              alerts={snapshot.alerts}
+              now={now}
+              generatedAt={snapshot.generatedAt}
+              onLocate={locate}
+            />
+          ) : (
+            <RegionHealthList
+              regions={snapshot.regions}
+              neighborhoods={snapshot.neighborhoods}
+              selectedRegion={filters.regionId}
+              onSelectRegion={(regionId) =>
+                setFilters({ ...filters, regionId, neighborhoodId: "" })
+              }
+              onSelectNeighborhood={focusNeighborhood}
+            />
+          )}
+        </div>
+      </aside>
     </main>
   );
 }

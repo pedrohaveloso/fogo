@@ -1102,7 +1102,7 @@ tbody tr:last-child td {
 .cluster-key {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--good);
+  border: 2px solid var(--muted);
   background: var(--surface);
   color: var(--ink);
   font-size: 0.62rem;

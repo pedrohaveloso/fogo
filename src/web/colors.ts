@@ -7,10 +7,10 @@ import {
 import type { AlertCategory, AlertLevel, HealthLevel, RiskLevel } from "../shared/types.ts";
 
 export const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
-  available: "#3987e5",
+  available: "#7b838d",
   responding: "#ec835a",
-  break: "#898781",
-  off_duty: "#4b5058",
+  break: "#555b63",
+  off_duty: "#3d4249",
 };
 
 export const SEVERITY_COLORS: Record<Severity, string> = {
@@ -35,7 +35,7 @@ export const RISK_LABELS: Record<RiskLevel, string> = {
 };
 
 export const HEALTH_COLORS: Record<HealthLevel, string> = {
-  normal: "#0ca30c",
+  normal: "#7b838d",
   attention: "#fab219",
   critical: "#d03b3b",
 };

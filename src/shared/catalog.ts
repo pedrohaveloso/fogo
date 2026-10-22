@@ -26,7 +26,7 @@ export const STATUS_LABELS: Record<EquipmentStatus, string> = {
 };
 
 export const STATUS_COLORS: Record<EquipmentStatus, string> = {
-  operational: "#0ca30c",
+  operational: "#7b838d",
   malfunction: "#d03b3b",
   maintenance: "#fab219",
   not_installed: "#898781",

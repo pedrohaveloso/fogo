@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { Anomaly } from "../shared/types.ts";
+import type { Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
 import { city } from "./city.ts";
-import { computeSummary, maintenanceDaysLeft, type OperationsInput } from "./operations.ts";
+import {
+  computeCityHealth,
+  computeSummary,
+  maintenanceDaysLeft,
+  type OperationsInput,
+} from "./operations.ts";
 import { NOW, makeAgent, makeEquipment, makeOccurrence } from "./test-fixtures.ts";
 
 function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
@@ -144,5 +149,77 @@ describe("maintenanceDaysLeft", () => {
     expect(maintenanceDaysLeft(makeEquipment({ status: "stolen" }), NOW)).toBeNull();
     expect(maintenanceDaysLeft(makeEquipment({ nextMaintenanceAt: null }), NOW)).toBeNull();
     expect(maintenanceDaysLeft(makeEquipment({ nextMaintenanceAt: "2026-10-20" }), NOW)).toBe(6);
+  });
+});
+
+function region(name: string, level: HealthLevel): AreaHealth {
+  return {
+    id: name,
+    name,
+    equipmentTotal: 0,
+    operational: 0,
+    unavailable: 0,
+    availabilityPct: 100,
+    openOccurrences: 0,
+    severeOccurrences: 0,
+    agentsActive: 0,
+    level,
+    reasons: [],
+  };
+}
+
+describe("computeCityHealth", () => {
+  it("is normal when every region is normal and no occurrence waits for a team", () => {
+    expect(
+      computeCityHealth(
+        [region("Centro", "normal"), region("Zona Sul", "normal")],
+        [
+          makeOccurrence({ status: "responding", severity: 4 }),
+          makeOccurrence({ status: "resolved" }),
+        ],
+      ),
+    ).toEqual({ level: "normal", reasons: [] });
+  });
+
+  it("asks for attention when a region does or occurrences wait for a team", () => {
+    expect(
+      computeCityHealth(
+        [
+          region("Centro", "attention"),
+          region("Zona Norte", "attention"),
+          region("Zona Sul", "normal"),
+        ],
+        [makeOccurrence({ severity: 3 }), makeOccurrence({ severity: 1 })],
+      ),
+    ).toEqual({
+      level: "attention",
+      reasons: ["Centro e Zona Norte pedem atenção", "2 ocorrências esperando equipe"],
+    });
+    expect(computeCityHealth([region("Centro", "attention")], [])).toEqual({
+      level: "attention",
+      reasons: ["Centro pede atenção"],
+    });
+    expect(computeCityHealth([region("Centro", "normal")], [makeOccurrence()])).toEqual({
+      level: "attention",
+      reasons: ["1 ocorrência esperando equipe"],
+    });
+  });
+
+  it("is critical for a critical region or a critical occurrence waiting, naming only those", () => {
+    expect(
+      computeCityHealth(
+        [region("Centro", "critical"), region("Zona Sul", "attention")],
+        [makeOccurrence({ severity: 4 }), makeOccurrence({ severity: 4 }), makeOccurrence()],
+      ),
+    ).toEqual({
+      level: "critical",
+      reasons: ["Centro em situação crítica", "2 ocorrências críticas esperando equipe"],
+    });
+    expect(
+      computeCityHealth([region("Centro", "normal")], [makeOccurrence({ severity: 4 })]),
+    ).toEqual({
+      level: "critical",
+      reasons: ["1 ocorrência crítica esperando equipe"],
+    });
   });
 });

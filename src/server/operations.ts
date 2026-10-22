@@ -16,6 +16,7 @@ import type {
   Anomaly,
   AreaHealth,
   CityDataset,
+  CityHealth,
   Equipment,
   HealthLevel,
   Kpis,
@@ -404,11 +405,55 @@ export function computeAlerts(
   );
 }
 
+const LIST_FORMAT = new Intl.ListFormat("pt-BR", { type: "conjunction" });
+
+function waitingPhrase(count: number, critical: boolean): string {
+  const noun = count === 1 ? "ocorrência" : "ocorrências";
+  const adjective = critical ? (count === 1 ? " crítica" : " críticas") : "";
+  return `${count} ${noun}${adjective} esperando equipe`;
+}
+
+export function computeCityHealth(regions: AreaHealth[], occurrences: Occurrence[]): CityHealth {
+  const waiting = occurrences.filter((item) => item.status === "open");
+  const waitingCritical = waiting.filter((item) => item.severity === 4).length;
+  const names = (level: HealthLevel) =>
+    regions.filter((region) => region.level === level).map((region) => region.name);
+
+  const critical = names("critical");
+  if (critical.length > 0 || waitingCritical > 0) {
+    const reasons: string[] = [];
+    if (critical.length > 0) {
+      reasons.push(`${LIST_FORMAT.format(critical)} em situação crítica`);
+    }
+    if (waitingCritical > 0) {
+      reasons.push(waitingPhrase(waitingCritical, true));
+    }
+    return { level: "critical", reasons };
+  }
+
+  const attention = names("attention");
+  if (attention.length > 0 || waiting.length > 0) {
+    const reasons: string[] = [];
+    if (attention.length > 0) {
+      reasons.push(
+        `${LIST_FORMAT.format(attention)} ${attention.length === 1 ? "pede" : "pedem"} atenção`,
+      );
+    }
+    if (waiting.length > 0) {
+      reasons.push(waitingPhrase(waiting.length, false));
+    }
+    return { level: "attention", reasons };
+  }
+
+  return { level: "normal", reasons: [] };
+}
+
 export function computeSummary(input: OperationsInput): OperationsSummary {
   const areas = computeAreaHealth(input);
   const alerts = computeAlerts(input, areas);
   return {
     generatedAt: new Date(input.now).toISOString(),
+    city: computeCityHealth(areas.regions, input.occurrences),
     kpis: computeKpis(input, alerts),
     regions: areas.regions,
     neighborhoods: areas.neighborhoods,

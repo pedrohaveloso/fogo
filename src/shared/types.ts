@@ -149,8 +149,14 @@ export type AreaHealth = {
   reasons: string[];
 };
 
+export type CityHealth = {
+  level: HealthLevel;
+  reasons: string[];
+};
+
 export type OperationsSummary = {
   generatedAt: string;
+  city: CityHealth;
   kpis: Kpis;
   regions: AreaHealth[];
   neighborhoods: AreaHealth[];

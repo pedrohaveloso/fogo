@@ -23,17 +23,6 @@ src/web      interface; mapa em map/, páginas em pages/, componentes em compone
 scripts      geração da base geográfica, servidor de dev e o verificador de comentários
 ```
 
-## Regras do dono
-
-Para quem tem as skills pessoais do dono, elas valem primeiro: `u-code` para qualquer código, `u-chrome` para o navegador e `u-commit` para commits. Em resumo:
-
-- Código, nomes de arquivo e commits em inglês. Texto da interface e documentação em português do Brasil, revisado com a skill `humanizer` (sem travessão, sem rótulo em negrito, sem frases de efeito).
-- Nenhum comentário no código. Um hook bloqueia comentários em linha própria em `src/` e `scripts/`; se algo precisa de explicação, renomeie ou extraia.
-- Toda mudança traz teste, inclusive de borda e de erro. Quebre o código e veja o teste falhar antes de confiar nele.
-- Commits em Conventional Commits, tudo minúsculo, uma linha, sem co-autor de IA, direto na `main`, um assunto por commit. Push só quando o dono pedir.
-- Dependência nova só com justificativa. O `.npmrc` grava versões exatas e bloqueia scripts de instalação.
-- Se o servidor de dev já estava rodando, deixe rodando ao terminar.
-
 ## Domínio
 
 - Um tipo de equipamento nasce em `src/shared/catalog.ts`; formulário e validação derivam dele. A skill `new-equipment-type` tem o passo a passo.

@@ -171,8 +171,4 @@ São cerca de 200 testes com Vitest: regras de alerta e de nível, modelos de pr
 
 ## Uso de IA
 
-O projeto foi desenvolvido com o Claude Code, usando o modelo Claude Opus 5.5, da Anthropic. As instruções dadas ao assistente (comandos, regras de código e da interface, convenções do domínio) estão em `CLAUDE.md` e na pasta `.claude/`. A pesquisa de referências e boas práticas que guiou o desenho da interface está em `docs/research/`.
-
-## Licença
-
-O código está sob a licença MIT, em nome de Pedro Veloso ([LICENSE](LICENSE)). Os dados derivados do OpenStreetMap seguem a ODbL, como explica o [DATA.md](DATA.md).
+O projeto foi desenvolvido com o Claude Code, usando o modelo Claude Opus 5.5, da Anthropic. As instruções dadas ao assistente (comandos, regras de código e da interface, convenções do domínio) estão em `CLAUDE.md` e na pasta `.claude/`.

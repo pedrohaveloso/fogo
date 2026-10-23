@@ -90,6 +90,7 @@ describe("buildTrends", () => {
       scooters.projection.every((point) => point.low <= point.value && point.value <= point.high),
     ).toBe(true);
     const first = scooters.projection[0]!;
+    expect(first.value).toBeCloseTo(scooters.values.at(-1)! + scooters.slopePerWeek / 7, 6);
     const last = scooters.projection.at(-1)!;
     expect(last.high - last.low).toBeGreaterThanOrEqual(first.high - first.low);
     expect(report.insights.some((text) => text.includes("patinetes cai"))).toBe(true);

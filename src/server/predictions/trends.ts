@@ -93,9 +93,10 @@ function seriesWithProjection(
   const tail = values.slice(-regressionPoints);
   const { slope, intercept } = linearRegression(tail);
   const lastDay = days.at(-1) ?? localDate(Date.now());
+  const offset = (tail.at(-1) ?? 0) - (intercept + slope * (tail.length - 1));
   const projection = Array.from({ length: projectionPoints }, (_, index) => {
     const at = tail.length + index;
-    const center = intercept + slope * at;
+    const center = intercept + slope * at + offset;
     const spread = predictionHalfWidth(tail, slope, intercept, at, BAND_Z);
     return {
       day: addDays(lastDay, (index + 1) * stepDays),

@@ -182,17 +182,26 @@ export function createPredictionService(db: Database, city: CityDataset, liveMul
 
   function usageRecords(now: number): UsageRecord[] {
     const offset = 3 * HOUR;
+    const since = now - (USAGE_DAYS + 1) * DAY;
     const rows = db
       .prepare(
-        `SELECT e.type AS type, (r.hour_start - ${offset}) / ${DAY} AS day, SUM(r.count) AS total
-         FROM readings r JOIN equipment e ON e.id = r.equipment_id
+        `WITH coverage AS (
+           SELECT (hour_start - ${offset}) / ${DAY} AS day, COUNT(DISTINCT hour_start) AS hours
+           FROM readings WHERE hour_start >= ? GROUP BY day
+         )
+         SELECT e.type AS type, (r.hour_start - ${offset}) / ${DAY} AS day, SUM(r.count) AS total,
+           coverage.hours AS hours
+         FROM readings r
+         JOIN equipment e ON e.id = r.equipment_id
+         JOIN coverage ON coverage.day = (r.hour_start - ${offset}) / ${DAY}
          WHERE r.hour_start >= ? GROUP BY e.type, day`,
       )
-      .all(now - (USAGE_DAYS + 1) * DAY) as { type: string; day: number; total: number }[];
+      .all(since, since) as { type: string; day: number; total: number; hours: number }[];
     return rows.map((row) => ({
       type: row.type as EquipmentType,
       day: localDate(row.day * DAY + offset + 12 * HOUR),
       total: row.total,
+      hoursRecorded: row.hours,
     }));
   }
 

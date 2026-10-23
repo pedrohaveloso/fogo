@@ -5,7 +5,7 @@ import {
   type EquipmentStatus,
   type EquipmentType,
 } from "../../shared/catalog.ts";
-import { DAY, HOUR, addDays, localDate, startOfLocalDay } from "../../shared/time.ts";
+import { DAY, HOUR, addDays, daysBetween, localDate, startOfLocalDay } from "../../shared/time.ts";
 import type {
   Equipment,
   Neighborhood,
@@ -23,6 +23,8 @@ const PROJECTION_DAYS = 30;
 const OCCURRENCE_WEEKS = 12;
 const PROJECTION_WEEKS = 4;
 const USAGE_DAYS = 28;
+const USAGE_MIN_HOURS = 20;
+const USAGE_MIN_DAYS_PER_WEEK = 4;
 const INSIGHT_MIN_FLEET = 10;
 const INSIGHT_MIN_SLOPE = 0.5;
 const INSIGHT_MIN_T = 3;
@@ -31,7 +33,12 @@ const RISE_BASELINE_DAYS = 56;
 const RISE_MIN_COUNT = 12;
 const RISE_P_VALUE = 0.001;
 
-export type UsageRecord = { type: EquipmentType; day: string; total: number };
+export type UsageRecord = {
+  type: EquipmentType;
+  day: string;
+  total: number;
+  hoursRecorded: number;
+};
 
 export type TrendInput = {
   equipment: readonly Equipment[];
@@ -178,17 +185,39 @@ function occurrenceSeries(input: TrendInput): TrendSeries[] {
   );
 }
 
+function weeklyTotals(days: string[], values: number[]): number[] {
+  const lastDay = days.at(-1);
+  if (lastDay === undefined) {
+    return [];
+  }
+  const weeks = new Map<number, { sum: number; days: number }>();
+  days.forEach((day, index) => {
+    const week = Math.floor(daysBetween(day, lastDay) / 7);
+    const bucket = weeks.get(week) ?? { sum: 0, days: 0 };
+    bucket.sum += values[index]!;
+    bucket.days += 1;
+    weeks.set(week, bucket);
+  });
+  return [...weeks.entries()]
+    .filter(([, bucket]) => bucket.days >= USAGE_MIN_DAYS_PER_WEEK)
+    .sort(([a], [b]) => b - a)
+    .map(([, bucket]) => (bucket.sum / bucket.days) * 7);
+}
+
 function usageSeries(input: TrendInput): TrendSeries[] {
   const byType = new Map<EquipmentType, Map<string, number>>();
   for (const record of input.usage) {
+    if (record.hoursRecorded < USAGE_MIN_HOURS) {
+      continue;
+    }
     const days = byType.get(record.type) ?? new Map<string, number>();
     days.set(record.day, (days.get(record.day) ?? 0) + record.total);
     byType.set(record.type, days);
   }
   const today = localDate(input.now);
   const firstDay = localDate(input.now - USAGE_DAYS * DAY);
-  return [...byType.entries()].map(([type, days]) => {
-    const ordered = [...days.entries()]
+  return [...byType.entries()].map(([type, totals]) => {
+    const ordered = [...totals.entries()]
       .filter(([day]) => day >= firstDay && day < today)
       .sort(([a], [b]) => a.localeCompare(b));
     const label =
@@ -196,17 +225,14 @@ function usageSeries(input: TrendInput): TrendSeries[] {
         parking_kiosk: "Transações nos totens",
         automated_gate: "Passagens nas cancelas",
       }[type as string] ?? `Fluxo medido por ${EQUIPMENT_TYPES[type].plural.toLowerCase()}`;
+    const days = ordered.map(([day]) => day);
     const values = ordered.map(([, total]) => total);
-    const weeks: number[] = [];
-    for (let end = values.length; end - 7 >= 0; end -= 7) {
-      weeks.unshift(values.slice(end - 7, end).reduce((sum, value) => sum + value, 0));
-    }
     return {
       key: type,
       label,
-      days: ordered.map(([day]) => day),
+      days,
       values,
-      slopePerWeek: linearRegression(weeks).slope / 7,
+      slopePerWeek: linearRegression(weeklyTotals(days, values)).slope / 7,
       projection: [],
     };
   });

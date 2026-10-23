@@ -93,9 +93,9 @@ describe("buildTrends", () => {
       statusEvents: [{ equipmentId: 1, status: "operational", at: NOW - 100 * DAY }],
       occurrences: [],
       usage: [
-        { type: "parking_kiosk", day: localDate(NOW - 40 * DAY), total: 1 },
-        { type: "parking_kiosk", day: localDate(NOW - 3 * DAY), total: 100 },
-        { type: "parking_kiosk", day: today, total: 5 },
+        { type: "parking_kiosk", day: localDate(NOW - 40 * DAY), total: 1, hoursRecorded: 24 },
+        { type: "parking_kiosk", day: localDate(NOW - 3 * DAY), total: 100, hoursRecorded: 24 },
+        { type: "parking_kiosk", day: today, total: 5, hoursRecorded: 15 },
       ],
       neighborhoods,
       regions,
@@ -105,5 +105,50 @@ describe("buildTrends", () => {
       report.availability.find((series) => series.key === "variable_message_sign"),
     ).toBeUndefined();
     expect(report.usage[0]!.days).toEqual([localDate(NOW - 3 * DAY)]);
+  });
+
+  it("ignores days the server was down so a gap does not read as a drop", () => {
+    const usage = Array.from({ length: 28 }, (_, index) => {
+      const daysAgo = 28 - index;
+      const gap = daysAgo === 3;
+      return {
+        type: "camera" as const,
+        day: localDate(NOW - daysAgo * DAY),
+        total: gap ? 120 : 1000,
+        hoursRecorded: gap ? 4 : 24,
+      };
+    });
+    const report = buildTrends({
+      equipment: [],
+      statusEvents: [],
+      occurrences: [],
+      usage,
+      neighborhoods,
+      regions,
+      now: NOW,
+    });
+    const series = report.usage[0]!;
+    expect(series.days).toHaveLength(27);
+    expect(series.days).not.toContain(localDate(NOW - 3 * DAY));
+    expect(series.slopePerWeek).toBeCloseTo(0, 6);
+  });
+
+  it("reads a real decline even with a missing day and skips weeks with too few days", () => {
+    const usage = Array.from({ length: 28 }, (_, index) => ({
+      type: "camera" as const,
+      day: localDate(NOW - (28 - index) * DAY),
+      total: 1000 + index * 10,
+      hoursRecorded: index === 10 || index < 4 ? 0 : 24,
+    }));
+    const report = buildTrends({
+      equipment: [],
+      statusEvents: [],
+      occurrences: [],
+      usage,
+      neighborhoods,
+      regions,
+      now: NOW,
+    });
+    expect(report.usage[0]!.slopePerWeek).toBeCloseTo(70, 0);
   });
 });

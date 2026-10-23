@@ -87,7 +87,13 @@ describe("forecastRisk", () => {
     const forecast = forecastRisk(model, neighborhoods, [], start, 4);
     expect(forecast.neighborhoods[0]!.neighborhoodId).toBe("busy");
     expect(forecast.neighborhoods[0]!.peakHour).toBe(18);
-    expect(forecast.neighborhoods[0]!.score).toBeGreaterThan(forecast.neighborhoods[1]!.score);
+    expect(forecast.neighborhoods[0]!.expected).toBeGreaterThan(
+      forecast.neighborhoods[1]!.expected,
+    );
+    const busy = forecast.neighborhoods[0]!;
+    expect(busy.range[0]).toBeLessThanOrEqual(busy.expected);
+    expect(busy.range[1]).toBeGreaterThanOrEqual(busy.expected);
+    expect(busy.chanceAny).toBeCloseTo(1 - Math.exp(-busy.expected), 10);
     expect(forecast.weeklyPattern).toHaveLength(7);
     expect(forecast.weeklyPattern[0]).toHaveLength(24);
   });
@@ -131,7 +137,7 @@ describe("forecastRisk", () => {
       (item) => item.neighborhoodId === "n6",
     )!;
     expect(degraded.coveragePenalty).toBeCloseTo(0.36, 5);
-    expect(degraded.score).toBeGreaterThan(healthy.score);
+    expect(degraded.ratio).toBeCloseTo(healthy.ratio * 1.36, 5);
   });
 });
 
@@ -152,13 +158,15 @@ describe("coverageMultiplier", () => {
 });
 
 describe("riskLevel", () => {
-  it("maps score bands to levels", () => {
-    expect([riskLevel(10), riskLevel(50), riskLevel(80), riskLevel(95)]).toEqual([
-      "low",
-      "moderate",
-      "high",
-      "critical",
-    ]);
+  it("flags only neighborhoods clearly above their own normal", () => {
+    expect(riskLevel(1.1, 3)).toBe("normal");
+    expect(riskLevel(1.2, 3)).toBe("above");
+    expect(riskLevel(1.49, 3)).toBe("above");
+    expect(riskLevel(1.5, 3)).toBe("well_above");
+  });
+
+  it("ignores neighborhoods where almost nothing is expected", () => {
+    expect(riskLevel(2, 0.1)).toBe("normal");
   });
 });
 

@@ -53,7 +53,7 @@ function anomalyLevel(anomaly: Anomaly): "critical" | "warning" {
 }
 
 function riskMark(level: RiskLevel): string {
-  return level === "low" ? MUTED_MARK : RISK_COLORS[level];
+  return level === "normal" ? MUTED_MARK : RISK_COLORS[level];
 }
 
 function Explain({ what, data, use }: { what: ReactNode; data: ReactNode; use: ReactNode }) {
@@ -81,29 +81,41 @@ function Loading({ error }: { error: string | null }) {
   return error ? <p className="error-box">{error}</p> : <p className="hint">Calculando...</p>;
 }
 
+function chanceText(probability: number): string {
+  const inTen = Math.round(probability * 10);
+  if (inTen >= 10) {
+    return "quase certa";
+  }
+  return inTen < 1 ? "menos de 1 em 10" : `${inTen} em 10`;
+}
+
+function rangeText(range: [number, number], joiner = "a"): string {
+  return range[0] === range[1] ? `${range[0]}` : `${range[0]} ${joiner} ${range[1]}`;
+}
+
 function RiskSection({ hours }: { hours: number }) {
   const meta = useMeta();
   const { data, error } = useFetch<RiskForecast>(`/predictions/risk?hours=${hours}`, 60_000);
   const [selected, setSelected] = useState<string | null>(null);
-  if (!data || !meta) {
+  if (!data || !meta || data.horizonHours !== hours) {
     return <Loading error={error} />;
   }
-  const top = data.neighborhoods.slice(0, 12);
+  const top = data.neighborhoods.toSorted((a, b) => b.expected - a.expected).slice(0, 12);
+  const highest = Math.max(...top.map((item) => item.expected), 0.1);
   const selectedRisk = data.neighborhoods.find((item) => item.neighborhoodId === selected);
   const regionName = (id: string) => meta.regions.find((region) => region.id === id)?.name ?? id;
-  const counts = { critical: 0, high: 0, moderate: 0, low: 0 };
-  for (const item of data.neighborhoods) {
-    counts[item.level] += 1;
-  }
+  const wellAbove = data.neighborhoods.filter((item) => item.level === "well_above").length;
+  const above = data.neighborhoods.filter((item) => item.level === "above").length;
+  const until = formatHour((data.startHour + hours) % 24);
 
   return (
     <section className="panel" aria-labelledby="risk-title">
       <div className="panel-head">
-        <h2 id="risk-title">Risco por bairro nas próximas {hours} horas</h2>
+        <h2 id="risk-title">Ocorrências esperadas por bairro nas próximas {hours} horas</h2>
         <p>
-          {counts.critical} {plural(counts.critical, "crítico", "críticos")}, {counts.high}{" "}
-          {plural(counts.high, "alto", "altos")}, {counts.moderate}{" "}
-          {plural(counts.moderate, "moderado", "moderados")}
+          {wellAbove + above === 0
+            ? "Todos os bairros dentro do normal para este dia e horário"
+            : `${wellAbove} ${plural(wellAbove, "bairro", "bairros")} muito acima do normal, ${above} acima`}
         </p>
       </div>
       <div className="risk-layout">
@@ -115,7 +127,7 @@ function RiskSection({ hours }: { hours: number }) {
             onSelect={setSelected}
           />
           <div className="legend">
-            {(["critical", "high", "moderate", "low"] as const).map((level) => (
+            {(["well_above", "above", "normal"] as const).map((level) => (
               <RiskTag key={level} level={level} />
             ))}
           </div>
@@ -125,32 +137,35 @@ function RiskSection({ hours }: { hours: number }) {
                 <h3>{selectedRisk.name}</h3>
                 <RiskTag level={selectedRisk.level} />
               </div>
-              <p className="hint">
-                {regionName(selectedRisk.regionId)}, índice {Math.round(selectedRisk.score)} de 100
-              </p>
+              <p className="hint">{regionName(selectedRisk.regionId)}</p>
               <p>
                 {formatDecimal(selectedRisk.expected)}{" "}
                 {plural(selectedRisk.expected, "ocorrência esperada", "ocorrências esperadas")} até
-                as {formatHour((data.startHour + hours) % 24)}, com pico às{" "}
-                {formatHour(selectedRisk.peakHour)}. Mais prováveis:{" "}
+                as {until}: em 8 de cada 10 dias parecidos, entre{" "}
+                {rangeText(selectedRisk.range, "e")}. Chance de pelo menos uma:{" "}
+                {chanceText(selectedRisk.chanceAny)}. Pico às {formatHour(selectedRisk.peakHour)}.
+                Mais prováveis:{" "}
                 {selectedRisk.topKinds
                   .map((item) => OCCURRENCE_KINDS[item.kind].label.toLowerCase())
                   .join(", ")}
                 .
               </p>
-              {selectedRisk.coveragePenalty > 0 && (
-                <p className="hint">
-                  Câmeras, radares ou semáforos fora de operação no bairro aumentam o índice em{" "}
-                  {formatPercent(selectedRisk.coveragePenalty * 100)}.
-                </p>
-              )}
+              <p className="hint">
+                {Math.abs(selectedRisk.ratio - 1) < 0.05
+                  ? "Igual ao normal deste bairro para o dia da semana e o horário."
+                  : `${formatPercent(Math.abs(selectedRisk.ratio - 1) * 100)} ${selectedRisk.ratio > 1 ? "acima" : "abaixo"} do normal deste bairro para o dia da semana e o horário.`}
+                {selectedRisk.trendPct >= 5 &&
+                  ` As duas últimas semanas tiveram ${formatPercent(selectedRisk.trendPct)} a mais que o habitual.`}
+                {selectedRisk.coveragePenalty > 0 &&
+                  ` Câmeras, radares ou semáforos parados no bairro somam ${formatPercent(selectedRisk.coveragePenalty * 100)}.`}
+              </p>
             </div>
           )}
         </div>
         <div>
           <h3 className="section-title">
-            Bairros com maior risco
-            <small>índice de 0 a 100</small>
+            Bairros com mais ocorrências esperadas
+            <small>faixa de 8 em cada 10 dias</small>
           </h3>
           <ol className="risk-list">
             {top.map((item, index) => (
@@ -167,15 +182,13 @@ function RiskSection({ hours }: { hours: number }) {
                     <span className="cell-sub">
                       {OCCURRENCE_KINDS[item.topKinds[0]!.kind].label}, pico às{" "}
                       {formatHour(item.peakHour)}
-                      {item.trendPct >= 25
-                        ? `, tendência de alta (+${Math.round(item.trendPct)}%)`
-                        : ""}
                     </span>
                   </span>
-                  <Meter value={item.score} color={riskMark(item.level)} />
+                  <Meter value={item.expected} max={highest} color={riskMark(item.level)} />
                   <span className="risk-score">
-                    <strong>{Math.round(item.score)}</strong>
-                    <RiskTag level={item.level} />
+                    <strong>{formatDecimal(item.expected)}</strong>
+                    <span className="cell-sub">{rangeText(item.range)}</span>
+                    {item.level !== "normal" && <RiskTag level={item.level} />}
                   </span>
                 </button>
               </li>
@@ -184,9 +197,9 @@ function RiskSection({ hours }: { hours: number }) {
         </div>
       </div>
       <Explain
-        what={`A chance de ocorrências (acidentes, congestionamentos, semáforos apagados, ocorrências de segurança etc.) em cada bairro nas próximas ${hours} horas, pesada pela gravidade típica de cada tipo. O índice compara o bairro neste horário com todos os bairros em todos os horários da semana: 95 ou mais significa que o momento está entre os 5% mais arriscados.`}
-        data="As ocorrências dos últimos 4 meses. O modelo combina a participação de cada bairro em cada tipo de ocorrência, o padrão da cidade por dia da semana e hora, e a tendência das últimas duas semanas comparada às dez anteriores. Equipamentos de vigilância e fiscalização parados no bairro aumentam o índice, porque reduzem a capacidade de detectar e coibir problemas."
-        use="Posicione viaturas e agentes nos bairros críticos antes do pico indicado, priorize o reparo de câmeras e semáforos nesses bairros e use a tendência de alta para planejar operações específicas."
+        what={`Quantas ocorrências (acidentes, congestionamentos, semáforos apagados, ocorrências de segurança e outras) cada bairro deve ter nas próximas ${hours} horas, com a faixa em que o número cai em 8 de cada 10 dias parecidos. O mapa compara a previsão com o normal do próprio bairro para o mesmo dia da semana e horário: tracejado quando está 20% acima, zebrado quando está 50% acima.`}
+        data="As ocorrências dos últimos 4 meses. O modelo combina a participação de cada bairro em cada tipo de ocorrência, o padrão da cidade por dia da semana e hora e a tendência das últimas duas semanas comparada às dez anteriores. Câmeras, radares e semáforos parados no bairro aumentam a previsão, porque reduzem a capacidade de detectar e coibir problemas. A faixa vem da distribuição de Poisson em torno do número esperado."
+        use="Os bairros do topo da lista são onde mais coisa acontece agora; os marcados no mapa são onde está acontecendo mais do que o normal, e é ali que vale mudar a rotina: posicionar viaturas antes do pico, priorizar o conserto de câmeras e semáforos e investigar a causa da alta."
       />
     </section>
   );
@@ -485,7 +498,7 @@ function TrendChart({
   return (
     <LineChart
       title={series.label}
-      description="Linha contínua: histórico. Linha tracejada: projeção pela tendência das últimas semanas."
+      description="Linha contínua: histórico. Linha tracejada: projeção pela tendência das últimas semanas. Faixa clara: onde o valor deve ficar em 8 de cada 10 casos."
       series={[
         {
           key: series.key,
@@ -493,6 +506,13 @@ function TrendChart({
           color: "#3987e5",
           values,
           projectedFrom: series.values.length - 1,
+          ...(series.projection.length > 0 && {
+            band: {
+              from: series.values.length - 1,
+              low: [series.values.at(-1)!, ...series.projection.map((item) => item.low)],
+              high: [series.values.at(-1)!, ...series.projection.map((item) => item.high)],
+            },
+          }),
         },
       ]}
       xLabels={labels}
@@ -556,7 +576,8 @@ function TrendSection() {
               Variação de {availability.slopePerWeek >= 0 ? "+" : ""}
               {formatDecimal(availability.slopePerWeek)}{" "}
               {plural(availability.slopePerWeek, "ponto percentual", "pontos percentuais")} por
-              semana nas últimas 8 semanas.
+              semana nas últimas 8 semanas. A faixa clara da projeção mostra onde a disponibilidade
+              deve ficar em 8 de cada 10 casos.
             </p>
           )}
         </div>

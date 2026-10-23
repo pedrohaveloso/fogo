@@ -8,6 +8,7 @@ export type LineSeries = {
   color: string;
   values: (number | null)[];
   projectedFrom?: number;
+  band?: { from: number; low: number[]; high: number[] };
 };
 
 type Props = {
@@ -44,9 +45,11 @@ export function LineChart({
   const [hover, setHover] = useState<number | null>(null);
   const [box, width] = useElementWidth<HTMLDivElement>(640);
   const titleId = useId();
-  const values = series.flatMap((item) =>
-    item.values.filter((value): value is number => value !== null),
-  );
+  const values = series.flatMap((item) => [
+    ...item.values.filter((value): value is number => value !== null),
+    ...(item.band?.low ?? []),
+    ...(item.band?.high ?? []),
+  ]);
   const low = yMin ?? Math.min(...values, 0);
   const rawHigh = yMax ?? Math.max(...values, 1);
   const high = rawHigh === low ? low + 1 : rawHigh;
@@ -125,8 +128,21 @@ export function LineChart({
             const solid = points.slice(0, split);
             const projected = points.slice(Math.max(0, split - 1));
             const last = solid.at(-1);
+            const band = item.band;
+            const bandPath = band
+              ? `${linePath([
+                  ...band.high.map((value, index): [number, number] => [
+                    x(band.from + index),
+                    y(value),
+                  ]),
+                  ...band.low
+                    .map((value, index): [number, number] => [x(band.from + index), y(value)])
+                    .toReversed(),
+                ])}Z`
+              : null;
             return (
               <g key={item.key}>
+                {bandPath && <path d={bandPath} fill={item.color} opacity={0.14} stroke="none" />}
                 <path
                   d={linePath(solid)}
                   fill="none"

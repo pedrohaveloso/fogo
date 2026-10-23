@@ -21,17 +21,15 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
 };
 
 export const RISK_COLORS: Record<RiskLevel, string> = {
-  low: "#3a4048",
-  moderate: "#fab219",
-  high: "#ec835a",
-  critical: "#d03b3b",
+  normal: "#6b7079",
+  above: "#fab219",
+  well_above: "#d03b3b",
 };
 
 export const RISK_LABELS: Record<RiskLevel, string> = {
-  low: "Baixo",
-  moderate: "Moderado",
-  high: "Alto",
-  critical: "Crítico",
+  normal: "Dentro do normal",
+  above: "Acima do normal",
+  well_above: "Muito acima do normal",
 };
 
 export const HEALTH_COLORS: Record<HealthLevel, string> = {

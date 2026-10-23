@@ -29,6 +29,28 @@ export function linearRegression(values: readonly number[]): { slope: number; in
   return { slope, intercept: yMean - slope * xMean };
 }
 
+export function predictionHalfWidth(
+  values: readonly number[],
+  slope: number,
+  intercept: number,
+  at: number,
+  z: number,
+): number {
+  const n = values.length;
+  if (n < 3) {
+    return 0;
+  }
+  const xMean = (n - 1) / 2;
+  let residual = 0;
+  let spread = 0;
+  values.forEach((value, index) => {
+    residual += (value - (intercept + slope * index)) ** 2;
+    spread += (index - xMean) ** 2;
+  });
+  const sigma = Math.sqrt(residual / (n - 2));
+  return z * sigma * Math.sqrt(1 + 1 / n + (at - xMean) ** 2 / spread);
+}
+
 export function slopeTStatistic(values: readonly number[]): number {
   const n = values.length;
   if (n < 3) {
@@ -62,21 +84,19 @@ export function poissonTail(observed: number, expected: number): number {
   return Math.max(0, 1 - cumulative);
 }
 
-export function percentileRank(sorted: readonly number[], value: number): number {
-  if (sorted.length === 0) {
+export function poissonQuantile(expected: number, probability: number): number {
+  if (expected <= 0) {
     return 0;
   }
-  let low = 0;
-  let high = sorted.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (sorted[middle]! <= value) {
-      low = middle + 1;
-    } else {
-      high = middle;
-    }
+  let term = Math.exp(-expected);
+  let cumulative = term;
+  let k = 0;
+  while (cumulative < probability && k < 10_000) {
+    k += 1;
+    term *= expected / k;
+    cumulative += term;
   }
-  return (low / sorted.length) * 100;
+  return k;
 }
 
 export function clamp(value: number, min: number, max: number): number {

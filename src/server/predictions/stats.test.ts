@@ -3,7 +3,8 @@ import {
   clamp,
   linearRegression,
   mean,
-  percentileRank,
+  poissonQuantile,
+  predictionHalfWidth,
   poissonTail,
   slopeTStatistic,
   standardDeviation,
@@ -35,10 +36,24 @@ describe("stats", () => {
     expect(poissonTail(2, 0)).toBe(0);
   });
 
-  it("ranks values against a sorted reference", () => {
-    expect(percentileRank([1, 2, 3, 4], 3)).toBe(75);
-    expect(percentileRank([1, 2, 3, 4], 0)).toBe(0);
-    expect(percentileRank([], 5)).toBe(0);
+  it("finds Poisson quantiles and clamps values", () => {
+    expect(poissonQuantile(0, 0.9)).toBe(0);
+    expect(poissonQuantile(0.05, 0.1)).toBe(0);
+    expect(poissonQuantile(2, 0.1)).toBe(0);
+    expect(poissonQuantile(2, 0.9)).toBe(4);
+    expect(poissonQuantile(10, 0.5)).toBe(10);
     expect(clamp(15, 0, 10)).toBe(10);
+  });
+
+  it("widens the prediction band with noise and with distance from the data", () => {
+    const flat = [10, 10, 10, 10, 10];
+    expect(predictionHalfWidth(flat, 0, 10, 6, 1.28)).toBe(0);
+    const noisy = [9, 11, 9, 11, 9, 11];
+    const { slope, intercept } = linearRegression(noisy);
+    const near = predictionHalfWidth(noisy, slope, intercept, 6, 1.28);
+    const far = predictionHalfWidth(noisy, slope, intercept, 30, 1.28);
+    expect(near).toBeGreaterThan(0);
+    expect(far).toBeGreaterThan(near);
+    expect(predictionHalfWidth([1, 2], 1, 1, 5, 1.28)).toBe(0);
   });
 });

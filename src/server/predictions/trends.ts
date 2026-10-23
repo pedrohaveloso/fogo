@@ -16,11 +16,18 @@ import type {
 } from "../../shared/types.ts";
 import type { StatusEventRecord } from "./failures.ts";
 import type { OccurrenceRecord } from "./risk.ts";
-import { clamp, linearRegression, poissonTail, slopeTStatistic } from "./stats.ts";
+import {
+  clamp,
+  linearRegression,
+  poissonTail,
+  predictionHalfWidth,
+  slopeTStatistic,
+} from "./stats.ts";
 
 const AVAILABILITY_DAYS = 90;
 const REGRESSION_DAYS = 56;
 const PROJECTION_DAYS = 30;
+const BAND_Z = 1.28;
 const OCCURRENCE_WEEKS = 12;
 const PROJECTION_WEEKS = 4;
 const USAGE_DAYS = 28;
@@ -86,10 +93,17 @@ function seriesWithProjection(
   const tail = values.slice(-regressionPoints);
   const { slope, intercept } = linearRegression(tail);
   const lastDay = days.at(-1) ?? localDate(Date.now());
-  const projection = Array.from({ length: projectionPoints }, (_, index) => ({
-    day: addDays(lastDay, (index + 1) * stepDays),
-    value: clamp(intercept + slope * (tail.length + index), bounds[0], bounds[1]),
-  }));
+  const projection = Array.from({ length: projectionPoints }, (_, index) => {
+    const at = tail.length + index;
+    const center = intercept + slope * at;
+    const spread = predictionHalfWidth(tail, slope, intercept, at, BAND_Z);
+    return {
+      day: addDays(lastDay, (index + 1) * stepDays),
+      value: clamp(center, bounds[0], bounds[1]),
+      low: clamp(center - spread, bounds[0], bounds[1]),
+      high: clamp(center + spread, bounds[0], bounds[1]),
+    };
+  });
   return { key, label, days, values, slopePerWeek: (slope * 7) / stepDays, projection };
 }
 
@@ -315,10 +329,14 @@ export function buildTrends(input: TrendInput): TrendReport {
     if (!significant) {
       continue;
     }
-    const projected = series.projection.at(-1)?.value ?? series.values.at(-1) ?? 0;
+    const end = series.projection.at(-1);
+    const projected = end?.value ?? series.values.at(-1) ?? 0;
+    const band = end
+      ? ` (entre ${formatNumber(end.low, 0)}% e ${formatNumber(end.high, 0)}% em 8 de cada 10 casos)`
+      : "";
     if (series.slopePerWeek < 0) {
       insights.push(
-        `A disponibilidade de ${series.label.toLowerCase()} cai ${formatNumber(-series.slopePerWeek)} ${plural(-series.slopePerWeek, "ponto percentual", "pontos percentuais")} por semana. Mantido o ritmo, chega a ${formatNumber(projected, 0)}% em ${PROJECTION_DAYS} dias.`,
+        `A disponibilidade de ${series.label.toLowerCase()} cai ${formatNumber(-series.slopePerWeek)} ${plural(-series.slopePerWeek, "ponto percentual", "pontos percentuais")} por semana. Mantido o ritmo, chega a ${formatNumber(projected, 0)}% em ${PROJECTION_DAYS} dias${band}.`,
       );
     } else {
       insights.push(

@@ -1,5 +1,4 @@
 import {
-  OCCURRENCE_KINDS,
   OCCURRENCE_KIND_KEYS,
   countsTowardAvailability,
   type OccurrenceKind,
@@ -13,7 +12,7 @@ import type {
   RiskForecast,
   RiskLevel,
 } from "../../shared/types.ts";
-import { clamp, percentileRank } from "./stats.ts";
+import { clamp, poissonQuantile } from "./stats.ts";
 
 export type OccurrenceRecord = {
   neighborhoodId: string;
@@ -163,17 +162,15 @@ export function trainRiskModel(
   };
 }
 
-export function riskLevel(score: number): RiskLevel {
-  if (score >= 95) {
-    return "critical";
+export const ABOVE_NORMAL_RATIO = 1.2;
+export const WELL_ABOVE_NORMAL_RATIO = 1.5;
+export const MIN_FLAGGED_EXPECTED = 0.2;
+
+export function riskLevel(ratio: number, expected: number): RiskLevel {
+  if (expected < MIN_FLAGGED_EXPECTED || ratio < ABOVE_NORMAL_RATIO) {
+    return "normal";
   }
-  if (score >= 80) {
-    return "high";
-  }
-  if (score >= 50) {
-    return "moderate";
-  }
-  return "low";
+  return ratio >= WELL_ABOVE_NORMAL_RATIO ? "well_above" : "above";
 }
 
 export function coverageMultiplier(equipment: readonly Equipment[]): number {
@@ -186,17 +183,7 @@ export function coverageMultiplier(equipment: readonly Equipment[]): number {
   return 1 + Math.min(COVERAGE_MAX, unavailable * COVERAGE_STEP);
 }
 
-function weightedAt(model: RiskModel, neighborhoodId: string, how: number): number {
-  const share = model.share.get(neighborhoodId);
-  if (!share) {
-    return 0;
-  }
-  let total = 0;
-  for (const kind of OCCURRENCE_KIND_KEYS) {
-    total += share[kind] * model.profile[kind][how]! * OCCURRENCE_KINDS[kind].severityWeight;
-  }
-  return total * (model.trend.get(neighborhoodId) ?? 1);
-}
+const LEVEL_ORDER: Record<RiskLevel, number> = { well_above: 0, above: 1, normal: 2 };
 
 export function forecastRisk(
   model: RiskModel,
@@ -206,28 +193,11 @@ export function forecastRisk(
   horizonHours: number,
 ): RiskForecast {
   const start = startOfHour(now);
-  const startHow = hourOfWeek(start);
-
-  const reference: number[] = [];
-  for (const neighborhood of neighborhoods) {
-    const perHour = Array.from({ length: HOURS_PER_WEEK }, (_, how) =>
-      weightedAt(model, neighborhood.id, how),
-    );
-    for (let begin = 0; begin < HOURS_PER_WEEK; begin += 1) {
-      let sum = 0;
-      for (let offset = 0; offset < horizonHours; offset += 1) {
-        sum += perHour[(begin + offset) % HOURS_PER_WEEK]!;
-      }
-      reference.push(sum);
-    }
-  }
-  reference.sort((a, b) => a - b);
 
   const cityHourly = Array.from({ length: horizonHours }, () => 0);
   const results: NeighborhoodRisk[] = neighborhoods.map((neighborhood) => {
     const hourly: number[] = [];
     const byKind = new Map<OccurrenceKind, number>();
-    let weighted = 0;
     for (let offset = 0; offset < horizonHours; offset += 1) {
       const ms = start + offset * HOUR;
       let total = 0;
@@ -238,28 +208,31 @@ export function forecastRisk(
       }
       hourly.push(total);
       cityHourly[offset]! += total;
-      weighted += weightedAt(model, neighborhood.id, (startHow + offset) % HOURS_PER_WEEK);
     }
     const coverage = coverageMultiplier(
       equipment.filter((item) => item.neighborhoodId === neighborhood.id),
     );
-    const score = percentileRank(reference, weighted * coverage);
+    const trend = model.trend.get(neighborhood.id) ?? 1;
+    const ratio = trend * coverage;
+    const expected = hourly.reduce((sum, value) => sum + value, 0);
     const peakOffset = hourly.indexOf(Math.max(...hourly));
     return {
       neighborhoodId: neighborhood.id,
       name: neighborhood.name,
       regionId: neighborhood.regionId,
-      score,
-      level: riskLevel(score),
-      expected: hourly.reduce((sum, value) => sum + value, 0),
+      ratio,
+      level: riskLevel(ratio, expected),
+      expected,
+      range: [poissonQuantile(expected, 0.1), poissonQuantile(expected, 0.9)],
+      chanceAny: 1 - Math.exp(-expected),
       peakHour: localParts(start + peakOffset * HOUR).hour,
       hourly,
       topKinds: [...byKind.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
-        .map(([kind, expected]) => ({ kind, expected })),
+        .map(([kind, value]) => ({ kind, expected: value })),
       coveragePenalty: coverage - 1,
-      trendPct: ((model.trend.get(neighborhood.id) ?? 1) - 1) * 100,
+      trendPct: (trend - 1) * 100,
     };
   });
 
@@ -273,7 +246,9 @@ export function forecastRisk(
     generatedAt: new Date(now).toISOString(),
     horizonHours,
     startHour: localParts(start).hour,
-    neighborhoods: results.sort((a, b) => b.score - a.score || b.expected - a.expected),
+    neighborhoods: results.sort(
+      (a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] || b.expected - a.expected,
+    ),
     cityHourly,
     weeklyPattern,
   };

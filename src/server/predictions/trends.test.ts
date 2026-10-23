@@ -86,6 +86,12 @@ describe("buildTrends", () => {
     expect(scooters.slopePerWeek).toBeLessThan(-1);
     expect(scooters.projection).toHaveLength(30);
     expect(scooters.projection.every((point) => point.value >= 0 && point.value <= 100)).toBe(true);
+    expect(
+      scooters.projection.every((point) => point.low <= point.value && point.value <= point.high),
+    ).toBe(true);
+    const first = scooters.projection[0]!;
+    const last = scooters.projection.at(-1)!;
+    expect(last.high - last.low).toBeGreaterThanOrEqual(first.high - first.low);
     expect(report.insights.some((text) => text.includes("patinetes cai"))).toBe(true);
   });
 

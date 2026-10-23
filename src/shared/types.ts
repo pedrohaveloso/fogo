@@ -240,15 +240,17 @@ export type AddressLookup = {
   source: "local" | "viacep";
 };
 
-export type RiskLevel = "low" | "moderate" | "high" | "critical";
+export type RiskLevel = "normal" | "above" | "well_above";
 
 export type NeighborhoodRisk = {
   neighborhoodId: string;
   name: string;
   regionId: string;
-  score: number;
+  ratio: number;
   level: RiskLevel;
   expected: number;
+  range: [number, number];
+  chanceAny: number;
   peakHour: number;
   hourly: number[];
   topKinds: { kind: OccurrenceKind; expected: number }[];
@@ -324,7 +326,7 @@ export type TrendSeries = {
   days: string[];
   values: number[];
   slopePerWeek: number;
-  projection: { day: string; value: number }[];
+  projection: { day: string; value: number; low: number; high: number }[];
 };
 
 export type TrendReport = {

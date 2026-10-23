@@ -17,7 +17,6 @@ import {
   ALERT_LABELS,
   HEALTH_COLORS,
   HEALTH_LABELS,
-  RISK_COLORS,
   RISK_LABELS,
   SEVERITY_COLORS,
 } from "../colors.ts";
@@ -101,14 +100,14 @@ export function HealthTag({ level }: { level: HealthLevel }) {
   );
 }
 
+const RISK_PATTERNS: Record<RiskLevel, string> = {
+  well_above: "zebra",
+  above: "lane",
+  normal: "hairline",
+};
+
 export function RiskSwatch({ level }: { level: RiskLevel }) {
-  if (level === "critical") {
-    return <span className="swatch" data-pattern="zebra" />;
-  }
-  if (level === "low") {
-    return <span className="swatch" data-pattern="hairline" />;
-  }
-  return <span className="swatch" style={{ background: RISK_COLORS[level] }} />;
+  return <span className="swatch" data-pattern={RISK_PATTERNS[level]} />;
 }
 
 export function RiskTag({ level }: { level: RiskLevel }) {

@@ -1,6 +1,6 @@
 import type { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
-import type { Meta, NeighborhoodRisk } from "../../shared/types.ts";
+import type { Meta, NeighborhoodRisk, RiskLevel } from "../../shared/types.ts";
 import { RISK_COLORS } from "../colors.ts";
 import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, useMap } from "./base.ts";
 import { idFilter, neighborhoodFeatures } from "./geojson.ts";
@@ -33,26 +33,12 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
       type: "fill",
       source: "risk",
       paint: {
-        "fill-color": [
-          "match",
-          ["coalesce", ["feature-state", "level"], "low"],
-          "critical",
-          RISK_COLORS.critical,
-          "high",
-          RISK_COLORS.high,
-          "moderate",
-          RISK_COLORS.moderate,
-          "#6b7079",
-        ],
+        "fill-color": RISK_COLORS.well_above,
         "fill-opacity": [
           "match",
-          ["coalesce", ["feature-state", "level"], "low"],
-          "critical",
-          0.42,
-          "high",
-          0.38,
-          "moderate",
-          0.2,
+          ["coalesce", ["feature-state", "level"], "normal"],
+          "well_above",
+          0.16,
           0,
         ],
       },
@@ -63,6 +49,17 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
       source: "risk",
       filter: idFilter([]),
       paint: { "fill-pattern": CRITICAL_HATCH, "fill-opacity": 0.7 },
+    });
+    map.addLayer({
+      id: "risk-above",
+      type: "line",
+      source: "risk",
+      filter: idFilter([]),
+      paint: {
+        "line-color": RISK_COLORS.above,
+        "line-width": 1.6,
+        "line-dasharray": [3, 2],
+      },
     });
     map.addLayer({
       id: "risk-line",
@@ -102,12 +99,10 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
         { level: risk.level, selected: risk.neighborhoodId === selected },
       );
     }
-    handle.map.setFilter(
-      "risk-hatch",
-      idFilter(
-        risks.filter((risk) => risk.level === "critical").map((risk) => risk.neighborhoodId),
-      ),
-    );
+    const ids = (level: RiskLevel) =>
+      risks.filter((risk) => risk.level === level).map((risk) => risk.neighborhoodId);
+    handle.map.setFilter("risk-hatch", idFilter(ids("well_above")));
+    handle.map.setFilter("risk-above", idFilter(ids("above")));
   }, [handle, risks, selected]);
 
   return (

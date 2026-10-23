@@ -1,6 +1,6 @@
 import { Marker } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
-import { useMap } from "./base.ts";
+import { cameraMotion, useMap } from "./base.ts";
 
 type Props = {
   center: [number, number];
@@ -47,6 +47,7 @@ export function LocationPicker({ center, value, onChange }: Props) {
       handle.map.easeTo({
         center: [value.lng, value.lat],
         zoom: Math.max(handle.map.getZoom(), 15),
+        ...cameraMotion(),
       });
     }
   }, [handle, value]);

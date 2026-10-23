@@ -197,6 +197,10 @@ function registerImages(map: MapLibreMap): void {
 
 const NARROW_MAP_WIDTH = 720;
 
+export function cameraMotion(): { animate: boolean } {
+  return { animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches };
+}
+
 export type MapHandle = { map: MapLibreMap; online: boolean };
 
 export function useMap(

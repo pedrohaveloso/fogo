@@ -10,7 +10,7 @@ import { OCCURRENCE_KINDS, SEVERITY_LABELS } from "../../shared/catalog.ts";
 import { maintenanceState } from "../../shared/maintenance.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
 import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
-import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, useMap } from "./base.ts";
+import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, cameraMotion, useMap } from "./base.ts";
 import { dispatchLines, idFilter, idsAtLevel, neighborhoodFeatures } from "./geojson.ts";
 
 export type Selection =
@@ -350,7 +350,11 @@ export function OperationsMap(props: Props) {
       const zoom = await map
         .getSource<GeoJSONSource>("equipment")!
         .getClusterExpansionZoom(clusterId);
-      map.easeTo({ center: feature.geometry.coordinates as [number, number], zoom });
+      map.easeTo({
+        center: feature.geometry.coordinates as [number, number],
+        zoom,
+        ...cameraMotion(),
+      });
     };
     map.on("click", "equipment-points", select("equipment"));
     map.on("click", "agents", select("agent"));
@@ -510,6 +514,7 @@ export function OperationsMap(props: Props) {
         center: [props.focus.lng, props.focus.lat],
         zoom: Math.max(handle.map.getZoom(), 15),
         speed: 1.4,
+        ...cameraMotion(),
       });
     }
   }, [handle, props.focus]);

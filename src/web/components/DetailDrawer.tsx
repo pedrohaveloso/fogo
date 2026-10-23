@@ -457,7 +457,13 @@ export function DetailDrawer({
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const opener = document.activeElement;
     closeRef.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus();
+      }
+    };
   }, []);
 
   useEffect(() => {

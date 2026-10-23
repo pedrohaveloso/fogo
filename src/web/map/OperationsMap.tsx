@@ -11,7 +11,13 @@ import { maintenanceState } from "../../shared/maintenance.ts";
 import { silentMinutes } from "../../shared/telemetry.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
 import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
-import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, cameraMotion, useMap } from "./base.ts";
+import {
+  CRITICAL_HATCH,
+  MAINTENANCE_BADGE_COLOR,
+  NEIGHBORHOOD_ATTRIBUTION,
+  cameraMotion,
+  useMap,
+} from "./base.ts";
 import { dispatchLines, idFilter, idsAtLevel, neighborhoodFeatures } from "./geojson.ts";
 
 export type Selection =
@@ -47,7 +53,14 @@ const LANDMARK_MIN_ZOOM = 13.5;
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 const MAP_GROUND = "#111417";
 const CLUSTER_BADGE_OFFSET: [number, number] = [13, -13];
-const CLICKABLE_LAYERS = ["equipment-points", "agents", "equipment-clusters", "cluster-badge"];
+const CLUSTER_MAINTENANCE_OFFSET: [number, number] = [13, 13];
+const CLICKABLE_LAYERS = [
+  "equipment-points",
+  "agents",
+  "equipment-clusters",
+  "cluster-badge",
+  "cluster-maintenance",
+];
 const LEVEL: ExpressionSpecification = ["coalesce", ["feature-state", "level"], "normal"];
 
 function point(lng: number, lat: number, properties: Record<string, unknown>) {
@@ -129,6 +142,7 @@ export function OperationsMap(props: Props) {
             0,
           ],
         ],
+        urgent: ["+", ["case", ["==", ["get", "maintenance"], "urgent"], 1, 0]],
       },
     });
     map.addSource("dispatch", { type: "geojson", data: EMPTY });
@@ -303,6 +317,19 @@ export function OperationsMap(props: Props) {
         "circle-translate": CLUSTER_BADGE_OFFSET,
       },
     });
+    map.addLayer({
+      id: "cluster-maintenance",
+      type: "circle",
+      source: "equipment",
+      filter: ["all", ["has", "point_count"], [">", ["get", "urgent"], 0]],
+      paint: {
+        "circle-color": MAINTENANCE_BADGE_COLOR,
+        "circle-radius": 8,
+        "circle-stroke-color": MAP_GROUND,
+        "circle-stroke-width": 2,
+        "circle-translate": CLUSTER_MAINTENANCE_OFFSET,
+      },
+    });
     if (online) {
       map.addLayer({
         id: "equipment-cluster-count",
@@ -331,6 +358,20 @@ export function OperationsMap(props: Props) {
           "text-ignore-placement": true,
         },
         paint: { "text-color": "#ffffff", "text-translate": CLUSTER_BADGE_OFFSET },
+      });
+      map.addLayer({
+        id: "cluster-maintenance-count",
+        type: "symbol",
+        source: "equipment",
+        filter: ["all", ["has", "point_count"], [">", ["get", "urgent"], 0]],
+        layout: {
+          "text-field": ["to-string", ["get", "urgent"]],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 10,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: { "text-color": "#1b1f24", "text-translate": CLUSTER_MAINTENANCE_OFFSET },
       });
     }
     map.addLayer({

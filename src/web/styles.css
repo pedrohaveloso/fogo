@@ -1550,7 +1550,8 @@ button.city-count[aria-pressed="true"] {
 }
 
 .cluster-key,
-.cluster-badge-key {
+.cluster-badge-key,
+.cluster-maintenance-key {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
@@ -1573,6 +1574,14 @@ button.city-count[aria-pressed="true"] {
   height: 14px;
   background: var(--critical);
   color: #fff;
+  font-size: 0.58rem;
+}
+
+.cluster-maintenance-key {
+  width: 14px;
+  height: 14px;
+  background: #fab219;
+  color: #1b1f24;
   font-size: 0.58rem;
 }
 

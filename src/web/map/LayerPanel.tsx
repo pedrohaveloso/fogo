@@ -130,6 +130,10 @@ export function LayerPanel({
               Parados no grupo
             </span>
             <span className="key">
+              <span className="cluster-maintenance-key">2</span>
+              Manutenção urgente no grupo
+            </span>
+            <span className="key">
               <BadgeKey
                 fill={MAINTENANCE_BADGE_COLOR}
                 ring="#111417"

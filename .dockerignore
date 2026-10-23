@@ -4,3 +4,7 @@ data/*.db*
 .git
 .trash
 coverage
+.claude
+.github
+.overnight
+docs

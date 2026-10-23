@@ -1,6 +1,7 @@
 services:
   fogo:
     build: .
+    restart: unless-stopped
     ports:
       - "3210:3210"
     volumes:

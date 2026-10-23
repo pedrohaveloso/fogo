@@ -155,7 +155,7 @@ export type CityHealth = {
 
 export type OperationsSummary = {
   generatedAt: string;
-  city: CityHealth;
+  city: CityHealth & { since: string | null };
   kpis: Kpis;
   regions: AreaHealth[];
   neighborhoods: AreaHealth[];

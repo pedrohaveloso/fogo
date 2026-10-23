@@ -1,6 +1,6 @@
-import type { CityHealth, Kpis } from "../../shared/types.ts";
+import type { Kpis, OperationsSummary } from "../../shared/types.ts";
 import { HEALTH_LABELS } from "../colors.ts";
-import { formatInteger } from "../format.ts";
+import { formatInteger, formatTime } from "../format.ts";
 import { generalIndicators } from "../summaries.ts";
 import {
   showsUnavailableOnly,
@@ -54,7 +54,7 @@ export function CityStatus({
   filters,
   onFiltersChange,
 }: {
-  city: CityHealth;
+  city: OperationsSummary["city"];
   kpis: Kpis;
   waiting: number;
   filters: EquipmentFilters;
@@ -68,6 +68,7 @@ export function CityStatus({
         </h2>
         <p className="city-stage-level" role="status">
           {HEALTH_LABELS[city.level]}
+          {city.since && <span className="city-stage-since"> desde {formatTime(city.since)}</span>}
         </p>
         <p className="city-stage-reason">
           {city.reasons.length === 0 ? NORMAL_TEXT : `${city.reasons.join(". ")}.`}

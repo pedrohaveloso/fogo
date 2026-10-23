@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Alert, Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
 import { city } from "./city.ts";
-import { computeCityHealth, computeSummary, type OperationsInput } from "./operations.ts";
+import {
+  computeCityHealth,
+  computeSummary,
+  levelSince,
+  type OperationsInput,
+} from "./operations.ts";
 import { NOW, makeAgent, makeEquipment, makeOccurrence } from "./test-fixtures.ts";
 
 function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
@@ -409,5 +414,31 @@ describe("computeCityHealth", () => {
       reasons: ["Concentração incomum de ocorrências na última hora"],
     });
     expect(summary.city.level).toBe("attention");
+  });
+
+  it("names the cause when a single region drives the level", () => {
+    const west = {
+      ...region("Zona Oeste", "critical"),
+      reasons: ["2 ocorrências graves sem equipe"],
+    };
+    expect(computeCityHealth([west], []).reasons).toEqual([
+      "Zona Oeste em situação crítica: 2 ocorrências graves sem equipe",
+    ]);
+    const south = { ...region("Zona Sul", "attention"), reasons: ["Disponibilidade em 80%"] };
+    expect(computeCityHealth([south], []).reasons).toEqual([
+      "Zona Sul pede atenção: disponibilidade em 80%",
+    ]);
+  });
+});
+
+describe("levelSince", () => {
+  it("keeps the start time while the level holds and resets when it changes", () => {
+    const first = levelSince(null, "attention", NOW);
+    expect(first).toEqual({ level: "attention", since: new Date(NOW).toISOString() });
+    expect(levelSince(first, "attention", NOW + 60_000)).toBe(first);
+    expect(levelSince(first, "critical", NOW + 120_000)).toEqual({
+      level: "critical",
+      since: new Date(NOW + 120_000).toISOString(),
+    });
   });
 });

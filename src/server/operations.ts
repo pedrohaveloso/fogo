@@ -468,12 +468,17 @@ export function computeCityHealth(
   const waitingCritical = waiting.filter((item) => item.severity === 4).length;
   const names = (level: HealthLevel) =>
     regions.filter((region) => region.level === level).map((region) => region.name);
+  const detail = (level: HealthLevel) => {
+    const matching = regions.filter((region) => region.level === level);
+    const reason = matching.length === 1 ? matching[0]!.reasons[0] : undefined;
+    return reason ? `: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}` : "";
+  };
 
   const critical = names("critical");
   if (critical.length > 0 || waitingCritical > 0) {
     const reasons: string[] = [];
     if (critical.length > 0) {
-      reasons.push(`${LIST_FORMAT.format(critical)} em situação crítica`);
+      reasons.push(`${LIST_FORMAT.format(critical)} em situação crítica${detail("critical")}`);
     }
     if (waitingCritical > 0) {
       reasons.push(waitingPhrase(waitingCritical, true));
@@ -486,7 +491,7 @@ export function computeCityHealth(
     const reasons: string[] = [];
     if (attention.length > 0) {
       reasons.push(
-        `${LIST_FORMAT.format(attention)} ${attention.length === 1 ? "pede" : "pedem"} atenção`,
+        `${LIST_FORMAT.format(attention)} ${attention.length === 1 ? "pede" : "pedem"} atenção${detail("attention")}`,
       );
     }
     if (waiting.length > 0) {
@@ -501,12 +506,22 @@ export function computeCityHealth(
   return { level: "normal", reasons: [] };
 }
 
+export function levelSince(
+  previous: { level: HealthLevel; since: string } | null,
+  level: HealthLevel,
+  now: number,
+): { level: HealthLevel; since: string } {
+  return previous && previous.level === level
+    ? previous
+    : { level, since: new Date(now).toISOString() };
+}
+
 export function computeSummary(input: OperationsInput): OperationsSummary {
   const areas = computeAreaHealth(input);
   const alerts = computeAlerts(input, areas);
   return {
     generatedAt: new Date(input.now).toISOString(),
-    city: computeCityHealth(areas.regions, input.occurrences, alerts),
+    city: { ...computeCityHealth(areas.regions, input.occurrences, alerts), since: null },
     kpis: computeKpis(input, alerts),
     regions: areas.regions,
     neighborhoods: areas.neighborhoods,

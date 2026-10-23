@@ -1,11 +1,12 @@
 import type {
   CityDataset,
+  HealthLevel,
   OperationsSnapshot,
   OperationsSummary,
   StreamTick,
 } from "../shared/types.ts";
 import type { Database } from "./db.ts";
-import { computeSummary } from "./operations.ts";
+import { computeSummary, levelSince } from "./operations.ts";
 import type { PredictionService } from "./predictions/service.ts";
 import { listAgents } from "./repositories/agents.ts";
 import { listEquipment } from "./repositories/equipment.ts";
@@ -23,6 +24,7 @@ const STAFFING_HORIZON_HOURS = 4;
 
 export function createLiveHub(db: Database, city: CityDataset, predictions: PredictionService) {
   const listeners = new Set<Listener>();
+  let cityLevel: { level: HealthLevel; since: string } | null = null;
 
   function acknowledged(): Set<string> {
     const rows = db.prepare("SELECT alert_id FROM alert_acks").all() as { alert_id: string }[];
@@ -43,6 +45,8 @@ export function createLiveHub(db: Database, city: CityDataset, predictions: Pred
       acknowledged: acknowledged(),
       now,
     });
+    cityLevel = levelSince(cityLevel, operations.city.level, now);
+    operations.city.since = cityLevel.since;
     return { equipment, agents, occurrences, operations };
   }
 

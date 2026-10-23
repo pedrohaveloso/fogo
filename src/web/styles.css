@@ -935,6 +935,13 @@ tbody tr:last-child td {
   color: var(--critical-text);
 }
 
+.city-stage-since {
+  color: var(--muted);
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: var(--text-sm);
+}
+
 .city-stage-reason {
   margin: 4px 0 0;
   color: var(--ink-2);

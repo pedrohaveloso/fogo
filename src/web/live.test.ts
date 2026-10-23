@@ -5,7 +5,7 @@ import { applyTick, liveStatus, shouldStream } from "./live.ts";
 
 const summary = {
   generatedAt: "2026-10-14T15:00:00.000Z",
-  city: { level: "normal" as const, reasons: [] },
+  city: { level: "normal" as const, reasons: [], since: null },
   kpis: {} as OperationsSnapshot["kpis"],
   regions: [],
   neighborhoods: [],

@@ -53,6 +53,13 @@ describe("seedDatabase", () => {
         !pointInPolygon([agent.lng, agent.lat], byId.get(agent.baseNeighborhoodId)!.polygon),
     );
     expect(misplacedAgents.map((agent) => agent.name)).toEqual([]);
+    const occurrences = db
+      .prepare("SELECT neighborhood_id AS id, lat, lng FROM occurrences")
+      .all() as { id: string; lat: number; lng: number }[];
+    const outside = occurrences.filter(
+      (item) => !pointInPolygon([item.lng, item.lat], byId.get(item.id)!.polygon),
+    );
+    expect(outside).toEqual([]);
   });
 
   it("links vehicles to at most one agent of the right agency", () => {

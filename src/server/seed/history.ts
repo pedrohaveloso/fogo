@@ -1,3 +1,4 @@
+import { pointInPolygon } from "../../shared/geo.ts";
 import {
   EQUIPMENT_TYPES,
   OCCURRENCE_KINDS,
@@ -225,12 +226,16 @@ export function occurrenceLocation(
 ): { lat: number; lng: number } {
   const streets = city.streets.filter((street) => street.neighborhoodId === neighborhoodId);
   const neighborhood = city.neighborhoods.find((item) => item.id === neighborhoodId)!;
-  const anchor = streets.length > 0 ? random.pick(streets) : neighborhood;
-  const spread = streets.length > 0 ? 150 : 300;
-  return {
-    lat: Number((anchor.lat + random.normal(0, spread / 111_000)).toFixed(6)),
-    lng: Number((anchor.lng + random.normal(0, spread / 111_000)).toFixed(6)),
-  };
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const anchor = streets.length > 0 ? random.pick(streets) : neighborhood;
+    const spread = streets.length > 0 ? 150 : 300;
+    const lat = Number((anchor.lat + random.normal(0, spread / 111_000)).toFixed(6));
+    const lng = Number((anchor.lng + random.normal(0, spread / 111_000)).toFixed(6));
+    if (pointInPolygon([lng, lat], neighborhood.polygon)) {
+      return { lat, lng };
+    }
+  }
+  return { lat: neighborhood.lat, lng: neighborhood.lng };
 }
 
 export function* generateOccurrences(

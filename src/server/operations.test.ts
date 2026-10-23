@@ -18,6 +18,21 @@ function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
   };
 }
 
+function fragataOccurrence(id: number, severity: 1 | 2 | 3 | 4, waiting: boolean) {
+  return makeOccurrence({
+    id,
+    severity,
+    neighborhoodId: "fragata",
+    status: waiting ? "open" : "responding",
+    agentId: waiting ? null : id,
+  });
+}
+
+function fragataHealth(occurrences: ReturnType<typeof makeOccurrence>[]) {
+  const summary = computeSummary(input({ occurrences }));
+  return summary.neighborhoods.find((item) => item.id === "fragata")!;
+}
+
 function makeAnomaly(id: string, kind: Anomaly["kind"]): Anomaly {
   return {
     id,
@@ -126,6 +141,68 @@ describe("computeSummary", () => {
     expect(summary.alerts.some((alert) => alert.id === "region-critical-fragata")).toBe(true);
     const regionId = city.neighborhoods.find((item) => item.id === "fragata")!.regionId;
     expect(summary.regions.find((item) => item.id === regionId)!.level).not.toBe("normal");
+  });
+
+  it("raises a neighborhood only when occurrences pile up or wait for a team", () => {
+    expect(fragataHealth([fragataOccurrence(1, 3, false)]).level).toBe("normal");
+    expect(
+      fragataHealth([fragataOccurrence(1, 3, false), fragataOccurrence(2, 3, false)]),
+    ).toMatchObject({
+      level: "attention",
+      reasons: ["2 ocorrências graves em atendimento"],
+    });
+    expect(fragataHealth([fragataOccurrence(1, 3, true)])).toMatchObject({
+      level: "attention",
+      reasons: ["1 ocorrência grave sem equipe"],
+    });
+    expect(fragataHealth([fragataOccurrence(1, 4, true)]).level).toBe("critical");
+    expect(
+      fragataHealth([fragataOccurrence(1, 3, true), fragataOccurrence(2, 3, true)]),
+    ).toMatchObject({
+      level: "critical",
+      reasons: ["2 ocorrências graves sem equipe"],
+    });
+    expect(
+      fragataHealth([
+        fragataOccurrence(1, 1, false),
+        fragataOccurrence(2, 2, false),
+        fragataOccurrence(3, 1, true),
+      ]),
+    ).toMatchObject({ level: "attention", reasons: ["3 ocorrências em aberto"] });
+  });
+
+  it("keeps a region normal while a few serious occurrences are being handled", () => {
+    const regionId = city.neighborhoods.find((item) => item.id === "fragata")!.regionId;
+    const members = city.neighborhoods.filter((item) => item.regionId === regionId);
+    const occurrences = members.slice(0, 3).map((item, index) =>
+      makeOccurrence({
+        id: index + 1,
+        severity: 3,
+        neighborhoodId: item.id,
+        status: "responding",
+        agentId: index + 1,
+      }),
+    );
+    const summary = computeSummary(input({ occurrences }));
+    expect(summary.regions.find((item) => item.id === regionId)!.level).toBe("normal");
+    const busier = computeSummary(
+      input({
+        occurrences: [
+          ...occurrences,
+          makeOccurrence({
+            id: 9,
+            severity: 3,
+            neighborhoodId: members[3]!.id,
+            status: "responding",
+            agentId: 9,
+          }),
+        ],
+      }),
+    );
+    expect(busier.regions.find((item) => item.id === regionId)).toMatchObject({
+      level: "attention",
+      reasons: ["4 ocorrências graves em atendimento"],
+    });
   });
 
   it("turns anomalies and exhausted staffing into alerts", () => {

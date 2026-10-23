@@ -84,20 +84,30 @@ export function computeKpis(input: OperationsInput, alerts: Alert[]): Kpis {
   };
 }
 
+type AreaLimits = { openAttention: number; severeAttention: number };
+
+const NEIGHBORHOOD_LIMITS: AreaLimits = { openAttention: 3, severeAttention: 2 };
+const REGION_LIMITS: AreaLimits = { openAttention: 10, severeAttention: 4 };
+
+function occurrencesPhrase(count: number, singular: string, pluralForm: string, tail: string) {
+  return `${count} ${plural(count, singular, pluralForm)} ${tail}`;
+}
+
 function healthOf(
   id: string,
   name: string,
   equipment: Equipment[],
   occurrences: Occurrence[],
   agentsActive: number,
+  limits: AreaLimits,
 ): AreaHealth {
   const countable = equipment.filter((item) => countsTowardAvailability(item.status));
   const operational = countable.filter((item) => item.status === "operational").length;
   const availabilityPct = countable.length === 0 ? 100 : (operational / countable.length) * 100;
   const open = occurrences.filter((item) => item.status !== "resolved");
   const severe = open.filter((item) => item.severity >= 3);
-  const critical = open.filter((item) => item.severity === 4);
-  const stolen = equipment.filter((item) => item.status === "stolen").length;
+  const severeWaiting = severe.filter((item) => item.status === "open");
+  const criticalWaiting = severeWaiting.filter((item) => item.severity === 4);
   const reasons: string[] = [];
   let level: HealthLevel = "normal";
   const raise = (to: HealthLevel) => {
@@ -113,22 +123,29 @@ function healthOf(
     raise("attention");
     reasons.push(`Disponibilidade de equipamentos em ${availabilityPct.toFixed(0)}%`);
   }
-  if (critical.length > 0 || severe.length >= 2) {
+  if (criticalWaiting.length > 0 || severeWaiting.length >= 2) {
     raise("critical");
     reasons.push(
-      `${severe.length} ${plural(severe.length, "ocorrência grave", "ocorrências graves")} em aberto`,
+      occurrencesPhrase(
+        severeWaiting.length,
+        "ocorrência grave",
+        "ocorrências graves",
+        "sem equipe",
+      ),
     );
-  } else if (severe.length === 1) {
+  } else if (severeWaiting.length === 1) {
     raise("attention");
-    reasons.push("1 ocorrência grave em aberto");
+    reasons.push("1 ocorrência grave sem equipe");
   }
-  if (open.length >= 3 && severe.length < open.length) {
+  const severeHandled = severe.length - severeWaiting.length;
+  if (severeHandled >= limits.severeAttention) {
+    raise("attention");
+    reasons.push(
+      occurrencesPhrase(severeHandled, "ocorrência grave", "ocorrências graves", "em atendimento"),
+    );
+  } else if (open.length >= limits.openAttention) {
     raise("attention");
     reasons.push(`${open.length} ocorrências em aberto`);
-  }
-  if (stolen > 0) {
-    raise("attention");
-    reasons.push(`${stolen} ${plural(stolen, "equipamento furtado", "equipamentos furtados")}`);
   }
 
   return {
@@ -167,6 +184,7 @@ export function computeAreaHealth(input: OperationsInput): {
       equipment.filter((item) => item.neighborhoodId === neighborhood.id),
       occurrences.filter((item) => item.neighborhoodId === neighborhood.id),
       countAgents(new Set([neighborhood.id])),
+      NEIGHBORHOOD_LIMITS,
     ),
   );
 
@@ -180,6 +198,7 @@ export function computeAreaHealth(input: OperationsInput): {
       equipment.filter((item) => members.has(item.neighborhoodId)),
       occurrences.filter((item) => members.has(item.neighborhoodId)),
       countAgents(members),
+      REGION_LIMITS,
     );
     const criticalNeighborhoods = neighborhoods.filter(
       (item) => members.has(item.id) && item.level === "critical",

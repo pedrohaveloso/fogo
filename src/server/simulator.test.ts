@@ -7,6 +7,7 @@ import { city, roads } from "./city.ts";
 import { openDatabase, type Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import { createDemandModel } from "./patterns.ts";
+import { setEquipmentStatus } from "./repositories/equipment.ts";
 import { getOccurrence, insertOccurrence } from "./repositories/occurrences.ts";
 import type { RoadData } from "./roads.ts";
 import { seedDatabase } from "./seed/index.ts";
@@ -134,6 +135,23 @@ describe("simulator", () => {
     const totals = Object.fromEntries(events.map((row) => [row.status, row.total]));
     expect(totals["malfunction"]).toBeGreaterThan(0);
     expect(totals["operational"]).toBeGreaterThan(0);
+  });
+
+  it("replaces stolen equipment after a while", { timeout: 30_000 }, () => {
+    const { db, simulator } = setup(2000);
+    const id = (
+      db.prepare("SELECT id FROM equipment WHERE status = 'operational' LIMIT 1").get() as {
+        id: number;
+      }
+    ).id;
+    setEquipmentStatus(db, id, "stolen", "Furto registrado", NOW, "immediate");
+    run(simulator, NOW, 600);
+    const reasons = (
+      db
+        .prepare("SELECT reason FROM equipment_status_events WHERE equipment_id = ? AND at > ?")
+        .all(id, NOW) as { reason: string }[]
+    ).map((row) => row.reason);
+    expect(reasons).toContain("Equipamento reposto");
   });
 
   it(

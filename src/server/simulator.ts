@@ -52,10 +52,13 @@ import {
   resolveOccurrence,
 } from "./repositories/occurrences.ts";
 import {
+  THEFT_PRONE,
+  THEFT_RATE_PER_DAY,
   baseVolumeFor,
   expectedReading,
   occurrenceLocation,
   pickSeverity,
+  replacementDays,
 } from "./seed/history.ts";
 import { OCCURRENCE_DESCRIPTIONS } from "./seed/texts.ts";
 
@@ -70,6 +73,7 @@ const MAX_TICK_MS = 10_000;
 const STALE_OCCURRENCE_MS = 3 * HOUR;
 const CATCH_UP_HOURS = 48;
 const ANOMALY_MIN_VOLUME = 150;
+const COMMUNICATION_FAILURE_CHANCE = 0.15;
 
 const DISPATCH_ROLES: Record<OccurrenceKind, AgentRole[]> = {
   accident: ["traffic_agent", "military_police", "municipal_guard"],
@@ -133,7 +137,11 @@ function agentModes(vehicle: Equipment | undefined) {
     : AGENT_MODES.car;
 }
 
-type Repair = { phase: "malfunction" | "maintenance"; until: number; preventive: boolean };
+type Repair = {
+  phase: "malfunction" | "maintenance" | "stolen";
+  until: number;
+  preventive: boolean;
+};
 type FlowOverride = { mode: "stuck" | "spike"; until: number };
 type Burst = { neighborhoodId: string; kind: OccurrenceKind; remaining: number };
 
@@ -596,7 +604,7 @@ export function createSimulator(
           continue;
         }
         silent.delete(id);
-        if (random.chance(0.5) && byId.get(id)?.status === "operational") {
+        if (random.chance(COMMUNICATION_FAILURE_CHANCE) && byId.get(id)?.status === "operational") {
           setEquipmentStatus(
             db,
             id,
@@ -633,17 +641,20 @@ export function createSimulator(
       ).run(now);
 
       for (const item of equipment) {
-        if (item.status === "malfunction" || item.status === "maintenance") {
+        if (
+          item.status === "malfunction" ||
+          item.status === "maintenance" ||
+          item.status === "stolen"
+        ) {
           if (!repairs.has(item.id)) {
+            const days = {
+              malfunction: 0.5 + random.next() * 2,
+              maintenance: 0.2 + random.next() * 0.8,
+              stolen: replacementDays(random),
+            }[item.status];
             repairs.set(item.id, {
               phase: item.status,
-              until:
-                now +
-                ((item.status === "malfunction"
-                  ? 0.5 + random.next() * 2
-                  : 0.2 + random.next() * 0.8) *
-                  DAY) /
-                  multiplier,
+              until: now + (days * DAY) / multiplier,
               preventive: false,
             });
           }
@@ -686,11 +697,21 @@ export function createSimulator(
           continue;
         }
         const item = getEquipment(db, id);
-        if (!item || (item.status !== "malfunction" && item.status !== "maintenance")) {
+        if (item?.status !== repair.phase) {
           repairs.delete(id);
           continue;
         }
-        if (repair.phase === "malfunction") {
+        if (repair.phase === "stolen") {
+          setEquipmentStatus(db, id, "operational", "Equipamento reposto", now, "none");
+          const interval =
+            item.maintenanceIntervalDays ?? EQUIPMENT_TYPES[item.type].maintenanceIntervalDays;
+          completeMaintenance(db, id, today, addDays(today, interval), now);
+          db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
+            "Equipamento novo instalado no lugar do furtado.",
+            id,
+          );
+          repairs.delete(id);
+        } else if (repair.phase === "malfunction") {
           setEquipmentStatus(db, id, "maintenance", "Equipe técnica iniciou o reparo", now);
           repairs.set(id, {
             phase: "maintenance",
@@ -736,14 +757,12 @@ export function createSimulator(
         }
       }
 
-      if (perTick(60 * MINUTE, dt)) {
-        const candidates = equipment.filter(
-          (item) =>
-            item.status === "operational" &&
-            ["camera", "e_scooter", "parking_kiosk"].includes(item.type),
-        );
-        if (candidates.length > 0) {
-          const item = random.pick(candidates);
+      for (const item of equipment) {
+        if (
+          item.status === "operational" &&
+          THEFT_PRONE.has(item.type) &&
+          random.chance((THEFT_RATE_PER_DAY * multiplier * dt) / DAY)
+        ) {
           setEquipmentStatus(db, item.id, "stolen", "Furto registrado", now, "immediate");
           db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
             "Equipamento furtado. Registrar boletim e programar a reposição.",

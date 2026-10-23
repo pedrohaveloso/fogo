@@ -28,8 +28,16 @@ export type EquipmentHistory = {
   lastMaintenanceAt: number | null;
 };
 
-const THEFT_PRONE = new Set<EquipmentType>(["camera", "e_scooter", "parking_kiosk"]);
-const THEFT_RATE_PER_DAY = 1 / 2500;
+export const THEFT_PRONE: ReadonlySet<EquipmentType> = new Set([
+  "camera",
+  "e_scooter",
+  "parking_kiosk",
+]);
+export const THEFT_RATE_PER_DAY = 1 / 2500;
+
+export function replacementDays(random: Random): number {
+  return 7 + random.next() * 14;
+}
 
 export function simulateEquipmentHistory(
   random: Random,
@@ -79,8 +87,15 @@ export function simulateEquipmentHistory(
       continue;
     }
     if (THEFT_PRONE.has(type) && random.chance(THEFT_RATE_PER_DAY)) {
-      push("stolen", day + random.next() * DAY, "Furto registrado");
-      break;
+      const stolenAt = day + random.next() * DAY;
+      const replacedAt = stolenAt + replacementDays(random) * DAY;
+      push("stolen", stolenAt, "Furto registrado");
+      push("operational", replacedAt, "Equipamento reposto");
+      if (replacedAt <= now) {
+        lastMaintenance = replacedAt;
+      }
+      busyUntil = replacedAt;
+      continue;
     }
     const rate = failureRatePerDay(type, daysSince, agingFactor(type, day, now));
     if (random.chance(rate)) {

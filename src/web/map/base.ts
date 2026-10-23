@@ -188,7 +188,12 @@ function registerImages(map: MapLibreMap): void {
     for (const status of AGENT_STATUSES) {
       map.addImage(
         agentImageId(role, status),
-        drawMarker("shield", AGENT_STATUS_COLORS[status], AGENT_ROLE_GLYPHS[role], "#ffffff"),
+        drawMarker(
+          "shield",
+          AGENT_STATUS_COLORS[status],
+          AGENT_ROLE_GLYPHS[role],
+          status === "responding" ? "#1b1f24" : "#ffffff",
+        ),
         { pixelRatio: PIXEL_RATIO },
       );
     }

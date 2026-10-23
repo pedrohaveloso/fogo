@@ -50,7 +50,7 @@ export function AgentShield({
           d={AGENT_ROLE_GLYPHS[role]}
           transform={`translate(${offset} ${offset}) scale(${glyphSize / 24})`}
           fill="none"
-          stroke="#ffffff"
+          stroke={status === "responding" ? "#1b1f24" : "#ffffff"}
           strokeWidth={2.4}
           strokeLinecap="round"
           strokeLinejoin="round"

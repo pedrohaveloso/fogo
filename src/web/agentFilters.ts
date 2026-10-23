@@ -1,4 +1,4 @@
-import type { AgentRole, AgentStatus } from "../shared/catalog.ts";
+import { AGENT_STATUSES, type AgentRole, type AgentStatus } from "../shared/catalog.ts";
 import type { Agent } from "../shared/types.ts";
 
 export type AgentFilters = {
@@ -27,5 +27,12 @@ export function matchesAgentFilters(
   const term = filters.search.trim().toLowerCase();
   return (
     !term || agent.name.toLowerCase().includes(term) || agent.badge.toLowerCase().includes(term)
+  );
+}
+
+export function compareAgents(a: Agent, b: Agent): number {
+  return (
+    AGENT_STATUSES.indexOf(a.status) - AGENT_STATUSES.indexOf(b.status) ||
+    a.name.localeCompare(b.name, "pt-BR")
   );
 }

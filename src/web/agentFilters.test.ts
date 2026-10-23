@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { makeAgent } from "../server/test-fixtures.ts";
-import { EMPTY_AGENT_FILTERS, matchesAgentFilters, type AgentFilters } from "./agentFilters.ts";
+import {
+  EMPTY_AGENT_FILTERS,
+  compareAgents,
+  matchesAgentFilters,
+  type AgentFilters,
+} from "./agentFilters.ts";
 
 const regionOf = new Map([
   ["centro", "center"],
@@ -40,5 +45,22 @@ describe("matchesAgentFilters", () => {
 
   it("rejects a base outside every known region when a region is chosen", () => {
     expect(match({ regionId: "south" }, makeAgent({ baseNeighborhoodId: "unknown" }))).toBe(false);
+  });
+});
+
+describe("compareAgents", () => {
+  it("lists agents on duty before those off duty, then by name", () => {
+    const agents = [
+      makeAgent({ id: 1, name: "Ana", status: "off_duty" }),
+      makeAgent({ id: 2, name: "Bruno", status: "responding" }),
+      makeAgent({ id: 3, name: "Carla", status: "available" }),
+      makeAgent({ id: 4, name: "Álvaro", status: "available" }),
+    ];
+    expect(agents.toSorted(compareAgents).map((item) => item.name)).toEqual([
+      "Álvaro",
+      "Carla",
+      "Bruno",
+      "Ana",
+    ]);
   });
 });

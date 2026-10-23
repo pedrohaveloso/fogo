@@ -9,7 +9,7 @@ import { OCCURRENCE_KINDS, SEVERITY_LABELS } from "../../shared/catalog.ts";
 import { maintenanceState } from "../../shared/maintenance.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
 import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
-import { CRITICAL_HATCH, useMap } from "./base.ts";
+import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, useMap } from "./base.ts";
 import { dispatchLines, idFilter, idsAtLevel, neighborhoodFeatures } from "./geojson.ts";
 
 export type Selection =
@@ -90,6 +90,7 @@ export function OperationsMap(props: Props) {
       type: "geojson",
       data: neighborhoodFeatures(props.meta.neighborhoods),
       promoteId: "id",
+      attribution: NEIGHBORHOOD_ATTRIBUTION,
     });
     map.addSource("heat", { type: "geojson", data: EMPTY });
     map.addSource("equipment", {

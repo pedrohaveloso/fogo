@@ -2,7 +2,7 @@ import type { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 import type { Meta, NeighborhoodRisk } from "../../shared/types.ts";
 import { RISK_COLORS } from "../colors.ts";
-import { CRITICAL_HATCH, useMap } from "./base.ts";
+import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, useMap } from "./base.ts";
 import { idFilter, neighborhoodFeatures } from "./geojson.ts";
 
 type Props = {
@@ -26,6 +26,7 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
       type: "geojson",
       data: neighborhoodFeatures(meta.neighborhoods),
       promoteId: "id",
+      attribution: NEIGHBORHOOD_ATTRIBUTION,
     });
     map.addLayer({
       id: "risk-fill",

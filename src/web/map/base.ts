@@ -133,6 +133,9 @@ export function agentImageId(role: string, status: string): string {
 
 export const MAINTENANCE_BADGE_COLOR = "#fab219";
 
+export const NEIGHBORHOOD_ATTRIBUTION =
+  'Bairros com limites aproximados a partir do <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
+
 function drawMaintenanceBadge(urgent: boolean): ImageData {
   const badge = 15;
   const size = badge * PIXEL_RATIO;

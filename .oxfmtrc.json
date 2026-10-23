@@ -1,5 +1,5 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "printWidth": 100,
-  "ignorePatterns": ["data/**", "pnpm-lock.yaml"]
+  "ignorePatterns": ["data/**", "pnpm-lock.yaml", ".claude/settings.local.json"]
 }

@@ -1,6 +1,7 @@
 import type { CityHealth, Kpis } from "../../shared/types.ts";
 import { HEALTH_LABELS } from "../colors.ts";
 import { formatInteger } from "../format.ts";
+import { generalIndicators } from "../summaries.ts";
 
 const NORMAL_TEXT = "Todas as regiões operam normalmente e nenhuma ocorrência espera equipe.";
 
@@ -44,6 +45,23 @@ export function CityStatus({
           tone="warning"
         />
       </div>
+      <section className="city-fleet" aria-labelledby="city-fleet-title">
+        <h3 id="city-fleet-title" className="city-fleet-title">
+          Indicadores gerais
+        </h3>
+        <ul className="city-fleet-list">
+          {generalIndicators(kpis).map((item) => (
+            <li key={item.key}>
+              <strong>{item.value}</strong> {item.label}
+            </li>
+          ))}
+        </ul>
+        <p className="city-fleet-note">
+          Disponibilidade sobre os{" "}
+          {formatInteger(kpis.equipmentTotal - kpis.notInstalled - kpis.disabled)} equipamentos
+          instalados e ativos.
+        </p>
+      </section>
     </section>
   );
 }

@@ -168,6 +168,7 @@ export function LayerPanel({
               <span key={severity} className="key">
                 <span
                   className="key-dot"
+                  data-severity={severity}
                   style={{ "--key-color": SEVERITY_COLORS[severity] } as CSSProperties}
                 />
                 {SEVERITY_LABELS[severity]}

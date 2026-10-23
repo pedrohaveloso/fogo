@@ -73,6 +73,15 @@ function paintOccurrence(element: HTMLElement, occurrence: Occurrence): void {
   element.style.background = color;
   element.style.color = color;
   element.dataset["waiting"] = String(occurrence.status === "open");
+  element.dataset["severity"] = String(occurrence.severity);
+  element.replaceChildren();
+  if (occurrence.severity === 4) {
+    const mark = document.createElement("span");
+    mark.className = "occurrence-mark";
+    mark.textContent = "!";
+    mark.setAttribute("aria-hidden", "true");
+    element.append(mark);
+  }
   element.setAttribute("aria-label", label);
   element.title = label;
 }

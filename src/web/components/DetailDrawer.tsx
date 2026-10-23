@@ -5,6 +5,7 @@ import {
   AGENCY_LABELS,
   AGENT_ROLES,
   EQUIPMENT_STATUSES,
+  UNAVAILABLE_STATUSES,
   EQUIPMENT_TYPES,
   MAINTENANCE_LABELS,
   OCCURRENCE_KINDS,
@@ -22,6 +23,7 @@ import type {
   Occurrence,
   OperationsSnapshot,
 } from "../../shared/types.ts";
+import { nearestAvailableAgents } from "../../shared/response.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
 import { api, ApiError } from "../api.ts";
 import {
@@ -394,21 +396,34 @@ function OccurrencePanel({
   );
 }
 
+const NEARBY_AGENTS = 3;
+const STOPPED_SHOWN = 5;
+
 function NeighborhoodPanel({
   id,
   snapshot,
+  meta,
   onFilter,
 }: {
   id: string;
   snapshot: OperationsSnapshot;
+  meta: Meta;
   onFilter: (id: string) => void;
 }) {
   const health: AreaHealth | undefined = snapshot.neighborhoods.find((item) => item.id === id);
   const items = snapshot.equipment.filter((item) => item.neighborhoodId === id);
   const open = snapshot.occurrences.filter((item) => item.neighborhoodId === id);
-  if (!health) {
+  const neighborhood = meta.neighborhoods.find((item) => item.id === id);
+  if (!health || !neighborhood) {
     return null;
   }
+  const stopped = items.filter((item) => UNAVAILABLE_STATUSES.includes(item.status));
+  const nearby = nearestAvailableAgents(
+    snapshot.agents,
+    snapshot.equipment,
+    [neighborhood.lng, neighborhood.lat],
+    NEARBY_AGENTS,
+  );
   return (
     <>
       <div>
@@ -445,6 +460,51 @@ function NeighborhoodPanel({
           ))}
         </ol>
       )}
+      {stopped.length > 0 && (
+        <section aria-labelledby="stopped-title">
+          <h3 id="stopped-title" className="drawer-subtitle">
+            Equipamentos parados ({stopped.length})
+          </h3>
+          <ul className="drawer-list">
+            {stopped.slice(0, STOPPED_SHOWN).map((item) => (
+              <li key={item.id}>
+                <span>
+                  {EQUIPMENT_TYPES[item.type].label} {item.serialNumber}
+                </span>
+                <span>{STATUS_LABELS[item.status]}</span>
+              </li>
+            ))}
+          </ul>
+          {stopped.length > STOPPED_SHOWN && (
+            <p className="hint">e mais {stopped.length - STOPPED_SHOWN} neste bairro</p>
+          )}
+        </section>
+      )}
+      <section aria-labelledby="nearby-title">
+        <h3 id="nearby-title" className="drawer-subtitle">
+          Agentes livres mais próximos
+        </h3>
+        {nearby.length === 0 ? (
+          <p className="hint">Nenhum agente livre no momento.</p>
+        ) : (
+          <>
+            <ul className="drawer-list">
+              {nearby.map(({ agent, minutes }) => (
+                <li key={agent.id}>
+                  <span>
+                    {agent.name}, {AGENT_ROLES[agent.role].label.toLowerCase()}
+                  </span>
+                  <span>cerca de {minutes} min</span>
+                </li>
+              ))}
+            </ul>
+            <p className="hint">
+              Estimativa em linha reta até o centro do bairro, com desvio de 30% e velocidade de
+              resposta a pé, de carro ou de moto.
+            </p>
+          </>
+        )}
+      </section>
       <button type="button" className="button" onClick={() => onFilter(id)}>
         Filtrar equipamentos deste bairro
       </button>
@@ -525,7 +585,12 @@ export function DetailDrawer({
     kind = "Bairro";
     title = meta.neighborhoods.find((entry) => entry.id === selection.id)?.name ?? "Bairro";
     body = (
-      <NeighborhoodPanel id={selection.id} snapshot={snapshot} onFilter={onFilterNeighborhood} />
+      <NeighborhoodPanel
+        id={selection.id}
+        snapshot={snapshot}
+        meta={meta}
+        onFilter={onFilterNeighborhood}
+      />
     );
   }
 

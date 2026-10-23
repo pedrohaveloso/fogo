@@ -74,4 +74,17 @@ describe("assessFailureRisk", () => {
     );
     expect(report.items[0]!.recommendation).toContain("Antecipar");
   });
+
+  it("words the due date like the equipment list", () => {
+    const report = assessFailureRisk(
+      [makeEquipment({ nextMaintenanceAt: "2026-10-17" })],
+      [],
+      [],
+      NOW,
+      120,
+    );
+    const item = report.items[0]!;
+    expect(item.factors.join(" ")).not.toContain("1 dia");
+    expect(item.recommendation).toMatch(/\((amanhã|em \d+ dias|hoje)\)\.$/);
+  });
 });

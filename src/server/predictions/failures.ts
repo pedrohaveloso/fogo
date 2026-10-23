@@ -1,4 +1,4 @@
-import { plural } from "../../shared/text.ts";
+import { formatMaintenanceDue, plural } from "../../shared/text.ts";
 import {
   EQUIPMENT_TYPES,
   EQUIPMENT_TYPE_KEYS,
@@ -180,7 +180,7 @@ export function assessFailureRisk(
         factors.push(
           daysLeft === 0
             ? "Manutenção vence hoje"
-            : `Manutenção vence em ${daysLeft} ${plural(daysLeft, "dia", "dias")}`,
+            : `Manutenção vence ${formatMaintenanceDue(daysLeft)}`,
         );
       }
       if (trend >= 1.3) {
@@ -201,7 +201,7 @@ export function assessFailureRisk(
       if (daysOverdue > 0) {
         recommendation = "Executar a manutenção preventiva atrasada.";
       } else if (daysLeft !== null && daysLeft < HORIZON_DAYS) {
-        recommendation = `Antecipar a manutenção preventiva prevista para ${item.nextMaintenanceAt?.split("-").toReversed().join("/")}.`;
+        recommendation = `Antecipar a manutenção preventiva prevista para ${item.nextMaintenanceAt?.split("-").toReversed().join("/")} (${formatMaintenanceDue(daysLeft)}).`;
       } else if (trend >= 1.3) {
         recommendation = "Inspecionar a unidade e avaliar a renovação da frota deste tipo.";
       }

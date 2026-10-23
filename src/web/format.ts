@@ -102,13 +102,3 @@ export function formatSigned(value: number): string {
   }
   return "0";
 }
-
-export function formatMaintenanceDue(days: number): string {
-  if (days < 0) {
-    return `vencida há ${-days} ${days === -1 ? "dia" : "dias"}`;
-  }
-  if (days === 0) {
-    return "hoje";
-  }
-  return days === 1 ? "amanhã" : `em ${days} dias`;
-}

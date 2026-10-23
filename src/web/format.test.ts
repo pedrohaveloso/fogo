@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatDate,
-  formatHour,
-  formatMaintenanceDue,
-  formatPercent,
-  formatRelative,
-  formatSigned,
-} from "./format.ts";
+import { formatDate, formatHour, formatPercent, formatRelative, formatSigned } from "./format.ts";
 
 describe("format", () => {
   const now = Date.parse("2026-10-14T15:00:00.000Z");
@@ -25,14 +18,6 @@ describe("format", () => {
     expect(formatDate(null)).toBe("—");
     expect(formatHour(7)).toBe("07h");
     expect(formatPercent(92.345, 1)).toBe("92,3%");
-  });
-
-  it("describes when maintenance is due with correct plurals", () => {
-    expect(formatMaintenanceDue(-12)).toBe("vencida há 12 dias");
-    expect(formatMaintenanceDue(-1)).toBe("vencida há 1 dia");
-    expect(formatMaintenanceDue(0)).toBe("hoje");
-    expect(formatMaintenanceDue(1)).toBe("amanhã");
-    expect(formatMaintenanceDue(5)).toBe("em 5 dias");
   });
 
   it("signs balances with a true minus sign", () => {

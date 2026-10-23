@@ -22,13 +22,13 @@ import type {
   Occurrence,
   OperationsSnapshot,
 } from "../../shared/types.ts";
+import { formatMaintenanceDue } from "../../shared/text.ts";
 import { api, ApiError } from "../api.ts";
 import {
   formatDate,
   formatDateTime,
   formatHour,
   formatInteger,
-  formatMaintenanceDue,
   formatPercent,
   formatRelative,
 } from "../format.ts";

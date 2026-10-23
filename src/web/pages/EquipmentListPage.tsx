@@ -15,7 +15,8 @@ import {
   toggleDownOfType,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
-import { formatDate, formatInteger, formatMaintenanceDue, formatRelative } from "../format.ts";
+import { formatDate, formatInteger, formatRelative } from "../format.ts";
+import { formatMaintenanceDue } from "../../shared/text.ts";
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";

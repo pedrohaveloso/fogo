@@ -1783,6 +1783,7 @@ button.city-count[aria-pressed="true"] {
 
 .alert-ack {
   justify-self: start;
+  min-height: 24px;
   margin-top: 2px;
   padding: 2px 0;
   border: 0;
@@ -2880,6 +2881,11 @@ dialog::backdrop {
   .page-head .button {
     width: 100%;
   }
+}
+
+:root[data-motion="paused"] .occurrence-marker::after,
+:root[data-motion="paused"] .alert[data-fresh="true"] {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

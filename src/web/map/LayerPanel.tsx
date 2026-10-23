@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   AGENT_ROLE_KEYS,
   AGENT_ROLES,
@@ -79,6 +79,10 @@ export function LayerPanel({
   onChange: (layers: MapLayers) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [motionPaused, setMotionPaused] = useState(false);
+  useEffect(() => {
+    document.documentElement.dataset["motion"] = motionPaused ? "paused" : "full";
+  }, [motionPaused]);
   const toggle = (key: keyof MapLayers) => (checked: boolean) =>
     onChange({ ...layers, [key]: checked });
 
@@ -217,6 +221,16 @@ export function LayerPanel({
               mais ocorrências
             </span>
           </LayerItem>
+          <li>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={motionPaused}
+                onChange={(event) => setMotionPaused(event.target.checked)}
+              />
+              Pausar animação
+            </label>
+          </li>
         </ul>
       )}
     </section>

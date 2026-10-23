@@ -82,6 +82,8 @@ Os bairros, ruas e pontos de referência de Marília vêm do OpenStreetMap (lice
 
 Não existe base aberta com os limites oficiais dos bairros de Marília, então os limites do F.O.G.O. são aproximados e não valem como divisa legal. Cada rua fica com o bairro mais próximo pela malha viária, e a área em volta das ruas é dividida a partir daí, sem atravessar rios, córregos e a ferrovia. Os seis bairros e distritos que têm polígono no OpenStreetMap (Jardim Vitória, Jardim Vista Alegre, Lácio, Padre Nóbrega, Jardim Julieta e Oswaldo Fanceli) usam esse polígono, sem tomar a área dos bairros que ficam dentro deles.
 
+As licenças e os créditos de cada fonte estão em [DATA.md](DATA.md).
+
 Equipamentos, agentes, histórico de ocorrências e telemetria são simulados. O gerador cria padrões que um sistema real teria: picos de trânsito no começo da manhã e no fim da tarde, mais ocorrências de segurança nas noites de sexta e sábado, bairros comerciais com mais estacionamento irregular, equipamentos com manutenção atrasada falhando mais, uma frota de patinetes envelhecendo e alguns bairros com ocorrências em alta nas últimas semanas. A parte preditiva precisa descobrir esses padrões sozinha.
 
 ## Configuração
@@ -118,3 +120,7 @@ Os hooks do prek rodam formatação, lint e tipos a cada commit e os testes a ca
 ## Uso de IA
 
 O projeto foi desenvolvido com o Claude Code, usando o modelo Claude Opus 5.5, da Anthropic.
+
+## Licença
+
+O código está sob a licença MIT, em nome de Pedro Veloso ([LICENSE](LICENSE)). Os dados derivados do OpenStreetMap seguem a ODbL, como explica o [DATA.md](DATA.md).

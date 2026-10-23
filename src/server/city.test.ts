@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { centroid, pointInPolygon } from "../shared/geo.ts";
-import { city, nearestNeighborhood } from "./city.ts";
+import { city, landmarksOf, nearestNeighborhood } from "./city.ts";
 
 describe("city dataset", () => {
   it("gives every neighborhood its own polygon", () => {
@@ -29,5 +29,18 @@ describe("nearestNeighborhood", () => {
       item.lat < best.lat ? item : best,
     );
     expect(nearestNeighborhood([southernmost.lng, -23.5]).id).toBe(southernmost.id);
+  });
+});
+
+describe("landmarksOf", () => {
+  it("keeps only places people use to find their way", () => {
+    const landmarks = landmarksOf({
+      ...city,
+      pois: [
+        { name: "Santa Casa", kind: "hospital", lat: 1, lng: 2, neighborhoodId: "centro" },
+        { name: "Posto", kind: "fuel", lat: 1, lng: 2, neighborhoodId: "centro" },
+      ],
+    });
+    expect(landmarks).toEqual([{ name: "Santa Casa", kind: "hospital", lat: 1, lng: 2 }]);
   });
 });

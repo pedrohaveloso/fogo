@@ -220,10 +220,13 @@ export type CityDataset = {
   pois: PointOfInterest[];
 };
 
+export type Landmark = { name: string; kind: string; lat: number; lng: number };
+
 export type Meta = {
   city: CityDataset["city"];
   regions: Region[];
   neighborhoods: Neighborhood[];
+  landmarks: Landmark[];
   serverTime: string;
   liveMultiplier: number;
 };

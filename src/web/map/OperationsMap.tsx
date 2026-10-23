@@ -42,6 +42,7 @@ type Props = {
 };
 
 const NARROW_SHARE = 0.8;
+const LANDMARK_MIN_ZOOM = 13.5;
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 const MAP_GROUND = "#111417";
 const CLUSTER_BADGE_OFFSET: [number, number] = [13, -13];
@@ -192,6 +193,48 @@ export function OperationsMap(props: Props) {
       filter: idFilter([]),
       paint: { "line-color": "#ffffff", "line-width": 2.5 },
     });
+    map.addSource("landmarks", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: props.meta.landmarks.map((item) =>
+          point(item.lng, item.lat, { name: item.name, kind: item.kind }),
+        ),
+      },
+    });
+    map.addLayer({
+      id: "landmark-dots",
+      type: "circle",
+      source: "landmarks",
+      minzoom: LANDMARK_MIN_ZOOM,
+      paint: {
+        "circle-radius": 3,
+        "circle-color": "#6b7079",
+        "circle-stroke-color": MAP_GROUND,
+        "circle-stroke-width": 1,
+      },
+    });
+    if (online) {
+      map.addLayer({
+        id: "landmark-names",
+        type: "symbol",
+        source: "landmarks",
+        minzoom: LANDMARK_MIN_ZOOM,
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": 11,
+          "text-offset": [0, 0.9],
+          "text-anchor": "top",
+          "text-max-width": 9,
+        },
+        paint: {
+          "text-color": "#8a929c",
+          "text-halo-color": MAP_GROUND,
+          "text-halo-width": 1.2,
+        },
+      });
+    }
     map.addLayer({
       id: "heat",
       type: "heatmap",
@@ -378,7 +421,7 @@ export function OperationsMap(props: Props) {
         map.getCanvas().style.cursor = "";
       });
     }
-  }, [handle, props.meta.neighborhoods]);
+  }, [handle, props.meta.neighborhoods, props.meta.landmarks]);
 
   useEffect(() => {
     const source = handle?.map.getSource<GeoJSONSource>("equipment");

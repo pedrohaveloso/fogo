@@ -3,7 +3,7 @@ import { DAY, HOUR } from "../../shared/time.ts";
 import type { AgentInput } from "../../shared/types.ts";
 import { lookupAddress } from "../address.ts";
 import type { AppDeps } from "../app.ts";
-import { regionOfNeighborhood } from "../city.ts";
+import { landmarksOf, regionOfNeighborhood } from "../city.ts";
 import {
   createAgent,
   deleteAgent,
@@ -55,6 +55,7 @@ export function inventoryRoutes(deps: AppDeps): Hono {
       city: city.city,
       regions: city.regions,
       neighborhoods: city.neighborhoods,
+      landmarks: landmarksOf(city),
       serverTime: new Date(now()).toISOString(),
       liveMultiplier: deps.liveMultiplier,
     }),

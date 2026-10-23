@@ -4,12 +4,16 @@ const MAP_GROUND = "#111417";
 
 const PLACE_PAINT = { "text-color": "#858d97", "text-halo-color": "rgba(17,20,23,0.85)" };
 
-const RAILWAY_PAINT = { "line-color": "#2a2f35" };
+const RAILWAY_PAINT = { "line-color": "#3a414a" };
 
 const BASEMAP_PAINT: Record<string, Record<string, string>> = {
   background: { "background-color": MAP_GROUND },
-  water: { "fill-color": "#13202a" },
-  waterway: { "line-color": "#13202a" },
+  water: { "fill-color": "#16242e" },
+  waterway: { "line-color": "#1d3442" },
+  "aeroway-area": { "fill-color": "#181c21" },
+  "aeroway-runway": { "line-color": "#2b3138" },
+  "aeroway-runway-casing": { "line-color": "#353c44" },
+  "aeroway-taxiway": { "line-color": "#22272d" },
   water_name: { "text-color": "#4f6575", "text-halo-color": MAP_GROUND },
   landuse_residential: { "fill-color": "#14171b" },
   landcover_wood: { "fill-color": "#141a18" },

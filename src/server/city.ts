@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import dataset from "../../data/marilia.json" with { type: "json" };
 import { closestArea, type LngLat } from "../shared/geo.ts";
-import type { CityDataset, Neighborhood } from "../shared/types.ts";
+import type { CityDataset, Landmark, Neighborhood } from "../shared/types.ts";
 import { createRoadNetwork, type RoadData } from "./roads.ts";
 
 export const city = dataset as CityDataset;
@@ -39,4 +39,19 @@ export function normalizeName(text: string): string {
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+const LANDMARK_KINDS = new Set([
+  "hospital",
+  "university",
+  "mall",
+  "stadium",
+  "bus_station",
+  "park",
+]);
+
+export function landmarksOf(source: CityDataset): Landmark[] {
+  return source.pois
+    .filter((poi) => LANDMARK_KINDS.has(poi.kind))
+    .map(({ name, kind, lat, lng }) => ({ name, kind, lat, lng }));
 }

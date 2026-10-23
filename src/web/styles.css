@@ -2471,9 +2471,10 @@ button.city-count[aria-pressed="true"] {
 }
 
 .option:has(input:checked) {
-  background: rgb(255 194 14 / 8%);
-  border-color: var(--sign);
-  box-shadow: inset 0 0 0 1px var(--sign);
+  background: var(--raised);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+  color: var(--ink);
 }
 
 .option:has(input:focus-visible) {

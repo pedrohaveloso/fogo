@@ -149,6 +149,10 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     }));
 
   const searchCep = async () => {
+    if (draft.cep.replaceAll(/\D/g, "").length !== 8) {
+      setLookup("Digite os 8 números do CEP para buscar.");
+      return;
+    }
     setLookup("Buscando CEP...");
     try {
       const result = await api.get<AddressLookup>(`/address/${encodeURIComponent(draft.cep)}`);
@@ -170,8 +174,8 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     } catch (error) {
       setLookup(
         error instanceof ApiError && error.status === 404
-          ? "CEP não encontrado. Preencha o endereço manualmente."
-          : "Não foi possível consultar o CEP agora.",
+          ? `Não encontramos o CEP ${draft.cep}. Confira os números ou preencha o endereço à mão.`
+          : `Não foi possível consultar o CEP ${draft.cep} agora. Tente de novo ou preencha o endereço à mão.`,
       );
     }
   };
@@ -351,23 +355,18 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               path="cep"
               label={LABELS["cep"]!}
               error={errors["cep"]}
-              hint="Busque o CEP para preencher rua, bairro e coordenadas."
+              hint="Digite os 8 números, como 17500-000, e clique em Buscar CEP para preencher rua, bairro e coordenadas. Também dá para preencher tudo à mão."
             >
               {(props) => (
                 <div className="input-row">
                   <input
                     {...props}
                     inputMode="numeric"
+                    autoComplete="postal-code"
                     value={draft.cep}
-                    placeholder="17500-000"
                     onChange={(event) => set("cep", event.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="button"
-                    onClick={() => void searchCep()}
-                    disabled={draft.cep.replaceAll(/\D/g, "").length !== 8}
-                  >
+                  <button type="button" className="button" onClick={() => void searchCep()}>
                     Buscar CEP
                   </button>
                 </div>

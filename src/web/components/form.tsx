@@ -112,10 +112,10 @@ export function ErrorSummary({
   const ref = useRef<HTMLDivElement>(null);
   const entries = Object.entries(errors);
   useEffect(() => {
-    if (entries.length > 0) {
+    if (Object.keys(errors).length > 0) {
       ref.current?.focus();
     }
-  }, [entries.length]);
+  }, [errors]);
   if (entries.length === 0) {
     return null;
   }

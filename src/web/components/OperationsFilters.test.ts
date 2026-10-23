@@ -3,7 +3,6 @@ import type { Meta } from "../../shared/types.ts";
 import { NOW, makeEquipment } from "../../server/test-fixtures.ts";
 import {
   EMPTY_FILTERS,
-  advancedFilterCount,
   matchesFilters,
   placeFilterCount,
   showsUnavailableOnly,
@@ -97,25 +96,6 @@ describe("summary shortcuts", () => {
     expect(toggleUrgentMaintenance({ ...EMPTY_FILTERS, maintenance: "urgent" }).maintenance).toBe(
       "",
     );
-  });
-});
-
-describe("advancedFilterCount", () => {
-  it("counts only the filters kept behind the disclosure", () => {
-    expect(advancedFilterCount(EMPTY_FILTERS)).toBe(0);
-    expect(
-      advancedFilterCount({ ...EMPTY_FILTERS, search: "radar", statuses: ["operational"] }),
-    ).toBe(0);
-    expect(
-      advancedFilterCount({
-        ...EMPTY_FILTERS,
-        type: "radar",
-        regionId: "south",
-        neighborhoodId: "fragata",
-        agency: "mobility",
-        maintenance: "soon",
-      }),
-    ).toBe(5);
   });
 });
 

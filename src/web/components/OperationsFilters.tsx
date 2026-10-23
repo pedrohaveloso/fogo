@@ -1,11 +1,6 @@
 import {
   AGENCIES,
   AGENCY_LABELS,
-  EQUIPMENT_STATUSES,
-  EQUIPMENT_TYPES,
-  EQUIPMENT_TYPE_KEYS,
-  STATUS_COLORS,
-  STATUS_LABELS,
   UNAVAILABLE_STATUSES,
   type Agency,
   type EquipmentStatus,
@@ -17,7 +12,6 @@ import {
   maintenanceState,
 } from "../../shared/maintenance.ts";
 import type { Equipment, Meta } from "../../shared/types.ts";
-import { StatusShape } from "../icons.tsx";
 
 export type MaintenanceFilter = "" | "urgent" | "immediate" | "overdue" | "soon";
 
@@ -94,15 +88,6 @@ export function matchesFilters(
   return true;
 }
 
-type Props = {
-  meta: Meta;
-  filters: EquipmentFilters;
-  onChange: (filters: EquipmentFilters) => void;
-  matching: number;
-  total: number;
-  expanded?: boolean;
-};
-
 export function showsUnavailableOnly(filters: EquipmentFilters): boolean {
   return (
     filters.statuses.length === UNAVAILABLE_STATUSES.length &&
@@ -125,10 +110,6 @@ export function placeFilterCount(filters: EquipmentFilters): number {
   return [filters.regionId, filters.neighborhoodId, filters.agency, filters.maintenance].filter(
     Boolean,
   ).length;
-}
-
-export function advancedFilterCount(filters: EquipmentFilters): number {
-  return (filters.type ? 1 : 0) + placeFilterCount(filters);
 }
 
 export function PlaceFilterFields({
@@ -211,98 +192,5 @@ export function PlaceFilterFields({
         </select>
       </div>
     </>
-  );
-}
-
-export function OperationsFilters({
-  meta,
-  filters,
-  onChange,
-  matching,
-  total,
-  expanded = false,
-}: Props) {
-  const set = <K extends keyof EquipmentFilters>(key: K, value: EquipmentFilters[K]) =>
-    onChange({ ...filters, [key]: value });
-  const toggleStatus = (status: EquipmentStatus) =>
-    set(
-      "statuses",
-      filters.statuses.includes(status)
-        ? filters.statuses.filter((item) => item !== status)
-        : [...filters.statuses, status],
-    );
-  const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
-  const advanced = advancedFilterCount(filters);
-
-  return (
-    <section aria-labelledby="filters-title" className="filters">
-      <h2 id="filters-title" className="section-title">
-        Filtrar equipamentos
-        <small>
-          {matching} de {total}
-        </small>
-      </h2>
-      <div className="field">
-        <label htmlFor="filter-search" className="visually-hidden">
-          Buscar equipamento
-        </label>
-        <input
-          id="filter-search"
-          type="search"
-          placeholder="Buscar por série, marca ou rua"
-          value={filters.search}
-          onChange={(event) => set("search", event.target.value)}
-        />
-      </div>
-      <fieldset className="field chip-fieldset">
-        <legend className="label">Situação</legend>
-        <div className="chip-group">
-          {EQUIPMENT_STATUSES.map((status) => (
-            <button
-              key={status}
-              type="button"
-              className="chip"
-              aria-pressed={filters.statuses.includes(status)}
-              onClick={() => toggleStatus(status)}
-            >
-              <StatusShape status={status} color={STATUS_COLORS[status]} size={12} />
-              {STATUS_LABELS[status]}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <details className="disclosure filters-more" open={expanded}>
-        <summary>
-          {advanced === 0
-            ? "Mais filtros"
-            : `Mais filtros (${advanced} ${advanced === 1 ? "ativo" : "ativos"})`}
-        </summary>
-        <div className="field">
-          <label htmlFor="filter-type">Tipo de equipamento</label>
-          <select
-            id="filter-type"
-            value={filters.type}
-            onChange={(event) => set("type", event.target.value as EquipmentType | "")}
-          >
-            <option value="">Todos os tipos</option>
-            {EQUIPMENT_TYPE_KEYS.map((type) => (
-              <option key={type} value={type}>
-                {EQUIPMENT_TYPES[type].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <PlaceFilterFields idPrefix="filter" meta={meta} filters={filters} onChange={onChange} />
-      </details>
-      {active && (
-        <button
-          type="button"
-          className="button button-small"
-          onClick={() => onChange(EMPTY_FILTERS)}
-        >
-          Limpar filtros
-        </button>
-      )}
-    </section>
   );
 }

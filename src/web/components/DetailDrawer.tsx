@@ -26,6 +26,7 @@ import {
   formatDateTime,
   formatHour,
   formatInteger,
+  formatMaintenanceDue,
   formatPercent,
   formatRelative,
 } from "../format.ts";
@@ -81,10 +82,7 @@ function maintenanceSummary(item: Equipment, now: number): string {
     return "Sem data prevista";
   }
   const days = daysBetween(localDate(now), item.nextMaintenanceAt);
-  if (days < 0) {
-    return `${formatDate(item.nextMaintenanceAt)}, vencida há ${-days} dia(s)`;
-  }
-  return `${formatDate(item.nextMaintenanceAt)}, em ${days} dia(s)`;
+  return `${formatDate(item.nextMaintenanceAt)}, ${formatMaintenanceDue(days)}`;
 }
 
 function EquipmentPanel({

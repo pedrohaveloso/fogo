@@ -67,9 +67,23 @@ type Props = {
   onChange: (filters: EquipmentFilters) => void;
   matching: number;
   total: number;
+  idPrefix: string;
+  label: string;
+  className: string;
+  alwaysShowCount?: boolean;
 };
 
-export function MapFilterBar({ meta, filters, onChange, matching, total }: Props) {
+export function EquipmentFilterBar({
+  meta,
+  filters,
+  onChange,
+  matching,
+  total,
+  idPrefix,
+  label,
+  className,
+  alwaysShowCount = false,
+}: Props) {
   const set = <K extends keyof EquipmentFilters>(key: K, value: EquipmentFilters[K]) =>
     onChange({ ...filters, [key]: value });
   const toggleStatus = (status: EquipmentStatus) =>
@@ -82,12 +96,12 @@ export function MapFilterBar({ meta, filters, onChange, matching, total }: Props
   const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
   return (
-    <search className="map-overlay filter-bar" aria-label="Filtrar equipamentos no mapa">
-      <label htmlFor="map-search" className="visually-hidden">
+    <search className={`filter-bar ${className}`} aria-label={label}>
+      <label htmlFor={`${idPrefix}-search`} className="visually-hidden">
         Buscar equipamento
       </label>
       <input
-        id="map-search"
+        id={`${idPrefix}-search`}
         type="search"
         className="filter-search"
         placeholder="Buscar série, marca ou rua"
@@ -116,7 +130,7 @@ export function MapFilterBar({ meta, filters, onChange, matching, total }: Props
           <label className="check">
             <input
               type="radio"
-              name="map-type"
+              name={`${idPrefix}-type`}
               checked={filters.type === ""}
               onChange={() => set("type", "")}
             />
@@ -126,7 +140,7 @@ export function MapFilterBar({ meta, filters, onChange, matching, total }: Props
             <label key={type} className="check">
               <input
                 type="radio"
-                name="map-type"
+                name={`${idPrefix}-type`}
                 checked={filters.type === type}
                 onChange={() => set("type", type)}
               />
@@ -137,19 +151,26 @@ export function MapFilterBar({ meta, filters, onChange, matching, total }: Props
       </FilterMenu>
       <FilterMenu label="Mais filtros" count={placeFilterCount(filters)}>
         <div className="filter-fields">
-          <PlaceFilterFields idPrefix="map" meta={meta} filters={filters} onChange={onChange} />
+          <PlaceFilterFields
+            idPrefix={idPrefix}
+            meta={meta}
+            filters={filters}
+            onChange={onChange}
+          />
         </div>
       </FilterMenu>
-      {active && (
+      {(active || alwaysShowCount) && (
         <span className="filter-result" role="status">
-          {matching} de {total}
-          <button
-            type="button"
-            className="button button-small button-ghost"
-            onClick={() => onChange(EMPTY_FILTERS)}
-          >
-            Limpar
-          </button>
+          {matching} de {total} equipamentos
+          {active && (
+            <button
+              type="button"
+              className="button button-small button-ghost"
+              onClick={() => onChange(EMPTY_FILTERS)}
+            >
+              Limpar
+            </button>
+          )}
         </span>
       )}
     </search>

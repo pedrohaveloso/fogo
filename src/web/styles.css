@@ -819,6 +819,13 @@ tbody tr:last-child td {
   font-size: var(--text-xs);
 }
 
+.cell-warning {
+  display: block;
+  margin-top: 1px;
+  color: var(--warning);
+  font-size: var(--text-xs);
+}
+
 .cell-clip {
   display: block;
   max-width: 34ch;
@@ -1135,15 +1142,74 @@ button.city-count[aria-pressed="true"] {
 }
 
 .filter-bar {
-  top: 12px;
-  left: 12px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  max-width: calc(100% - 72px);
   padding: 4px;
   font-size: var(--text-sm);
+}
+
+.map-overlay.filter-bar {
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 72px);
+}
+
+.page-filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.page-filter-bar .filter-result {
+  margin-left: auto;
+}
+
+.inventory-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.down-types {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.down-types button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.down-types button:hover {
+  border-color: var(--line-strong);
+  background: var(--raised);
+}
+
+.down-types button[aria-pressed="true"] {
+  border-color: var(--ink-2);
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.down-types strong {
+  color: var(--critical-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .filter-search {
@@ -1503,20 +1569,6 @@ button.city-count[aria-pressed="true"] {
   color: var(--ink-2);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
-}
-
-.filters {
-  display: grid;
-  gap: 12px;
-}
-
-.filters-more {
-  display: grid;
-  gap: 10px;
-}
-
-.filters-more[open] > summary {
-  margin-bottom: 2px;
 }
 
 .feed-head {
@@ -1925,18 +1977,6 @@ button.city-count[aria-pressed="true"] {
   gap: 4px;
   color: var(--critical-text);
   font-size: var(--text-xs);
-}
-
-.inventory-layout {
-  display: grid;
-  grid-template-columns: minmax(250px, 284px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.inventory-filters {
-  position: sticky;
-  top: calc(var(--header-h) + 16px);
 }
 
 .toolbar {
@@ -2517,17 +2557,26 @@ dialog::backdrop {
 
   .grid-2,
   .grid-3,
-  .inventory-layout,
   .stat-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .inventory-filters {
-    position: static;
   }
 }
 
 @media (max-width: 720px) {
+  .inventory-table th:first-child,
+  .inventory-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--line);
+  }
+
+  .inventory-table th:first-child {
+    z-index: 2;
+    background: var(--raised);
+  }
+
   :root {
     --header-h: 52px;
     --bottom-nav-h: 62px;
@@ -2586,7 +2635,7 @@ dialog::backdrop {
     display: none;
   }
 
-  .filter-bar {
+  .map-overlay.filter-bar {
     right: 56px;
     max-width: none;
   }

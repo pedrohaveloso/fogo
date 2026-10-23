@@ -3,7 +3,7 @@ import type { Alert } from "../../shared/types.ts";
 import { AlertFeed } from "../components/AlertFeed.tsx";
 import { DetailDrawer } from "../components/DetailDrawer.tsx";
 import { CityStatus } from "../components/CityStatus.tsx";
-import { MapFilterBar } from "../components/MapFilterBar.tsx";
+import { EquipmentFilterBar } from "../components/EquipmentFilterBar.tsx";
 import {
   EMPTY_FILTERS,
   matchesFilters,
@@ -126,7 +126,10 @@ export function OperationsPage() {
           now={now}
           onSelect={setSelected}
         />
-        <MapFilterBar
+        <EquipmentFilterBar
+          idPrefix="map"
+          label="Filtrar equipamentos no mapa"
+          className="map-overlay"
           meta={meta}
           filters={filters}
           onChange={setFilters}

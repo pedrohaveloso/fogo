@@ -1,23 +1,22 @@
 import { useMemo, useState } from "react";
+import { AGENCY_SHORT_LABELS, EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
 import {
-  AGENCY_SHORT_LABELS,
-  EQUIPMENT_TYPES,
-  STATUS_COLORS,
-  STATUS_LABELS,
-} from "../../shared/catalog.ts";
-import { daysBetween, localDate } from "../../shared/time.ts";
+  MAINTENANCE_SOON_DAYS,
+  maintenanceDaysLeft,
+  maintenanceState,
+} from "../../shared/maintenance.ts";
 import type { Equipment } from "../../shared/types.ts";
 import { StatusBadge } from "../components/badges.tsx";
+import { EquipmentFilterBar } from "../components/EquipmentFilterBar.tsx";
 import {
   EMPTY_FILTERS,
-  OperationsFilters,
   matchesFilters,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
-import { formatDate, formatInteger, formatRelative } from "../format.ts";
-import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
+import { formatDate, formatInteger, formatMaintenanceDue, formatRelative } from "../format.ts";
+import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { useLive, useMeta } from "../live.ts";
-import { Link, navigate } from "../router.tsx";
+import { Link } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
@@ -30,6 +29,13 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "maintenance", label: "Próxima manutenção" },
   { key: "seen", label: "Última comunicação" },
 ];
+
+function dueClass(days: number): string {
+  if (days < 0) {
+    return "cell-alert";
+  }
+  return days <= MAINTENANCE_SOON_DAYS ? "cell-warning" : "cell-sub";
+}
 
 export function EquipmentListPage() {
   const meta = useMeta();
@@ -89,8 +95,8 @@ export function EquipmentListPage() {
     );
   }
 
-  const today = localDate(now);
   const down = fleet.reduce((sum, entry) => sum + entry.down, 0);
+  const downTypes = fleet.filter((entry) => entry.down > 0);
 
   return (
     <main className="page page-wide">
@@ -107,47 +113,39 @@ export function EquipmentListPage() {
           Cadastrar equipamento
         </Link>
       </div>
-      <section aria-label="Equipamentos por tipo" className="summary-tiles">
-        {fleet.map((entry) => (
-          <button
-            key={entry.type}
-            type="button"
-            className="summary-tile"
-            aria-pressed={filters.type === entry.type}
-            onClick={() =>
-              setFilters({ ...filters, type: filters.type === entry.type ? "" : entry.type })
-            }
-          >
-            <span className="summary-icon">
-              <Glyph d={TYPE_GLYPHS[entry.type]} size={20} />
-            </span>
-            <span className="summary-text">
-              <span className="summary-label">{EQUIPMENT_TYPES[entry.type].plural}</span>
-              <span className="summary-figures">
-                <span className="summary-count">{formatInteger(entry.total)}</span>
-                {entry.down > 0 && (
-                  <span className="summary-down">
-                    <StatusShape status="malfunction" color={STATUS_COLORS.malfunction} size={11} />
-                    {entry.down} {entry.down === 1 ? "parado" : "parados"}
-                  </span>
-                )}
-              </span>
-            </span>
-          </button>
-        ))}
-      </section>
-      <div className="inventory-layout">
-        <aside className="panel inventory-filters">
-          <OperationsFilters
-            meta={meta}
-            filters={filters}
-            onChange={setFilters}
-            matching={rows.length}
-            total={snapshot.equipment.length}
-            expanded
-          />
-        </aside>
-        <div className="table-wrap" data-sticky="page">
+      <div className="inventory-stack">
+        {downTypes.length > 0 && (
+          <p className="down-types">
+            <span id="down-types-label">Parados por tipo:</span>
+            {downTypes.map((entry) => (
+              <button
+                key={entry.type}
+                type="button"
+                aria-pressed={filters.type === entry.type}
+                aria-describedby="down-types-label"
+                onClick={() =>
+                  setFilters({ ...filters, type: filters.type === entry.type ? "" : entry.type })
+                }
+              >
+                <Glyph d={TYPE_GLYPHS[entry.type]} size={16} />
+                {EQUIPMENT_TYPES[entry.type].plural}
+                <strong>{entry.down}</strong>
+              </button>
+            ))}
+          </p>
+        )}
+        <EquipmentFilterBar
+          idPrefix="list"
+          label="Filtrar equipamentos"
+          className="page-filter-bar"
+          meta={meta}
+          filters={filters}
+          onChange={setFilters}
+          matching={rows.length}
+          total={snapshot.equipment.length}
+          alwaysShowCount
+        />
+        <div className="table-wrap inventory-table" data-sticky="page">
           <table>
             <caption className="visually-hidden">
               Lista de equipamentos, ordenável pelas colunas
@@ -197,22 +195,15 @@ export function EquipmentListPage() {
                 </tr>
               )}
               {rows.map((item) => {
-                const days =
-                  item.nextMaintenanceAt && item.status !== "stolen"
-                    ? daysBetween(today, item.nextMaintenanceAt)
-                    : null;
+                const days = maintenanceDaysLeft(item, now);
                 const address = `${item.street}, ${item.reference}`;
                 return (
                   <tr key={item.id}>
                     <td>
-                      <button
-                        type="button"
-                        className="row-button"
-                        onClick={() => navigate(`/equipamentos/${item.id}`)}
-                      >
+                      <Link href={`/equipamentos/${item.id}`} className="row-button">
                         <Glyph d={TYPE_GLYPHS[item.type]} size={18} />
                         {item.serialNumber}
-                      </button>
+                      </Link>
                       <span className="cell-sub">{EQUIPMENT_TYPES[item.type].label}</span>
                     </td>
                     <td>
@@ -226,12 +217,13 @@ export function EquipmentListPage() {
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {formatDate(item.nextMaintenanceAt)}
-                      {days !== null && days < 0 && (
-                        <span className="cell-alert">vencida há {-days} dia(s)</span>
+                      {days !== null && (
+                        <span className={dueClass(days)}>{formatMaintenanceDue(days)}</span>
                       )}
-                      {item.maintenanceNeed === "immediate" && (
-                        <span className="cell-alert">manutenção imediata</span>
-                      )}
+                      {item.maintenanceNeed === "immediate" &&
+                        maintenanceState(item, now) === "urgent" && (
+                          <span className="cell-alert">manutenção imediata</span>
+                        )}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{formatRelative(item.lastSeenAt, now)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{AGENCY_SHORT_LABELS[item.agency]}</td>

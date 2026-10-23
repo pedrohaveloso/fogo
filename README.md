@@ -68,13 +68,13 @@ O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h
 
 Cada bloco da página explica o que está sendo previsto, com quais dados e como usar o resultado. Os modelos aprendem com os dados do banco. Nenhum deles consulta o gerador de dados. O horizonte da previsão fica fixo no topo da página e vale para o risco por bairro e para o reforço de agentes.
 
-- Risco por bairro nas próximas horas: combina a participação de cada bairro em cada tipo de ocorrência, o padrão da cidade por dia da semana e hora (12 semanas, com peso maior para as recentes) e a tendência das duas últimas semanas. O resultado é pesado pela gravidade típica de cada tipo e aumenta quando câmeras, radares ou semáforos do bairro estão parados. O índice de 0 a 100 é o percentil do bairro neste horário entre todos os bairros e horários da semana.
+- Ocorrências esperadas por bairro nas próximas horas: combina a participação de cada bairro em cada tipo de ocorrência, o padrão da cidade por dia da semana e hora (12 semanas, com peso maior para as recentes) e a tendência das duas últimas semanas, e aumenta quando câmeras, radares ou semáforos do bairro estão parados. Cada bairro mostra o número esperado e a faixa em que ele cai em 8 de cada 10 dias parecidos. O mapa marca só os bairros acima do próprio normal para aquele dia e horário: tracejado a partir de 20% acima, zebrado a partir de 50%.
 - Reforço de agentes: compara a carga prevista de cada região (ocorrências vezes o tempo médio de atendimento) com o efetivo ativo, mostra o saldo de cada uma e sugere remanejamentos.
 - Padrão semanal: um mapa de calor com as ocorrências esperadas por dia e hora.
 - Qualidade do modelo: um backtest treina o modelo de risco sem os últimos 7 dias e compara a previsão com o que aconteceu. Na base de demonstração, os 10% de blocos de 4 horas apontados como mais arriscados concentram entre 17% e 24% das ocorrências, contra 10% a 19% da média histórica simples, conforme a janela avaliada. O erro por região fica entre 15% e 22% menor.
 - Comportamentos fora do padrão: sensores com leitura zerada, quedas e picos de fluxo (escore z contra o mesmo horário das quatro semanas anteriores) e concentrações de ocorrências (teste de Poisson contra o esperado).
 - Risco de falha em 7 dias: estima, pelo histórico, a taxa de falha de cada tipo de equipamento e quanto a manutenção vencida aumenta essa taxa. Com isso monta a fila de manutenção preventiva.
-- Tendências: disponibilidade por tipo de equipamento com projeção de 30 dias, ocorrências por região e uso de totens, cancelas e sensores de fluxo. Só viram aviso as variações estatisticamente significativas.
+- Tendências: disponibilidade por tipo de equipamento com projeção de 30 dias e a faixa em que ela deve ficar em 8 de cada 10 casos, ocorrências por região e uso de totens, cancelas e sensores de fluxo. Só viram aviso as variações estatisticamente significativas.
 
 ## Dados
 

@@ -106,3 +106,17 @@ export function closestArea<T extends { lat: number; lng: number; polygon: LngLa
   }
   return best;
 }
+
+export function boundsOf(points: readonly LngLat[], share = 1): [LngLat, LngLat] {
+  const trim = Math.round((points.length * (1 - share)) / 2);
+  const range = (values: number[]): [number, number] => {
+    const sorted = values.toSorted((a, b) => a - b);
+    return [sorted[trim]!, sorted[sorted.length - 1 - trim]!];
+  };
+  const [west, east] = range(points.map(([lng]) => lng));
+  const [south, north] = range(points.map(([, lat]) => lat));
+  return [
+    [west, south],
+    [east, north],
+  ];
+}

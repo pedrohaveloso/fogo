@@ -1,3 +1,4 @@
+import type { LngLat } from "../../shared/geo.ts";
 import {
   Map as MapLibreMap,
   NavigationControl,
@@ -194,11 +195,13 @@ function registerImages(map: MapLibreMap): void {
   }
 }
 
+const NARROW_MAP_WIDTH = 720;
+
 export type MapHandle = { map: MapLibreMap; online: boolean };
 
 export function useMap(
   container: RefObject<HTMLDivElement | null>,
-  options: { center: [number, number]; zoom: number },
+  options: { center: [number, number]; zoom: number; narrowBounds?: [LngLat, LngLat] },
 ): MapHandle | null {
   const [handle, setHandle] = useState<MapHandle | null>(null);
   const initial = useRef(options);
@@ -210,11 +213,12 @@ export function useMap(
       if (disposed || !container.current) {
         return;
       }
+      const { center, zoom, narrowBounds } = initial.current;
+      const fit = narrowBounds && container.current.clientWidth < NARROW_MAP_WIDTH;
       instance = new MapLibreMap({
         container: container.current,
         style,
-        center: initial.current.center,
-        zoom: initial.current.zoom,
+        ...(fit ? { bounds: narrowBounds, fitBoundsOptions: { padding: 24 } } : { center, zoom }),
         minZoom: 10,
         maxZoom: 18,
         attributionControl: { compact: true },

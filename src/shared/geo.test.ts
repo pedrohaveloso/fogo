@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  boundsOf,
   closestArea,
   containingArea,
   convexHull,
@@ -81,5 +82,28 @@ describe("containingArea and closestArea", () => {
   it("returns nothing inside, and the closest center outside every polygon", () => {
     expect(containingArea(areas, [1.5, 0.5])).toBeNull();
     expect(closestArea(areas, [1.9, 0.5]).id).toBe("b");
+  });
+});
+
+describe("boundsOf", () => {
+  it("returns the southwest and northeast corners of the points", () => {
+    expect(
+      boundsOf([
+        [-49.9, -22.2],
+        [-50, -22.1],
+        [-49.95, -22.3],
+      ]),
+    ).toEqual([
+      [-50, -22.3],
+      [-49.9, -22.1],
+    ]);
+  });
+
+  it("can leave the outermost points out to frame the core", () => {
+    const points: LngLat[] = Array.from({ length: 10 }, (_, index) => [index, index]);
+    expect(boundsOf(points, 0.8)).toEqual([
+      [1, 1],
+      [8, 8],
+    ]);
   });
 });

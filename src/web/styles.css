@@ -2626,6 +2626,24 @@ dialog::backdrop {
 }
 
 @media (max-width: 720px) {
+  .ops-map {
+    height: 48dvh;
+  }
+
+  .layer-panel {
+    top: 104px;
+    right: 12px;
+    bottom: auto;
+    left: auto;
+    max-height: calc(100% - 116px);
+  }
+
+  .map-overlay.filter-bar .filter-search {
+    flex: 1 1 64px;
+    width: auto;
+    min-width: 0;
+  }
+
   .inventory-table th:first-child,
   .inventory-table td:first-child {
     position: sticky;

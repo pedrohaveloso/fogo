@@ -1,3 +1,4 @@
+import { boundsOf, type LngLat } from "../../shared/geo.ts";
 import {
   Marker,
   type ExpressionSpecification,
@@ -40,6 +41,7 @@ type Props = {
   onSelect: (selection: Selection | null) => void;
 };
 
+const NARROW_SHARE = 0.8;
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 const MAP_GROUND = "#111417";
 const CLUSTER_BADGE_OFFSET: [number, number] = [13, -13];
@@ -77,7 +79,14 @@ function paintOccurrence(element: HTMLElement, occurrence: Occurrence): void {
 
 export function OperationsMap(props: Props) {
   const container = useRef<HTMLDivElement>(null);
-  const handle = useMap(container, { center: props.meta.city.center, zoom: 12.4 });
+  const handle = useMap(container, {
+    center: props.meta.city.center,
+    zoom: 12.4,
+    narrowBounds: boundsOf(
+      props.meta.neighborhoods.map((item): LngLat => [item.lng, item.lat]),
+      NARROW_SHARE,
+    ),
+  });
   const onSelect = useEffectEvent((selection: Selection | null) => props.onSelect(selection));
   const markers = useRef(new Map<number, Marker>());
 

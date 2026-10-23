@@ -18,6 +18,21 @@ function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
   };
 }
 
+function makeAnomaly(id: string, kind: Anomaly["kind"]): Anomaly {
+  return {
+    id,
+    kind,
+    title: id,
+    detail: "detalhe",
+    score: 5,
+    observed: 0,
+    expected: 100,
+    equipmentId: null,
+    neighborhoodId: "centro",
+    detectedAt: new Date(NOW).toISOString(),
+  };
+}
+
 describe("computeSummary", () => {
   it("computes availability excluding equipment not installed or disabled", () => {
     const summary = computeSummary(
@@ -75,7 +90,7 @@ describe("computeSummary", () => {
       }),
     );
     const byId = new Map(summary.alerts.map((alert) => [alert.id, alert]));
-    expect(byId.get("telemetry-silent-1")?.level).toBe("critical");
+    expect(byId.get("telemetry-silent-1")?.level).toBe("warning");
     expect(byId.get("maintenance-overdue-2")?.title).toBe("Manutenção vencida há 13 dias");
     expect(byId.get("maintenance-soon-3")?.level).toBe("info");
     expect(summary.kpis.maintenanceUrgent).toBe(1);
@@ -136,6 +151,60 @@ describe("computeSummary", () => {
     const ids = summary.alerts.map((alert) => alert.id);
     expect(ids).toContain("anomaly-flow_drop-1");
     expect(ids).toContain("staffing-exhausted");
+  });
+
+  it("keeps critical for occurrences that still need a team", () => {
+    const summary = computeSummary(
+      input({
+        occurrences: [
+          makeOccurrence({ id: 1, severity: 3, agentId: null }),
+          makeOccurrence({ id: 2, severity: 4, agentId: 7, status: "responding" }),
+          makeOccurrence({ id: 3, severity: 3, agentId: 7, status: "responding" }),
+        ],
+      }),
+    );
+    const level = (id: string) => summary.alerts.find((alert) => alert.id === id)?.level;
+    expect(level("occurrence-1")).toBe("critical");
+    expect(level("occurrence-2")).toBe("warning");
+    expect(level("occurrence-3")).toBe("info");
+  });
+
+  it("demotes critical alerts that stayed active for more than a day", () => {
+    const summary = computeSummary(
+      input({
+        equipment: [
+          makeEquipment({
+            id: 1,
+            type: "camera",
+            status: "malfunction",
+            updatedAt: new Date(NOW - 25 * 3_600_000).toISOString(),
+          }),
+          makeEquipment({
+            id: 2,
+            type: "camera",
+            status: "malfunction",
+            updatedAt: new Date(NOW - 23 * 3_600_000).toISOString(),
+          }),
+        ],
+      }),
+    );
+    const level = (id: string) => summary.alerts.find((alert) => alert.id === id)?.level;
+    expect(level("equipment-malfunction-1")).toBe("warning");
+    expect(level("equipment-malfunction-2")).toBe("critical");
+  });
+
+  it("treats a stuck sensor as a warning and a burst of occurrences as critical", () => {
+    const summary = computeSummary(
+      input({
+        anomalies: [
+          makeAnomaly("silent", "silent_device"),
+          makeAnomaly("spike", "occurrence_spike"),
+        ],
+      }),
+    );
+    const level = (id: string) => summary.alerts.find((alert) => alert.id === id)?.level;
+    expect(level("anomaly-silent")).toBe("warning");
+    expect(level("anomaly-spike")).toBe("critical");
   });
 });
 

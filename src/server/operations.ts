@@ -34,6 +34,7 @@ import { nearestNeighborhood } from "./city.ts";
 
 export const HEARTBEAT_WARNING_MINUTES = 3;
 export const HEARTBEAT_CRITICAL_MINUTES = 15;
+export const STALE_CRITICAL_MS = 24 * 60 * MINUTE;
 
 const SAFETY_CRITICAL: ReadonlySet<EquipmentType> = new Set([
   "smart_traffic_light",
@@ -280,7 +281,7 @@ export function computeAlerts(
       if (silentMinutes >= HEARTBEAT_WARNING_MINUTES) {
         add({
           id: `telemetry-silent-${item.id}`,
-          level: silentMinutes >= HEARTBEAT_CRITICAL_MINUTES ? "critical" : "warning",
+          level: silentMinutes >= HEARTBEAT_CRITICAL_MINUTES ? "warning" : "info",
           category: "telemetry",
           title: Number.isFinite(silentMinutes)
             ? `Sem comunicação há ${Math.floor(silentMinutes)} min`
@@ -299,7 +300,11 @@ export function computeAlerts(
       continue;
     }
     const unassigned = occurrence.agentId === null;
-    const level: AlertLevel = occurrence.severity === 4 || unassigned ? "critical" : "warning";
+    const level: AlertLevel = unassigned
+      ? "critical"
+      : occurrence.severity === 4
+        ? "warning"
+        : "info";
     const neighborhood = city.neighborhoods.find((item) => item.id === occurrence.neighborhoodId);
     add({
       id: `occurrence-${occurrence.id}`,
@@ -340,10 +345,7 @@ export function computeAlerts(
     const neighborhood = city.neighborhoods.find((n) => n.id === anomaly.neighborhoodId);
     add({
       id: `anomaly-${anomaly.id}`,
-      level:
-        anomaly.kind === "occurrence_spike" || anomaly.kind === "silent_device"
-          ? "critical"
-          : "warning",
+      level: anomaly.kind === "occurrence_spike" ? "critical" : "warning",
       category: "anomaly",
       title: anomaly.title,
       detail: anomaly.detail,
@@ -389,6 +391,12 @@ export function computeAlerts(
       lng: null,
       since: new Date(now).toISOString(),
     });
+  }
+
+  for (const alert of alerts) {
+    if (alert.level === "critical" && now - Date.parse(alert.since) > STALE_CRITICAL_MS) {
+      alert.level = "warning";
+    }
   }
 
   const rank: Record<AlertLevel, number> = { critical: 0, warning: 1, info: 2 };

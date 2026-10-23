@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
+import type { Alert, Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
 import { city } from "./city.ts";
 import { computeCityHealth, computeSummary, type OperationsInput } from "./operations.ts";
 import { NOW, makeAgent, makeEquipment, makeOccurrence } from "./test-fixtures.ts";
@@ -31,6 +31,21 @@ function fragataOccurrence(id: number, severity: 1 | 2 | 3 | 4, waiting: boolean
 function fragataHealth(occurrences: ReturnType<typeof makeOccurrence>[]) {
   const summary = computeSummary(input({ occurrences }));
   return summary.neighborhoods.find((item) => item.id === "fragata")!;
+}
+
+function criticalAlert(id: string, acknowledged = false): Alert {
+  return {
+    id,
+    level: "critical",
+    category: "anomaly",
+    title: `Concentração incomum de ocorrências em ${id}`,
+    detail: "",
+    target: null,
+    lat: null,
+    lng: null,
+    since: new Date(NOW).toISOString(),
+    acknowledged,
+  };
 }
 
 function makeAnomaly(id: string, kind: Anomaly["kind"]): Anomaly {
@@ -360,5 +375,39 @@ describe("computeCityHealth", () => {
       level: "critical",
       reasons: ["1 ocorrência crítica esperando equipe"],
     });
+  });
+
+  it("never reads normal while a critical alert waits for acknowledgment", () => {
+    expect(computeCityHealth([region("Centro", "normal")], [], [criticalAlert("Banzato")])).toEqual(
+      {
+        level: "attention",
+        reasons: ["Concentração incomum de ocorrências em Banzato"],
+      },
+    );
+    expect(
+      computeCityHealth(
+        [region("Centro", "normal")],
+        [],
+        [criticalAlert("Banzato"), criticalAlert("Fragata")],
+      ),
+    ).toEqual({ level: "attention", reasons: ["2 alertas críticos sem reconhecimento"] });
+    expect(
+      computeCityHealth([region("Centro", "normal")], [], [criticalAlert("Banzato", true)]),
+    ).toEqual({
+      level: "normal",
+      reasons: [],
+    });
+  });
+
+  it("puts a neighborhood with an occurrence burst in attention and names it in the city", () => {
+    const summary = computeSummary(
+      input({ anomalies: [makeAnomaly("occurrence_spike-fragata", "occurrence_spike")] }),
+    );
+    const centro = summary.neighborhoods.find((item) => item.id === "centro")!;
+    expect(centro).toMatchObject({
+      level: "attention",
+      reasons: ["Concentração incomum de ocorrências na última hora"],
+    });
+    expect(summary.city.level).toBe("attention");
   });
 });

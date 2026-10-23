@@ -79,7 +79,7 @@ Os níveis seguem a ideia de que só pede atenção o que pede ação:
 
 - um bairro ou região fica crítico com ocorrência crítica sem equipe, duas ou mais ocorrências graves sem equipe ou disponibilidade de equipamentos abaixo de 60%;
 - fica em atenção com uma ocorrência grave sem equipe, disponibilidade abaixo de 85% ou ocorrências acumuladas (no bairro, 2 graves em atendimento ou 3 abertas; na região, 4 e 10);
-- a cidade fica crítica quando alguma região está crítica ou há ocorrência crítica esperando equipe, e pede atenção quando alguma região pede ou qualquer ocorrência espera equipe.
+- a cidade fica crítica quando alguma região está crítica ou há ocorrência crítica esperando equipe, e pede atenção quando alguma região pede, quando alguma ocorrência espera equipe ou quando há alerta crítico ainda não reconhecido. Um bairro com concentração incomum de ocorrências na última hora fica em atenção.
 
 Os alertas seguem a norma ISA-18.2: crítico é o que pede ação agora, como ocorrência sem equipe, semáforo apagado ou concentração incomum de ocorrências. Um crítico ativo há mais de 24 horas vira aviso. Alertas iguais de equipamento e manutenção aparecem agrupados, e cada item do grupo pode ser localizado no mapa e reconhecido.
 

@@ -159,6 +159,17 @@ function healthOf(
   };
 }
 
+function withSpike(spike: boolean, health: AreaHealth): AreaHealth {
+  if (!spike) {
+    return health;
+  }
+  return {
+    ...health,
+    level: health.level === "critical" ? "critical" : "attention",
+    reasons: [...health.reasons, "Concentração incomum de ocorrências na última hora"],
+  };
+}
+
 export function computeAreaHealth(input: OperationsInput): {
   neighborhoods: AreaHealth[];
   regions: AreaHealth[];
@@ -173,14 +184,22 @@ export function computeAreaHealth(input: OperationsInput): {
   const countAgents = (ids: ReadonlySet<string>) =>
     [...agentNeighborhood.values()].filter((id) => ids.has(id)).length;
 
+  const spikes = new Set(
+    input.anomalies
+      .filter((anomaly) => anomaly.kind === "occurrence_spike")
+      .map((anomaly) => anomaly.neighborhoodId),
+  );
   const neighborhoods = city.neighborhoods.map((neighborhood) =>
-    healthOf(
-      neighborhood.id,
-      neighborhood.name,
-      equipment.filter((item) => item.neighborhoodId === neighborhood.id),
-      occurrences.filter((item) => item.neighborhoodId === neighborhood.id),
-      countAgents(new Set([neighborhood.id])),
-      NEIGHBORHOOD_LIMITS,
+    withSpike(
+      spikes.has(neighborhood.id),
+      healthOf(
+        neighborhood.id,
+        neighborhood.name,
+        equipment.filter((item) => item.neighborhoodId === neighborhood.id),
+        occurrences.filter((item) => item.neighborhoodId === neighborhood.id),
+        countAgents(new Set([neighborhood.id])),
+        NEIGHBORHOOD_LIMITS,
+      ),
     ),
   );
 
@@ -431,7 +450,20 @@ function waitingPhrase(count: number, critical: boolean): string {
   return `${count} ${noun}${adjective} esperando equipe`;
 }
 
-export function computeCityHealth(regions: AreaHealth[], occurrences: Occurrence[]): CityHealth {
+function alertPhrase(alerts: readonly Alert[]): string {
+  return alerts.length === 1
+    ? alerts[0]!.title
+    : `${alerts.length} alertas críticos sem reconhecimento`;
+}
+
+export function computeCityHealth(
+  regions: AreaHealth[],
+  occurrences: Occurrence[],
+  alerts: readonly Alert[] = [],
+): CityHealth {
+  const pendingCritical = alerts.filter(
+    (alert) => alert.level === "critical" && !alert.acknowledged && alert.category !== "occurrence",
+  );
   const waiting = occurrences.filter((item) => item.status === "open");
   const waitingCritical = waiting.filter((item) => item.severity === 4).length;
   const names = (level: HealthLevel) =>
@@ -450,7 +482,7 @@ export function computeCityHealth(regions: AreaHealth[], occurrences: Occurrence
   }
 
   const attention = names("attention");
-  if (attention.length > 0 || waiting.length > 0) {
+  if (attention.length > 0 || waiting.length > 0 || pendingCritical.length > 0) {
     const reasons: string[] = [];
     if (attention.length > 0) {
       reasons.push(
@@ -459,6 +491,9 @@ export function computeCityHealth(regions: AreaHealth[], occurrences: Occurrence
     }
     if (waiting.length > 0) {
       reasons.push(waitingPhrase(waiting.length, false));
+    }
+    if (pendingCritical.length > 0) {
+      reasons.push(alertPhrase(pendingCritical));
     }
     return { level: "attention", reasons };
   }
@@ -471,7 +506,7 @@ export function computeSummary(input: OperationsInput): OperationsSummary {
   const alerts = computeAlerts(input, areas);
   return {
     generatedAt: new Date(input.now).toISOString(),
-    city: computeCityHealth(areas.regions, input.occurrences),
+    city: computeCityHealth(areas.regions, input.occurrences, alerts),
     kpis: computeKpis(input, alerts),
     regions: areas.regions,
     neighborhoods: areas.neighborhoods,

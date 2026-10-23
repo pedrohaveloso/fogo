@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { InlineLoading } from "./LoadingNotice.tsx";
 import {
   AGENCY_LABELS,
   AGENT_ROLES,
@@ -96,13 +97,13 @@ function EquipmentPanel({
   now: number;
   meta: Meta;
 }) {
-  const { data, error } = useFetch<EquipmentDetails>(`/equipment/${id}`, 30_000);
+  const { data, error, reload } = useFetch<EquipmentDetails>(`/equipment/${id}`, 30_000);
   const item = live ?? data?.equipment;
   if (error && !item) {
     return <p className="error-box">{error}</p>;
   }
   if (!item) {
-    return <p className="hint">Carregando...</p>;
+    return <InlineLoading label="Carregando..." onRetry={reload} />;
   }
   const neighborhood = meta.neighborhoods.find((entry) => entry.id === item.neighborhoodId);
   const readings = data?.readings ?? [];
@@ -110,7 +111,13 @@ function EquipmentPanel({
     <>
       <div className="badge-row">
         <StatusBadge status={item.status} />
-        <span className="badge">{MAINTENANCE_LABELS[item.maintenanceNeed]}</span>
+        {item.maintenanceNeed === "immediate" ? (
+          <span className="plate" data-level="warning">
+            Manutenção {MAINTENANCE_LABELS[item.maintenanceNeed].toLowerCase()}
+          </span>
+        ) : (
+          <span className="badge">{MAINTENANCE_LABELS[item.maintenanceNeed]}</span>
+        )}
       </div>
       <dl className="facts">
         <dt>Tipo</dt>
@@ -244,13 +251,13 @@ function AgentPanel({
   meta: Meta;
   occurrences: Occurrence[];
 }) {
-  const { data, error } = useFetch<AgentDetails>(`/agents/${id}`, 30_000);
+  const { data, error, reload } = useFetch<AgentDetails>(`/agents/${id}`, 30_000);
   const agent = live ?? data?.agent;
   if (error && !agent) {
     return <p className="error-box">{error}</p>;
   }
   if (!agent) {
-    return <p className="hint">Carregando...</p>;
+    return <InlineLoading label="Carregando..." onRetry={reload} />;
   }
   const current = occurrences.find((item) => item.id === agent.occurrenceId);
   return (

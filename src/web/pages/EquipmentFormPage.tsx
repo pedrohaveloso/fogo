@@ -34,6 +34,7 @@ import {
   type Errors,
 } from "../components/form.tsx";
 import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
+import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { containingArea } from "../../shared/geo.ts";
@@ -226,13 +227,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     );
   }
   if (!meta || !loaded) {
-    return (
-      <main className="page">
-        <p className="hint" role="status">
-          Carregando...
-        </p>
-      </main>
-    );
+    return <LoadingNotice label="Carregando..." onRetry={() => window.location.reload()} />;
   }
 
   const location =

@@ -22,6 +22,7 @@ import {
   type Errors,
 } from "../components/form.tsx";
 import { AgentShield } from "../components/badges.tsx";
+import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -168,13 +169,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
     );
   }
   if (!meta || !loaded) {
-    return (
-      <main className="page">
-        <p className="hint" role="status">
-          Carregando...
-        </p>
-      </main>
-    );
+    return <LoadingNotice label="Carregando..." onRetry={() => window.location.reload()} />;
   }
 
   const vehicleType = draft.role === "traffic_agent" ? "agent_motorcycle" : "patrol_vehicle";

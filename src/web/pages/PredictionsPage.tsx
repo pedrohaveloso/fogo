@@ -17,6 +17,7 @@ import { RISK_COLORS } from "../colors.ts";
 import { LevelPlate, Meter, RiskTag } from "../components/badges.tsx";
 import { LineChart } from "../components/charts/LineChart.tsx";
 import { WeekHeatmap } from "../components/charts/WeekHeatmap.tsx";
+import { InlineLoading } from "../components/LoadingNotice.tsx";
 import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
 import {
   formatCompact,
@@ -77,8 +78,17 @@ function Explain({ what, data, use }: { what: ReactNode; data: ReactNode; use: R
   );
 }
 
-function Loading({ error }: { error: string | null }) {
-  return error ? <p className="error-box">{error}</p> : <p className="hint">Calculando...</p>;
+function Loading({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  return error ? (
+    <div className="error-box">
+      <p>{error}</p>
+      <button type="button" className="button button-small" onClick={onRetry}>
+        Tentar de novo
+      </button>
+    </div>
+  ) : (
+    <InlineLoading label="Calculando..." onRetry={onRetry} />
+  );
 }
 
 function chanceText(probability: number): string {
@@ -95,10 +105,13 @@ function rangeText(range: [number, number], joiner = "a"): string {
 
 function RiskSection({ hours }: { hours: number }) {
   const meta = useMeta();
-  const { data, error } = useFetch<RiskForecast>(`/predictions/risk?hours=${hours}`, 60_000);
+  const { data, error, reload } = useFetch<RiskForecast>(
+    `/predictions/risk?hours=${hours}`,
+    60_000,
+  );
   const [selected, setSelected] = useState<string | null>(null);
   if (!data || !meta || data.horizonHours !== hours) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const top = data.neighborhoods.toSorted((a, b) => b.expected - a.expected).slice(0, 12);
   const highest = Math.max(...top.map((item) => item.expected), 0.1);
@@ -206,10 +219,10 @@ function RiskSection({ hours }: { hours: number }) {
 }
 
 function WeeklySection() {
-  const { data, error } = useFetch<RiskForecast>("/predictions/risk?hours=6", 300_000);
+  const { data, error, reload } = useFetch<RiskForecast>("/predictions/risk?hours=6", 300_000);
   const now = useNow(60_000);
   if (!data) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const { dow, hour } = localParts(now);
   return (
@@ -234,9 +247,12 @@ function WeeklySection() {
 
 function StaffingSection({ hours }: { hours: number }) {
   const meta = useMeta();
-  const { data, error } = useFetch<StaffingPlan>(`/predictions/staffing?hours=${hours}`, 30_000);
+  const { data, error, reload } = useFetch<StaffingPlan>(
+    `/predictions/staffing?hours=${hours}`,
+    30_000,
+  );
   if (!data || !meta) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const regionName = (id: string) => meta.regions.find((region) => region.id === id)?.name ?? id;
   return (
@@ -319,10 +335,10 @@ function StaffingSection({ hours }: { hours: number }) {
 
 function AnomalySection() {
   const meta = useMeta();
-  const { data, error } = useFetch<Anomaly[]>("/predictions/anomalies", 15_000);
+  const { data, error, reload } = useFetch<Anomaly[]>("/predictions/anomalies", 15_000);
   const [showAll, setShowAll] = useState(false);
   if (!data || !meta) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const ordered = data.toSorted(
     (a, b) =>
@@ -397,9 +413,9 @@ function AnomalySection() {
 
 function FailureSection() {
   const meta = useMeta();
-  const { data, error } = useFetch<FailureRiskReport>("/predictions/failures", 120_000);
+  const { data, error, reload } = useFetch<FailureRiskReport>("/predictions/failures", 120_000);
   if (!data || !meta) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const highest = Math.max(...data.items.map((item) => item.probability7d), 0.01);
   return (
@@ -525,10 +541,10 @@ function TrendChart({
 }
 
 function TrendSection() {
-  const { data, error } = useFetch<TrendReport>("/predictions/trends", 120_000);
+  const { data, error, reload } = useFetch<TrendReport>("/predictions/trends", 120_000);
   const [availabilityKey, setAvailabilityKey] = useState("all");
   if (!data) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const availability =
     data.availability.find((item) => item.key === availabilityKey) ?? data.availability[0];
@@ -622,9 +638,9 @@ function TrendSection() {
 }
 
 function ModelQuality() {
-  const { data, error } = useFetch<BacktestResult>("/predictions/backtest");
+  const { data, error, reload } = useFetch<BacktestResult>("/predictions/backtest");
   if (!data) {
-    return <Loading error={error} />;
+    return <Loading error={error} onRetry={reload} />;
   }
   const rateScale = Math.max(data.topHitRate, data.baselineTopHitRate, 1);
   return (

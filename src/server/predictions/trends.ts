@@ -1,3 +1,4 @@
+import { plural } from "../../shared/text.ts";
 import {
   EQUIPMENT_TYPES,
   EQUIPMENT_TYPE_KEYS,
@@ -317,11 +318,11 @@ export function buildTrends(input: TrendInput): TrendReport {
     const projected = series.projection.at(-1)?.value ?? series.values.at(-1) ?? 0;
     if (series.slopePerWeek < 0) {
       insights.push(
-        `A disponibilidade de ${series.label.toLowerCase()} cai ${formatNumber(-series.slopePerWeek)} ponto(s) percentual(is) por semana. Mantido o ritmo, chega a ${formatNumber(projected, 0)}% em ${PROJECTION_DAYS} dias.`,
+        `A disponibilidade de ${series.label.toLowerCase()} cai ${formatNumber(-series.slopePerWeek)} ${plural(-series.slopePerWeek, "ponto percentual", "pontos percentuais")} por semana. Mantido o ritmo, chega a ${formatNumber(projected, 0)}% em ${PROJECTION_DAYS} dias.`,
       );
     } else {
       insights.push(
-        `A disponibilidade de ${series.label.toLowerCase()} melhora ${formatNumber(series.slopePerWeek)} ponto(s) percentual(is) por semana.`,
+        `A disponibilidade de ${series.label.toLowerCase()} melhora ${formatNumber(series.slopePerWeek)} ${plural(series.slopePerWeek, "ponto percentual", "pontos percentuais")} por semana.`,
       );
     }
   }

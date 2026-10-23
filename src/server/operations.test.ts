@@ -76,7 +76,7 @@ describe("computeSummary", () => {
     );
     const byId = new Map(summary.alerts.map((alert) => [alert.id, alert]));
     expect(byId.get("telemetry-silent-1")?.level).toBe("critical");
-    expect(byId.get("maintenance-overdue-2")?.title).toBe("Manutenção vencida há 13 dia(s)");
+    expect(byId.get("maintenance-overdue-2")?.title).toBe("Manutenção vencida há 13 dias");
     expect(byId.get("maintenance-soon-3")?.level).toBe("info");
     expect(summary.kpis.maintenanceUrgent).toBe(1);
     expect(summary.kpis.maintenanceSoon).toBe(1);

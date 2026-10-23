@@ -1,3 +1,4 @@
+import { plural } from "../../shared/text.ts";
 import {
   EQUIPMENT_TYPES,
   EQUIPMENT_TYPE_KEYS,
@@ -173,10 +174,14 @@ export function assessFailureRisk(
       const factors: string[] = [];
       if (daysOverdue > 0) {
         factors.push(
-          `Manutenção vencida há ${daysOverdue} dia(s); no histórico, isso multiplica o risco de falha por ${overdueHazardRatio.toFixed(1).replace(".", ",")}`,
+          `Manutenção vencida há ${daysOverdue} ${plural(daysOverdue, "dia", "dias")}; no histórico, isso multiplica o risco de falha por ${overdueHazardRatio.toFixed(1).replace(".", ",")}`,
         );
       } else if (daysLeft !== null && daysLeft < HORIZON_DAYS) {
-        factors.push(`Manutenção vence em ${daysLeft} dia(s)`);
+        factors.push(
+          daysLeft === 0
+            ? "Manutenção vence hoje"
+            : `Manutenção vence em ${daysLeft} ${plural(daysLeft, "dia", "dias")}`,
+        );
       }
       if (trend >= 1.3) {
         factors.push(
@@ -184,7 +189,9 @@ export function assessFailureRisk(
         );
       }
       if (recentFailures > 0) {
-        factors.push(`${recentFailures} falha(s) nos últimos ${REPEAT_DAYS} dias`);
+        factors.push(
+          `${recentFailures} ${plural(recentFailures, "falha", "falhas")} nos últimos ${REPEAT_DAYS} dias`,
+        );
       }
       factors.push(
         `Taxa histórica do tipo: 1 falha a cada ${Math.round(1 / Math.max(base, 1e-6))} dias de operação`,

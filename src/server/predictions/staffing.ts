@@ -1,3 +1,4 @@
+import { plural } from "../../shared/text.ts";
 import {
   ACTIVE_AGENT_STATUSES,
   OCCURRENCE_KINDS,
@@ -76,9 +77,9 @@ export function planStaffing(
     const peakWindow = formatWindow(start + peakOffset * HOUR, window);
     const action =
       gap > 0
-        ? `Deslocar ${gap} agente(s) ${regionWith("para", item.region.name)}, com prioridade entre ${peakWindow}.`
+        ? `Deslocar ${gap} ${plural(gap, "agente", "agentes")} ${regionWith("para", item.region.name)}, com prioridade entre ${peakWindow}.`
         : gap < 0
-          ? `Folga de ${-gap} agente(s); podem apoiar regiões com déficit.`
+          ? `Folga de ${-gap} ${plural(-gap, "agente", "agentes")}; ${-gap === 1 ? "pode" : "podem"} apoiar regiões com déficit.`
           : "Efetivo adequado para a demanda prevista.";
     return {
       regionId: item.region.id,

@@ -14,6 +14,7 @@ import {
   maintenanceState,
 } from "../shared/maintenance.ts";
 import { MINUTE } from "../shared/time.ts";
+import { plural } from "../shared/text.ts";
 import type {
   Agent,
   Alert,
@@ -113,7 +114,9 @@ function healthOf(
   }
   if (critical.length > 0 || severe.length >= 2) {
     raise("critical");
-    reasons.push(`${severe.length} ocorrência(s) grave(s) em aberto`);
+    reasons.push(
+      `${severe.length} ${plural(severe.length, "ocorrência grave", "ocorrências graves")} em aberto`,
+    );
   } else if (severe.length === 1) {
     raise("attention");
     reasons.push("1 ocorrência grave em aberto");
@@ -124,7 +127,7 @@ function healthOf(
   }
   if (stolen > 0) {
     raise("attention");
-    reasons.push(`${stolen} equipamento(s) furtado(s)`);
+    reasons.push(`${stolen} ${plural(stolen, "equipamento furtado", "equipamentos furtados")}`);
   }
 
   return {
@@ -184,7 +187,9 @@ export function computeAreaHealth(input: OperationsInput): {
       health.level = "attention";
     }
     if (criticalNeighborhoods > 0) {
-      health.reasons.push(`${criticalNeighborhoods} bairro(s) em situação crítica`);
+      health.reasons.push(
+        `${criticalNeighborhoods} ${plural(criticalNeighborhoods, "bairro", "bairros")} em situação crítica`,
+      );
     }
     return health;
   });
@@ -247,7 +252,7 @@ export function computeAlerts(
           id: `maintenance-overdue-${item.id}`,
           level: "warning",
           category: "maintenance",
-          title: `Manutenção vencida há ${-daysLeft} dia(s)`,
+          title: `Manutenção vencida há ${-daysLeft} ${plural(-daysLeft, "dia", "dias")}`,
           detail: `${equipmentLabel(item)} em ${where}`,
           target,
           ...position,
@@ -261,7 +266,7 @@ export function computeAlerts(
           title:
             daysLeft === 0
               ? "Manutenção prevista para hoje"
-              : `Manutenção prevista em ${daysLeft} dia(s)`,
+              : `Manutenção prevista em ${daysLeft} ${plural(daysLeft, "dia", "dias")}`,
           detail: `${equipmentLabel(item)} em ${where}`,
           target,
           ...position,

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { EQUIPMENT_TYPES, OCCURRENCE_KINDS, regionWith } from "../../shared/catalog.ts";
+import { plural } from "../../shared/text.ts";
 import { localParts } from "../../shared/time.ts";
 import type {
   Anomaly,
@@ -93,7 +94,9 @@ function RiskSection({ hours }: { hours: number }) {
       <div className="panel-head">
         <h2 id="risk-title">Risco por bairro nas próximas {hours} horas</h2>
         <p>
-          {counts.critical} crítico(s), {counts.high} alto(s), {counts.moderate} moderado(s)
+          {counts.critical} {plural(counts.critical, "crítico", "críticos")}, {counts.high}{" "}
+          {plural(counts.high, "alto", "altos")}, {counts.moderate}{" "}
+          {plural(counts.moderate, "moderado", "moderados")}
         </p>
       </div>
       <div className="risk-layout">
@@ -119,8 +122,9 @@ function RiskSection({ hours }: { hours: number }) {
                 {regionName(selectedRisk.regionId)}, índice {Math.round(selectedRisk.score)} de 100
               </p>
               <p>
-                {formatDecimal(selectedRisk.expected)} ocorrência(s) esperada(s) até as{" "}
-                {formatHour((data.startHour + hours) % 24)}, com pico às{" "}
+                {formatDecimal(selectedRisk.expected)}{" "}
+                {plural(selectedRisk.expected, "ocorrência esperada", "ocorrências esperadas")} até
+                as {formatHour((data.startHour + hours) % 24)}, com pico às{" "}
                 {formatHour(selectedRisk.peakHour)}. Mais prováveis:{" "}
                 {selectedRisk.topKinds
                   .map((item) => OCCURRENCE_KINDS[item.kind].label.toLowerCase())
@@ -276,7 +280,8 @@ function StaffingSection({ hours }: { hours: number }) {
           <ul className="insights">
             {data.moves.map((move) => (
               <li key={`${move.fromRegionId}-${move.toRegionId}`}>
-                Deslocar {move.agents} agente(s) {regionWith("de", regionName(move.fromRegionId))}{" "}
+                Deslocar {move.agents} {plural(move.agents, "agente", "agentes")}{" "}
+                {regionWith("de", regionName(move.fromRegionId))}{" "}
                 {regionWith("para", regionName(move.toRegionId))}.
               </li>
             ))}
@@ -542,8 +547,9 @@ function TrendSection() {
           {availability && (
             <p className="hint">
               Variação de {availability.slopePerWeek >= 0 ? "+" : ""}
-              {formatDecimal(availability.slopePerWeek)} ponto(s) percentual(is) por semana nas
-              últimas 8 semanas.
+              {formatDecimal(availability.slopePerWeek)}{" "}
+              {plural(availability.slopePerWeek, "ponto percentual", "pontos percentuais")} por
+              semana nas últimas 8 semanas.
             </p>
           )}
         </div>

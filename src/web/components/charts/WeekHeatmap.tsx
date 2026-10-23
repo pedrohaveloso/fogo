@@ -1,3 +1,4 @@
+import { plural } from "../../../shared/text.ts";
 import { useId, useState } from "react";
 import { WEEKDAY_LABELS } from "../../../shared/time.ts";
 import { SEQUENTIAL_BLUE } from "../../colors.ts";
@@ -95,7 +96,7 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
         <span>
           {hover ? "" : "Agora: "}
           {WEEKDAY_LABELS[shown.dow]}, {formatHour(shown.hour)}: {formatDecimal(value)}{" "}
-          ocorrência(s) por hora na cidade
+          {plural(value, "ocorrência", "ocorrências")} por hora na cidade
         </span>
         <span className="heatmap-scale">
           menos

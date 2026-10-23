@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import {
   AGENT_ROLES,
   AGENT_ROLE_KEYS,
@@ -6,13 +6,14 @@ import {
   AGENT_STATUS_LABELS,
   EQUIPMENT_TYPES,
   SHIFTS,
-  type AgentRole,
-  type AgentStatus,
 } from "../../shared/catalog.ts";
-import { AgentRoleLabel, AgentShield, AgentStatusBadge } from "../components/badges.tsx";
+import { EMPTY_AGENT_FILTERS, matchesAgentFilters, type AgentFilters } from "../agentFilters.ts";
+import { AgentShield, AgentStatusBadge } from "../components/badges.tsx";
+import { FilterMenu } from "../components/FilterMenu.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
+import { AGENT_ROLE_GLYPHS, Glyph } from "../icons.tsx";
 import { useLive, useMeta } from "../live.ts";
-import { Link, navigate } from "../router.tsx";
+import { Link } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
@@ -20,29 +21,19 @@ export function AgentListPage() {
   const meta = useMeta();
   const { snapshot } = useLive();
   const now = useNow(30_000);
-  const [role, setRole] = useState<AgentRole | "">("");
-  const [status, setStatus] = useState<AgentStatus | "">("");
-  const [regionId, setRegionId] = useState("");
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<AgentFilters>(EMPTY_AGENT_FILTERS);
+  const set = <K extends keyof AgentFilters>(key: K, value: AgentFilters[K]) =>
+    setFilters({ ...filters, [key]: value });
 
   const rows = useMemo(() => {
     if (!snapshot || !meta) {
       return [];
     }
     const regionOf = new Map(meta.neighborhoods.map((item) => [item.id, item.regionId]));
-    const term = search.trim().toLowerCase();
     return snapshot.agents
-      .filter(
-        (agent) =>
-          (!role || agent.role === role) &&
-          (!status || agent.status === status) &&
-          (!regionId || regionOf.get(agent.baseNeighborhoodId) === regionId) &&
-          (!term ||
-            agent.name.toLowerCase().includes(term) ||
-            agent.badge.toLowerCase().includes(term)),
-      )
+      .filter((agent) => matchesAgentFilters(agent, filters, regionOf))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  }, [snapshot, meta, role, status, regionId, search]);
+  }, [snapshot, meta, filters]);
 
   if (!meta || !snapshot) {
     return (
@@ -57,6 +48,7 @@ export function AgentListPage() {
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
   const vehicles = new Map(snapshot.equipment.map((item) => [item.id, item]));
   const counts = agentStatusCounts(snapshot.agents);
+  const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_AGENT_FILTERS);
 
   return (
     <main className="page page-wide">
@@ -73,148 +65,162 @@ export function AgentListPage() {
           Cadastrar agente
         </Link>
       </div>
-      <section
-        aria-label="Agentes por situação"
-        className="summary-tiles"
-        style={{ "--tiles": 4 } as CSSProperties}
-      >
-        {AGENT_STATUSES.map((key) => (
-          <button
-            key={key}
-            type="button"
-            className="summary-tile"
-            aria-pressed={status === key}
-            onClick={() => setStatus(status === key ? "" : key)}
-          >
-            <span className="summary-icon">
-              <AgentShield status={key} size={20} />
-            </span>
-            <span className="summary-text">
-              <span className="summary-label">{AGENT_STATUS_LABELS[key]}</span>
-              <span className="summary-count">{formatInteger(counts[key])}</span>
-            </span>
-          </button>
-        ))}
-      </section>
-      <div className="toolbar panel">
-        <div className="field">
-          <label htmlFor="agent-search">Buscar</label>
+      <div className="inventory-stack">
+        <p className="quick-filters">
+          <span id="quick-filters-label">Agora:</span>
+          {AGENT_STATUSES.map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={filters.status === key}
+              aria-describedby="quick-filters-label"
+              onClick={() => set("status", filters.status === key ? "" : key)}
+            >
+              <AgentShield status={key} size={14} />
+              {AGENT_STATUS_LABELS[key]}
+              <strong>{formatInteger(counts[key])}</strong>
+            </button>
+          ))}
+        </p>
+        <search className="filter-bar page-filter-bar" aria-label="Filtrar agentes">
+          <label htmlFor="agent-search" className="visually-hidden">
+            Buscar agente
+          </label>
           <input
             id="agent-search"
             type="search"
-            placeholder="Nome ou matrícula"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            className="filter-search"
+            placeholder="Buscar nome ou matrícula"
+            value={filters.search}
+            onChange={(event) => set("search", event.target.value)}
           />
-        </div>
-        <div className="field">
-          <label htmlFor="agent-role">Função</label>
-          <select
-            id="agent-role"
-            value={role}
-            onChange={(event) => setRole(event.target.value as AgentRole | "")}
-          >
-            <option value="">Todas</option>
-            {AGENT_ROLE_KEYS.map((key) => (
-              <option key={key} value={key}>
-                {AGENT_ROLES[key].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="agent-status">Situação</label>
-          <select
-            id="agent-status"
-            value={status}
-            onChange={(event) => setStatus(event.target.value as AgentStatus | "")}
-          >
-            <option value="">Todas</option>
-            {AGENT_STATUSES.map((key) => (
-              <option key={key} value={key}>
-                {AGENT_STATUS_LABELS[key]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="agent-region">Região da base</label>
-          <select
-            id="agent-region"
-            value={regionId}
-            onChange={(event) => setRegionId(event.target.value)}
-          >
-            <option value="">Toda a cidade</option>
-            {meta.regions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="hint toolbar-count">
-          {rows.length} de {snapshot.agents.length} agentes
-        </p>
-      </div>
-      <div className="table-wrap" data-sticky="page">
-        <table>
-          <caption className="visually-hidden">Lista de agentes</caption>
-          <thead>
-            <tr>
-              <th scope="col">Agente</th>
-              <th scope="col">Função</th>
-              <th scope="col">Situação</th>
-              <th scope="col">Turno</th>
-              <th scope="col">Base</th>
-              <th scope="col">Veículo</th>
-              <th scope="col">Última posição</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="empty">
-                  Nenhum agente corresponde aos filtros.
-                </td>
-              </tr>
+          <FilterMenu label="Função" count={filters.role ? 1 : 0}>
+            <fieldset className="filter-options">
+              <legend className="visually-hidden">Função do agente</legend>
+              <label className="check">
+                <input
+                  type="radio"
+                  name="agent-role"
+                  checked={filters.role === ""}
+                  onChange={() => set("role", "")}
+                />
+                Todas as funções
+              </label>
+              {AGENT_ROLE_KEYS.map((key) => (
+                <label key={key} className="check">
+                  <input
+                    type="radio"
+                    name="agent-role"
+                    checked={filters.role === key}
+                    onChange={() => set("role", key)}
+                  />
+                  <Glyph d={AGENT_ROLE_GLYPHS[key]} size={14} />
+                  {AGENT_ROLES[key].label}
+                </label>
+              ))}
+            </fieldset>
+          </FilterMenu>
+          <FilterMenu label="Região da base" count={filters.regionId ? 1 : 0}>
+            <fieldset className="filter-options">
+              <legend className="visually-hidden">Região da base</legend>
+              <label className="check">
+                <input
+                  type="radio"
+                  name="agent-region"
+                  checked={filters.regionId === ""}
+                  onChange={() => set("regionId", "")}
+                />
+                Toda a cidade
+              </label>
+              {meta.regions.map((region) => (
+                <label key={region.id} className="check">
+                  <input
+                    type="radio"
+                    name="agent-region"
+                    checked={filters.regionId === region.id}
+                    onChange={() => set("regionId", region.id)}
+                  />
+                  {region.name}
+                </label>
+              ))}
+            </fieldset>
+          </FilterMenu>
+          <span className="filter-result" role="status">
+            {rows.length} de {snapshot.agents.length} agentes
+            {active && (
+              <button
+                type="button"
+                className="button button-small button-ghost"
+                onClick={() => setFilters(EMPTY_AGENT_FILTERS)}
+              >
+                Limpar
+              </button>
             )}
-            {rows.map((agent) => {
-              const vehicle = agent.vehicleId === null ? undefined : vehicles.get(agent.vehicleId);
-              return (
-                <tr key={agent.id}>
-                  <td>
+          </span>
+        </search>
+        <div className="table-wrap inventory-table" data-sticky="page">
+          <table>
+            <caption className="visually-hidden">Lista de agentes</caption>
+            <thead>
+              <tr>
+                <th scope="col">Agente</th>
+                <th scope="col">Situação</th>
+                <th scope="col">Base</th>
+                <th scope="col">Turno</th>
+                <th scope="col">Veículo</th>
+                <th scope="col">Última posição</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="empty">
+                    Nenhum agente corresponde aos filtros.{" "}
                     <button
                       type="button"
-                      className="row-button"
-                      onClick={() => navigate(`/agentes/${agent.id}`)}
+                      className="button button-small"
+                      onClick={() => setFilters(EMPTY_AGENT_FILTERS)}
                     >
-                      {agent.name}
+                      Limpar filtros
                     </button>
-                    <span className="cell-sub">Matrícula {agent.badge}</span>
                   </td>
-                  <td>
-                    <AgentRoleLabel role={agent.role} />
-                    {agent.rank && <span className="cell-sub">{agent.rank}</span>}
-                  </td>
-                  <td>
-                    <AgentStatusBadge status={agent.status} />
-                  </td>
-                  <td>{SHIFTS[agent.shift]}</td>
-                  <td>
-                    {agent.baseName}
-                    <span className="cell-sub">{names.get(agent.baseNeighborhoodId)}</span>
-                  </td>
-                  <td>
-                    {vehicle
-                      ? `${EQUIPMENT_TYPES[vehicle.type].label} ${String(vehicle.attributes["plate"] ?? "")}`
-                      : "A pé"}
-                  </td>
-                  <td>{formatRelative(agent.lastSeenAt, now)}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              )}
+              {rows.map((agent) => {
+                const vehicle =
+                  agent.vehicleId === null ? undefined : vehicles.get(agent.vehicleId);
+                return (
+                  <tr key={agent.id}>
+                    <td>
+                      <Link href={`/agentes/${agent.id}`} className="row-button">
+                        <Glyph d={AGENT_ROLE_GLYPHS[agent.role]} size={18} />
+                        {agent.name}
+                      </Link>
+                      <span className="cell-sub">
+                        {AGENT_ROLES[agent.role].label}
+                        {agent.rank ? `, ${agent.rank}` : ""} · {agent.badge}
+                      </span>
+                    </td>
+                    <td>
+                      <AgentStatusBadge status={agent.status} />
+                    </td>
+                    <td>
+                      {agent.baseName}
+                      <span className="cell-sub">{names.get(agent.baseNeighborhoodId)}</span>
+                    </td>
+                    <td>{SHIFTS[agent.shift]}</td>
+                    <td>
+                      {vehicle
+                        ? `${EQUIPMENT_TYPES[vehicle.type].label} ${String(vehicle.attributes["plate"] ?? "")}`
+                        : "A pé"}
+                    </td>
+                    <td>{formatRelative(agent.lastSeenAt, now)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   );

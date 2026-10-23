@@ -115,21 +115,21 @@ export function EquipmentListPage() {
       </div>
       <div className="inventory-stack">
         {downTypes.length > 0 && (
-          <p className="down-types">
-            <span id="down-types-label">Parados por tipo:</span>
+          <p className="quick-filters">
+            <span id="quick-filters-label">Parados por tipo:</span>
             {downTypes.map((entry) => (
               <button
                 key={entry.type}
                 type="button"
                 aria-pressed={filters.type === entry.type}
-                aria-describedby="down-types-label"
+                aria-describedby="quick-filters-label"
                 onClick={() =>
                   setFilters({ ...filters, type: filters.type === entry.type ? "" : entry.type })
                 }
               >
                 <Glyph d={TYPE_GLYPHS[entry.type]} size={16} />
                 {EQUIPMENT_TYPES[entry.type].plural}
-                <strong>{entry.down}</strong>
+                <strong data-tone="critical">{entry.down}</strong>
               </button>
             ))}
           </p>

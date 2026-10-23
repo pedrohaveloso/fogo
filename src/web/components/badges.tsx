@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import {
-  AGENT_ROLES,
   AGENT_STATUS_LABELS,
   EQUIPMENT_TYPES,
   SEVERITY_LABELS,
@@ -143,15 +142,6 @@ export function TypeLabel({ type }: { type: EquipmentType }) {
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
       <Glyph d={TYPE_GLYPHS[type]} size={18} />
       {EQUIPMENT_TYPES[type].label}
-    </span>
-  );
-}
-
-export function AgentRoleLabel({ role }: { role: AgentRole }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <Glyph d={AGENT_ROLE_GLYPHS[role]} size={18} />
-      {AGENT_ROLES[role].label}
     </span>
   );
 }

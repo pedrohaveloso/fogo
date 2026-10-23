@@ -9,7 +9,7 @@ import type { AlertCategory, AlertLevel, HealthLevel, RiskLevel } from "../share
 export const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
   available: "#7b838d",
   responding: "#ec835a",
-  break: "#555b63",
+  break: "#6b7079",
   off_duty: "#3d4249",
 };
 

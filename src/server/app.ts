@@ -54,6 +54,10 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ error: "Erro interno" }, 500);
   });
 
+  app.get("/api/health", (c) => {
+    deps.db.prepare("SELECT 1").get();
+    return c.json({ status: "ok" });
+  });
   app.route("/api", inventoryRoutes(deps));
   app.route("/api", operationsRoutes(deps));
   app.route("/api/predictions", predictionRoutes(deps));

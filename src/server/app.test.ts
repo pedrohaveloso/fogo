@@ -65,6 +65,30 @@ beforeAll(() => {
   app = createApp({ db, city, hub, predictions, liveMultiplier: 60, now: () => NOW, fetchImpl });
 });
 
+describe("health check", () => {
+  it("answers ok while the database responds", async () => {
+    expect(await call("GET", "/health")).toEqual({ status: 200, body: { status: "ok" } });
+  });
+
+  it("fails when the database is closed", async () => {
+    const closed = openDatabase(":memory:");
+    closed.close();
+    const broken = createApp({
+      db: closed,
+      city,
+      hub: createLiveHub(db, city, createPredictionService(db, city, 60)),
+      predictions: createPredictionService(db, city, 60),
+      liveMultiplier: 60,
+      now: () => NOW,
+      fetchImpl,
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = await broken.request("/api/health");
+    spy.mockRestore();
+    expect(response.status).toBe(500);
+  });
+});
+
 describe("inventory API", () => {
   it("serves city metadata", async () => {
     const { status, body } = await call<{ neighborhoods: unknown[]; liveMultiplier: number }>(

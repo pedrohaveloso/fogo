@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AGENCY_SHORT_LABELS, EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
 import {
   MAINTENANCE_SOON_DAYS,
@@ -9,7 +9,6 @@ import type { Equipment } from "../../shared/types.ts";
 import { StatusBadge } from "../components/badges.tsx";
 import { EquipmentFilterBar } from "../components/EquipmentFilterBar.tsx";
 import {
-  EMPTY_FILTERS,
   matchesFilters,
   showsDownOfType,
   toggleDownOfType,
@@ -19,11 +18,10 @@ import { formatDate, formatInteger, formatMaintenanceDue, formatRelative } from 
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
-import { Link } from "../router.tsx";
+import { equipmentFromQuery, equipmentQuery, type Sort, type SortKey } from "../listQuery.ts";
+import { Link, navigate, useLocation } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
-
-type SortKey = "serial" | "status" | "neighborhood" | "maintenance" | "seen";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "serial", label: "Equipamento" },
@@ -40,15 +38,18 @@ function dueClass(days: number): string {
   return days <= MAINTENANCE_SOON_DAYS ? "cell-warning" : "cell-sub";
 }
 
+function show(filters: EquipmentFilters, sort: Sort): void {
+  navigate(`/equipamentos${equipmentQuery(filters, sort)}`, { replace: true });
+}
+
 export function EquipmentListPage() {
   const meta = useMeta();
   const { snapshot } = useLive();
   const now = useNow(30_000);
-  const [filters, setFilters] = useState<EquipmentFilters>(EMPTY_FILTERS);
-  const [sort, setSort] = useState<{ key: SortKey; direction: 1 | -1 }>({
-    key: "serial",
-    direction: 1,
-  });
+  const { params } = useLocation();
+  const query = params.toString();
+  const { filters, sort } = useMemo(() => equipmentFromQuery(new URLSearchParams(query)), [query]);
+  const setFilters = (next: EquipmentFilters) => show(next, sort);
 
   const names = useMemo(
     () => new Map(meta?.neighborhoods.map((item) => [item.id, item.name]) ?? []),
@@ -163,11 +164,10 @@ export function EquipmentListPage() {
                       type="button"
                       className="sort-button"
                       onClick={() =>
-                        setSort((current) => ({
+                        show(filters, {
                           key: column.key,
-                          direction:
-                            current.key === column.key ? (current.direction === 1 ? -1 : 1) : 1,
-                        }))
+                          direction: sort.key === column.key ? (sort.direction === 1 ? -1 : 1) : 1,
+                        })
                       }
                     >
                       {column.label}

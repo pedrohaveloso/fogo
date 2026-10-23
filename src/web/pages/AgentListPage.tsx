@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AGENT_ROLES,
   AGENT_ROLE_KEYS,
@@ -7,22 +7,34 @@ import {
   EQUIPMENT_TYPES,
   SHIFTS,
 } from "../../shared/catalog.ts";
-import { EMPTY_AGENT_FILTERS, matchesAgentFilters, type AgentFilters } from "../agentFilters.ts";
+import {
+  EMPTY_AGENT_FILTERS,
+  compareAgents,
+  matchesAgentFilters,
+  type AgentFilters,
+} from "../agentFilters.ts";
 import { AgentShield, AgentStatusBadge } from "../components/badges.tsx";
 import { FilterMenu } from "../components/FilterMenu.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
 import { AGENT_ROLE_GLYPHS, Glyph } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
-import { Link } from "../router.tsx";
+import { agentFromQuery, agentQuery } from "../listQuery.ts";
+import { Link, navigate, useLocation } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
+
+function setFilters(filters: AgentFilters): void {
+  navigate(`/agentes${agentQuery(filters)}`, { replace: true });
+}
 
 export function AgentListPage() {
   const meta = useMeta();
   const { snapshot } = useLive();
   const now = useNow(30_000);
-  const [filters, setFilters] = useState<AgentFilters>(EMPTY_AGENT_FILTERS);
+  const { params } = useLocation();
+  const query = params.toString();
+  const filters = useMemo(() => agentFromQuery(new URLSearchParams(query)), [query]);
   const set = <K extends keyof AgentFilters>(key: K, value: AgentFilters[K]) =>
     setFilters({ ...filters, [key]: value });
 
@@ -33,7 +45,7 @@ export function AgentListPage() {
     const regionOf = new Map(meta.neighborhoods.map((item) => [item.id, item.regionId]));
     return snapshot.agents
       .filter((agent) => matchesAgentFilters(agent, filters, regionOf))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      .sort(compareAgents);
   }, [snapshot, meta, filters]);
 
   if (!meta || !snapshot) {

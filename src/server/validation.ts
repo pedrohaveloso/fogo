@@ -28,13 +28,11 @@ export class ValidationError extends Error {
   }
 }
 
-const REQUIRED = "Campo obrigatório";
-
-const text = (label: string, min: number, max: number) =>
+const text = (label: string, min: number, max: number, required: string) =>
   z
-    .string({ error: REQUIRED })
+    .string({ error: required })
     .trim()
-    .min(1, { error: REQUIRED })
+    .min(1, { error: required })
     .refine((value) => value.length === 0 || value.length >= min, {
       error: `${label} precisa ter ao menos ${min} caracteres`,
     })
@@ -50,24 +48,31 @@ const optionalText = (label: string, max: number) =>
 const date = (label: string) =>
   z.iso.date({ error: `${label} deve estar no formato AAAA-MM-DD` }).nullable();
 
+const OUTSIDE_AREA = "Escolha um ponto dentro de Marília, clicando no mapa";
+
 const latitude = z
-  .number({ error: "Latitude inválida" })
-  .min(AREA_BOUNDS.south, { error: "Coordenadas fora da área de Marília" })
-  .max(AREA_BOUNDS.north, { error: "Coordenadas fora da área de Marília" });
+  .number({ error: "Clique no mapa ou digite a latitude" })
+  .min(AREA_BOUNDS.south, { error: OUTSIDE_AREA })
+  .max(AREA_BOUNDS.north, { error: OUTSIDE_AREA });
 
 const longitude = z
-  .number({ error: "Longitude inválida" })
-  .min(AREA_BOUNDS.west, { error: "Coordenadas fora da área de Marília" })
-  .max(AREA_BOUNDS.east, { error: "Coordenadas fora da área de Marília" });
+  .number({ error: "Clique no mapa ou digite a longitude" })
+  .min(AREA_BOUNDS.west, { error: OUTSIDE_AREA })
+  .max(AREA_BOUNDS.east, { error: OUTSIDE_AREA });
 
 const neighborhoodId = z
-  .string({ error: REQUIRED })
-  .refine((value) => neighborhoodsById.has(value), { error: "Bairro não cadastrado" });
+  .string({ error: "Selecione o bairro" })
+  .refine((value) => neighborhoodsById.has(value), {
+    error: (issue) => (issue.input === "" ? "Selecione o bairro" : "Selecione um bairro da lista"),
+  });
 
 const cep = z
-  .string({ error: REQUIRED })
+  .string({ error: "Digite o CEP" })
   .trim()
-  .regex(/^\d{5}-?\d{3}$/, { error: "CEP deve ter 8 dígitos" })
+  .min(1, { error: "Digite o CEP" })
+  .refine((value) => value === "" || /^\d{5}-?\d{3}$/.test(value), {
+    error: "Digite o CEP com 8 números, como 17500-000",
+  })
   .transform((value) => `${value.replace("-", "").slice(0, 5)}-${value.replace("-", "").slice(5)}`);
 
 function attributeSchema(spec: AttributeSpec): z.ZodType<AttributeValue | undefined> {
@@ -125,16 +130,16 @@ const equipmentSchema = z
     type: z.enum(EQUIPMENT_TYPE_KEYS as [EquipmentType, ...EquipmentType[]], {
       error: "Tipo de equipamento inválido",
     }),
-    serialNumber: text("Número de série", 3, 40),
-    brand: text("Marca", 1, 60),
-    model: text("Modelo", 1, 60),
+    serialNumber: text("Número de série", 3, 40, "Digite o número de série"),
+    brand: text("Marca", 1, 60, "Digite a marca"),
+    model: text("Modelo", 1, 60, "Digite o modelo"),
     agency: z.enum(AGENCIES, { error: "Órgão responsável inválido" }),
     status: z.enum(EQUIPMENT_STATUSES, { error: "Situação inválida" }),
     cep,
-    street: text("Rua", 2, 120),
-    reference: text("Referência", 1, 120),
+    street: text("Rua", 2, 120, "Digite a rua"),
+    reference: text("Referência", 1, 120, "Digite a referência, como número 181 ou S/N"),
     neighborhoodId,
-    city: text("Cidade", 2, 60).default("Marília"),
+    city: text("Cidade", 2, 60, "Digite a cidade").default("Marília"),
     uf: z
       .string()
       .trim()
@@ -205,8 +210,8 @@ export function parseEquipmentInput(raw: unknown): EquipmentInput {
 }
 
 const agentSchema = z.object({
-  name: text("Nome", 3, 80),
-  badge: text("Matrícula", 2, 20),
+  name: text("Nome", 3, 80, "Digite o nome do agente"),
+  badge: text("Matrícula", 2, 20, "Digite a matrícula"),
   role: z.enum(AGENT_ROLE_KEYS as [(typeof AGENT_ROLE_KEYS)[number], ...typeof AGENT_ROLE_KEYS], {
     error: "Função inválida",
   }),
@@ -216,7 +221,7 @@ const agentSchema = z.object({
     error: "Turno inválido",
   }),
   status: z.enum(AGENT_STATUSES, { error: "Situação inválida" }),
-  baseName: text("Base", 2, 80),
+  baseName: text("Base", 2, 80, "Digite o nome da base"),
   baseNeighborhoodId: neighborhoodId,
   lat: latitude,
   lng: longitude,
@@ -244,7 +249,7 @@ const occurrenceSchema = z.object({
   neighborhoodId,
   lat: latitude,
   lng: longitude,
-  description: text("Descrição", 3, 200),
+  description: text("Descrição", 3, 200, "Descreva a ocorrência"),
 });
 
 export type OccurrenceInput = z.infer<typeof occurrenceSchema>;

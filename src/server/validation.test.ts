@@ -53,14 +53,24 @@ describe("parseEquipmentInput", () => {
     const result = issues(() =>
       parseEquipmentInput({ ...equipment, serialNumber: "", neighborhoodId: "atlantida" }),
     );
-    expect(result["serialNumber"]).toBe("Campo obrigatório");
-    expect(result["neighborhoodId"]).toBe("Bairro não cadastrado");
+    expect(result["serialNumber"]).toBe("Digite o número de série");
+    expect(result["neighborhoodId"]).toBe("Selecione um bairro da lista");
+  });
+
+  it("tells how to fix empty location fields", () => {
+    const result = issues(() =>
+      parseEquipmentInput({ ...equipment, neighborhoodId: "", lat: null, lng: null, cep: "" }),
+    );
+    expect(result["neighborhoodId"]).toBe("Selecione o bairro");
+    expect(result["lat"]).toBe("Clique no mapa ou digite a latitude");
+    expect(result["lng"]).toBe("Clique no mapa ou digite a longitude");
+    expect(result["cep"]).toBe("Digite o CEP");
   });
 
   it("rejects coordinates outside Marília and malformed CEP", () => {
     const result = issues(() => parseEquipmentInput({ ...equipment, lat: -23.5, cep: "1750" }));
-    expect(result["lat"]).toBe("Coordenadas fora da área de Marília");
-    expect(result["cep"]).toBe("CEP deve ter 8 dígitos");
+    expect(result["lat"]).toBe("Escolha um ponto dentro de Marília, clicando no mapa");
+    expect(result["cep"]).toBe("Digite o CEP com 8 números, como 17500-000");
   });
 
   it("enforces consistency between status, installation and maintenance dates", () => {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { formatClock, formatTime } from "./format.ts";
 import { AGENT_GLYPH, BrandMark, Glyph, MAP_GLYPH, TREND_GLYPH, TYPE_GLYPHS } from "./icons.tsx";
 import { liveStatus, useLive } from "./live.ts";
@@ -8,6 +8,7 @@ import { EquipmentFormPage } from "./pages/EquipmentFormPage.tsx";
 import { EquipmentListPage } from "./pages/EquipmentListPage.tsx";
 import { OperationsPage } from "./pages/OperationsPage.tsx";
 import { PredictionsPage } from "./pages/PredictionsPage.tsx";
+import { pageTitle } from "./pageTitle.ts";
 import { Link, useLocation } from "./router.tsx";
 import { Toast } from "./toast.tsx";
 import { useNow } from "./useNow.ts";
@@ -71,13 +72,26 @@ function Route({ pathname }: { pathname: string }) {
     return <PredictionsPage />;
   }
   return (
-    <main className="page">
-      <h1>Página não encontrada</h1>
-      <p>
-        O endereço não existe. <Link href="/">Voltar para a central de operações</Link>
+    <main className="page not-found">
+      <p className="plate" data-level="warning">
+        Endereço não encontrado
       </p>
+      <h1>Página não encontrada</h1>
+      <p>Este endereço não existe no F.O.G.O. Confira o link ou volte para a Central.</p>
+      <Link href="/" className="button button-primary">
+        Ir para a Central de operações
+      </Link>
     </main>
   );
+}
+
+const ROUTE_FOCUS_DELAY_MS = 150;
+
+function skipToContent(event: MouseEvent<HTMLAnchorElement>): void {
+  event.preventDefault();
+  const main = document.querySelector("main");
+  main?.setAttribute("tabindex", "-1");
+  main?.focus();
 }
 
 function LiveStatus() {
@@ -104,14 +118,28 @@ export function App() {
   const { pathname } = useLocation();
   const now = useNow(15_000);
 
+  const firstRoute = useRef(true);
+
   useEffect(() => {
-    const current = NAV.find((item) => item.match(pathname));
-    document.title = current ? `${current.label}: F.O.G.O. Marília` : "F.O.G.O. Marília";
+    document.title = pageTitle(pathname);
     window.scrollTo(0, 0);
+    if (firstRoute.current) {
+      firstRoute.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      const main = document.querySelector("main");
+      main?.setAttribute("tabindex", "-1");
+      main?.focus({ preventScroll: true });
+    }, ROUTE_FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   return (
     <div className="app">
+      <a href="#conteudo" className="skip-link" onClick={skipToContent}>
+        Pular para o conteúdo
+      </a>
       <header className="topbar">
         <Link href="/" className="brand" aria-label="F.O.G.O. Marília, página inicial">
           <BrandMark />

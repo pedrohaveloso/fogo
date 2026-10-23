@@ -105,6 +105,33 @@ textarea {
   color: inherit;
 }
 
+.not-found {
+  justify-items: start;
+  max-width: 640px;
+  padding-top: 72px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--sign);
+  color: var(--chrome);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+main:focus {
+  outline: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--sign);
   outline-offset: 2px;

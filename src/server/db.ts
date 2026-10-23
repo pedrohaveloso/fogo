@@ -102,6 +102,10 @@ CREATE TABLE IF NOT EXISTS sim_flow_sites (
   base_volume REAL NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS simulation_hours (
+  hour_start INTEGER PRIMARY KEY
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

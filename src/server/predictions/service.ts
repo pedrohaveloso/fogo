@@ -15,7 +15,7 @@ import type {
   StaffingPlan,
   TrendReport,
 } from "../../shared/types.ts";
-import type { Database } from "../db.ts";
+import { getSetting, type Database } from "../db.ts";
 import { listAgents } from "../repositories/agents.ts";
 import { listEquipment } from "../repositories/equipment.ts";
 import {
@@ -33,7 +33,7 @@ import {
   type RiskModel,
 } from "./risk.ts";
 import { planStaffing } from "./staffing.ts";
-import { buildTrends, type UsageRecord } from "./trends.ts";
+import { buildTrends, gapDays, type UsageRecord } from "./trends.ts";
 
 const WEEK = 7 * DAY;
 const HISTORY_DAYS = 120;
@@ -182,27 +182,41 @@ export function createPredictionService(db: Database, city: CityDataset, liveMul
 
   function usageRecords(now: number): UsageRecord[] {
     const offset = 3 * HOUR;
-    const since = now - (USAGE_DAYS + 1) * DAY;
     const rows = db
       .prepare(
-        `WITH coverage AS (
-           SELECT (hour_start - ${offset}) / ${DAY} AS day, COUNT(DISTINCT hour_start) AS hours
-           FROM readings WHERE hour_start >= ? GROUP BY day
-         )
-         SELECT e.type AS type, (r.hour_start - ${offset}) / ${DAY} AS day, SUM(r.count) AS total,
-           coverage.hours AS hours
-         FROM readings r
-         JOIN equipment e ON e.id = r.equipment_id
-         JOIN coverage ON coverage.day = (r.hour_start - ${offset}) / ${DAY}
+        `SELECT e.type AS type, (r.hour_start - ${offset}) / ${DAY} AS day, SUM(r.count) AS total
+         FROM readings r JOIN equipment e ON e.id = r.equipment_id
          WHERE r.hour_start >= ? GROUP BY e.type, day`,
       )
-      .all(since, since) as { type: string; day: number; total: number; hours: number }[];
+      .all(now - (USAGE_DAYS + 1) * DAY) as { type: string; day: number; total: number }[];
     return rows.map((row) => ({
       type: row.type as EquipmentType,
       day: localDate(row.day * DAY + offset + 12 * HOUR),
       total: row.total,
-      hoursRecorded: row.hours,
     }));
+  }
+
+  function hourSet(sql: string, since: number): Set<number> {
+    const rows = db.prepare(sql).all(since) as { hour: number }[];
+    return new Set(rows.map((row) => row.hour));
+  }
+
+  function usageGaps(now: number): Set<string> {
+    const since = now - (USAGE_DAYS + 1) * DAY;
+    const hours = hourSet(
+      "SELECT DISTINCT hour_start AS hour FROM readings WHERE hour_start >= ?",
+      since,
+    );
+    return gapDays(hours, since, now, 0);
+  }
+
+  function occurrenceGaps(now: number): Set<string> {
+    const since = now - 12 * WEEK - DAY;
+    const hours = hourSet(
+      "SELECT hour_start AS hour FROM simulation_hours WHERE hour_start >= ?",
+      since,
+    );
+    return gapDays(hours, since, now, Number(getSetting(db, "seeded_at") ?? 0));
   }
 
   function trends(now: number): TrendReport {
@@ -212,6 +226,8 @@ export function createPredictionService(db: Database, city: CityDataset, liveMul
         statusEvents: statusEvents(),
         occurrences: occurrenceRecords(now - 12 * WEEK),
         usage: usageRecords(now),
+        usageGaps: usageGaps(now),
+        occurrenceGaps: occurrenceGaps(now),
         neighborhoods: city.neighborhoods,
         regions: city.regions,
         now,

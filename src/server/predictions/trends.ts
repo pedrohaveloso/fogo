@@ -23,8 +23,8 @@ const PROJECTION_DAYS = 30;
 const OCCURRENCE_WEEKS = 12;
 const PROJECTION_WEEKS = 4;
 const USAGE_DAYS = 28;
-const USAGE_MIN_HOURS = 20;
-const USAGE_MIN_DAYS_PER_WEEK = 4;
+const MIN_COVERED_DAYS_PER_WEEK = 4;
+const MIN_COVERED_HOURS_PER_DAY = 20;
 const INSIGHT_MIN_FLEET = 10;
 const INSIGHT_MIN_SLOPE = 0.5;
 const INSIGHT_MIN_T = 3;
@@ -33,18 +33,15 @@ const RISE_BASELINE_DAYS = 56;
 const RISE_MIN_COUNT = 12;
 const RISE_P_VALUE = 0.001;
 
-export type UsageRecord = {
-  type: EquipmentType;
-  day: string;
-  total: number;
-  hoursRecorded: number;
-};
+export type UsageRecord = { type: EquipmentType; day: string; total: number };
 
 export type TrendInput = {
   equipment: readonly Equipment[];
   statusEvents: readonly StatusEventRecord[];
   occurrences: readonly OccurrenceRecord[];
   usage: readonly UsageRecord[];
+  usageGaps: ReadonlySet<string>;
+  occurrenceGaps: ReadonlySet<string>;
   neighborhoods: readonly Neighborhood[];
   regions: readonly Region[];
   now: number;
@@ -52,6 +49,27 @@ export type TrendInput = {
 
 function formatNumber(value: number, digits = 1): string {
   return value.toFixed(digits).replace(".", ",");
+}
+
+export function gapDays(
+  coveredHours: ReadonlySet<number>,
+  from: number,
+  now: number,
+  historyUntil: number,
+): Set<string> {
+  const covered = new Map<string, number>();
+  for (let hour = startOfLocalDay(from); hour < startOfLocalDay(now); hour += HOUR) {
+    const day = localDate(hour);
+    const recorded = hour + HOUR <= historyUntil || coveredHours.has(hour);
+    covered.set(day, (covered.get(day) ?? 0) + (recorded ? 1 : 0));
+  }
+  const gaps = new Set([localDate(now)]);
+  for (const [day, hours] of covered) {
+    if (hours < MIN_COVERED_HOURS_PER_DAY) {
+      gaps.add(day);
+    }
+  }
+  return gaps;
 }
 
 function seriesWithProjection(
@@ -152,37 +170,48 @@ function availabilitySeries(input: TrendInput): { series: TrendSeries; significa
 }
 
 function occurrenceSeries(input: TrendInput): TrendSeries[] {
-  const { occurrences, neighborhoods, regions, now } = input;
+  const { occurrences, neighborhoods, regions, occurrenceGaps, now } = input;
   const regionOf = new Map(neighborhoods.map((item) => [item.id, item.regionId]));
   const start = now - OCCURRENCE_WEEKS * 7 * DAY;
-  const weeks = Array.from({ length: OCCURRENCE_WEEKS }, (_, index) =>
-    localDate(start + index * 7 * DAY),
-  );
+  const firstDay = localDate(start);
+  const today = localDate(now);
+  const weekOf = (day: string) => Math.floor(daysBetween(firstDay, day) / 7);
+  const coveredDays = Array.from({ length: OCCURRENCE_WEEKS }, () => 0);
+  for (let day = firstDay; day < today; day = addDays(day, 1)) {
+    if (!occurrenceGaps.has(day)) {
+      coveredDays[weekOf(day)]! += 1;
+    }
+  }
   const counts = new Map(
     regions.map((region) => [region.id, Array.from({ length: OCCURRENCE_WEEKS }, () => 0)]),
   );
   for (const record of occurrences) {
-    if (record.createdAt < start || record.createdAt >= now) {
+    const day = localDate(record.createdAt);
+    if (day < firstDay || day >= today || occurrenceGaps.has(day)) {
       continue;
     }
-    const week = Math.floor((record.createdAt - start) / (7 * DAY));
     const series = counts.get(regionOf.get(record.neighborhoodId) ?? "");
-    if (series && week < OCCURRENCE_WEEKS) {
-      series[week]! += record.weight;
+    if (series) {
+      series[weekOf(day)]! += record.weight;
     }
   }
-  return regions.map((region) =>
-    seriesWithProjection(
+  const kept = coveredDays.flatMap((days, week) =>
+    days >= MIN_COVERED_DAYS_PER_WEEK ? [{ week, days }] : [],
+  );
+  const weeks = kept.map(({ week }) => addDays(firstDay, week * 7));
+  return regions.map((region) => {
+    const totals = counts.get(region.id)!;
+    return seriesWithProjection(
       region.id,
       region.name,
       weeks,
-      counts.get(region.id)!,
+      kept.map(({ week, days }) => (totals[week]! / days) * 7),
       7,
       OCCURRENCE_WEEKS,
       PROJECTION_WEEKS,
       [0, Number.POSITIVE_INFINITY],
-    ),
-  );
+    );
+  });
 }
 
 function weeklyTotals(days: string[], values: number[]): number[] {
@@ -199,7 +228,7 @@ function weeklyTotals(days: string[], values: number[]): number[] {
     weeks.set(week, bucket);
   });
   return [...weeks.entries()]
-    .filter(([, bucket]) => bucket.days >= USAGE_MIN_DAYS_PER_WEEK)
+    .filter(([, bucket]) => bucket.days >= MIN_COVERED_DAYS_PER_WEEK)
     .sort(([a], [b]) => b - a)
     .map(([, bucket]) => (bucket.sum / bucket.days) * 7);
 }
@@ -207,7 +236,7 @@ function weeklyTotals(days: string[], values: number[]): number[] {
 function usageSeries(input: TrendInput): TrendSeries[] {
   const byType = new Map<EquipmentType, Map<string, number>>();
   for (const record of input.usage) {
-    if (record.hoursRecorded < USAGE_MIN_HOURS) {
+    if (input.usageGaps.has(record.day)) {
       continue;
     }
     const days = byType.get(record.type) ?? new Map<string, number>();

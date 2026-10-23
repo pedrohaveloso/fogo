@@ -137,6 +137,18 @@ describe("simulator", () => {
     expect(totals["operational"]).toBeGreaterThan(0);
   });
 
+  it("records every hour it simulated", () => {
+    const { db, simulator } = setup();
+    run(simulator, NOW, 5);
+    simulator.tick(NOW + 2 * HOUR);
+    const hours = (
+      db.prepare("SELECT hour_start FROM simulation_hours ORDER BY hour_start").all() as {
+        hour_start: number;
+      }[]
+    ).map((row) => row.hour_start);
+    expect(hours).toEqual([startOfHour(NOW), startOfHour(NOW) + 2 * HOUR]);
+  });
+
   it("replaces stolen equipment after a while", { timeout: 30_000 }, () => {
     const { db, simulator } = setup(2000);
     const id = (

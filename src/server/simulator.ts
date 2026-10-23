@@ -166,6 +166,7 @@ export function createSimulator(
   const baseVolumes = new Map<number, number>();
   let burst: Burst | null = null;
   let lastTick = 0;
+  let lastSimulatedHour = 0;
   let lastShiftHour = -1;
   let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -362,6 +363,12 @@ export function createSimulator(
     const changedOccurrences = new Set<number>();
 
     transaction(db, () => {
+      if (startOfHour(now) !== lastSimulatedHour) {
+        lastSimulatedHour = startOfHour(now);
+        db.prepare("INSERT OR IGNORE INTO simulation_hours (hour_start) VALUES (?)").run(
+          lastSimulatedHour,
+        );
+      }
       const agents = listAgents(db);
       const equipment = listEquipment(db);
       const byId = new Map(equipment.map((item) => [item.id, item]));

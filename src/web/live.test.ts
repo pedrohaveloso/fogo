@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OperationsSnapshot, StreamTick } from "../shared/types.ts";
 import { makeAgent, makeEquipment, makeOccurrence } from "../server/test-fixtures.ts";
-import { applyTick, shouldStream } from "./live.ts";
+import { applyTick, liveStatus, shouldStream } from "./live.ts";
 
 const summary = {
   generatedAt: "2026-10-14T15:00:00.000Z",
@@ -95,5 +95,36 @@ describe("shouldStream", () => {
     expect(shouldStream(false, 1)).toBe(true);
     expect(shouldStream(true, 1)).toBe(false);
     expect(shouldStream(false, 0)).toBe(false);
+  });
+});
+
+describe("liveStatus", () => {
+  const now = Date.parse("2026-10-14T15:00:00.000Z");
+
+  it("reads live while fresh data keeps arriving", () => {
+    expect(liveStatus({ connected: true, receivedAt: now - 3000 }, now)).toEqual({
+      stale: false,
+      text: "Ao vivo",
+    });
+  });
+
+  it("says how old the data is once it stops arriving or the stream drops", () => {
+    expect(liveStatus({ connected: true, receivedAt: now - 12_000 }, now)).toEqual({
+      stale: true,
+      text: "Sem dados há 12 s",
+    });
+    expect(liveStatus({ connected: false, receivedAt: now - 3000 }, now).text).toBe(
+      "Sem dados há 3 s",
+    );
+    expect(liveStatus({ connected: false, receivedAt: now - 185_000 }, now).text).toBe(
+      "Sem dados há 3 min",
+    );
+  });
+
+  it("is connecting before the first data arrives", () => {
+    expect(liveStatus({ connected: false, receivedAt: 0 }, now)).toEqual({
+      stale: true,
+      text: "Conectando",
+    });
   });
 });

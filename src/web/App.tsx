@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { formatTime } from "./format.ts";
+import { formatClock, formatTime } from "./format.ts";
 import { AGENT_GLYPH, BrandMark, Glyph, MAP_GLYPH, TREND_GLYPH, TYPE_GLYPHS } from "./icons.tsx";
-import { useLive } from "./live.ts";
+import { liveStatus, useLive } from "./live.ts";
 import { AgentFormPage } from "./pages/AgentFormPage.tsx";
 import { AgentListPage } from "./pages/AgentListPage.tsx";
 import { EquipmentFormPage } from "./pages/EquipmentFormPage.tsx";
@@ -37,7 +37,7 @@ const NAV = [
   {
     href: "/previsoes",
     label: "Cidade preditiva",
-    short: "Previsões",
+    short: "Preditiva",
     glyph: TREND_GLYPH,
     match: (path: string) => path.startsWith("/previsoes"),
   },
@@ -80,9 +80,28 @@ function Route({ pathname }: { pathname: string }) {
   );
 }
 
+function LiveStatus() {
+  const live = useLive();
+  const now = useNow(1000);
+  const status = liveStatus(live, now);
+  return (
+    <span
+      className="live-dot"
+      data-stale={status.stale}
+      role="status"
+      title={
+        live.receivedAt === 0
+          ? undefined
+          : `Última atualização às ${formatClock(new Date(live.receivedAt).toISOString())}`
+      }
+    >
+      {status.text}
+    </span>
+  );
+}
+
 export function App() {
   const { pathname } = useLocation();
-  const live = useLive();
   const now = useNow(15_000);
 
   useEffect(() => {
@@ -117,9 +136,7 @@ export function App() {
           ))}
         </nav>
         <div className="topbar-status">
-          <span className="live-dot" data-on={live.connected} role="status">
-            {live.connected ? "Ao vivo" : "Reconectando"}
-          </span>
+          <LiveStatus />
           <time className="clock" dateTime={new Date(now).toISOString()}>
             {formatTime(new Date(now).toISOString())}
           </time>

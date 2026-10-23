@@ -253,19 +253,12 @@ textarea {
   background: var(--muted);
 }
 
-.live-dot[data-on="true"]::before {
-  background: var(--good);
-  animation: breathe 2.4s ease-in-out infinite;
+.live-dot[data-stale="true"] {
+  color: var(--warning);
 }
 
-@keyframes breathe {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(12 163 12 / 55%);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgb(12 163 12 / 0%);
-  }
+.live-dot[data-stale="true"]::before {
+  background: var(--warning);
 }
 
 .page {
@@ -2743,7 +2736,6 @@ dialog::backdrop {
 
 @media (prefers-reduced-motion: reduce) {
   .occurrence-marker::after,
-  .live-dot[data-on="true"]::before,
   .alert[data-fresh="true"] {
     animation: none;
   }

@@ -39,6 +39,17 @@ export function formatPercent(value: number, digits = 0): string {
   return `${value.toFixed(digits).replace(".", ",")}%`;
 }
 
+const clock = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
+export function formatClock(iso: string): string {
+  return clock.format(new Date(iso));
+}
+
 export function formatTime(iso: string): string {
   return time.format(new Date(iso));
 }

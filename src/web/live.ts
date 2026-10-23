@@ -67,6 +67,24 @@ export function applyTick(snapshot: OperationsSnapshot, tick: StreamTick): Opera
   };
 }
 
+export const STALE_AFTER_MS = 10_000;
+
+export function liveStatus(
+  live: Pick<LiveState, "connected" | "receivedAt">,
+  now: number,
+): { stale: boolean; text: string } {
+  if (live.receivedAt === 0) {
+    return { stale: true, text: "Conectando" };
+  }
+  const age = Math.max(0, now - live.receivedAt);
+  if (live.connected && age < STALE_AFTER_MS) {
+    return { stale: false, text: "Ao vivo" };
+  }
+  const seconds = Math.round(age / 1000);
+  const elapsed = seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min`;
+  return { stale: true, text: `Sem dados há ${elapsed}` };
+}
+
 let state: LiveState = { snapshot: null, connected: false, receivedAt: 0 };
 const listeners = new Set<() => void>();
 let source: EventSource | null = null;

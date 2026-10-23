@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  centroid,
-  convexHull,
-  distanceKm,
-  moveTowards,
-  pointInPolygon,
-  voronoiCells,
-  type LngLat,
-} from "./geo.ts";
+import { convexHull, distanceKm, moveTowards, pointInPolygon, type LngLat } from "./geo.ts";
 
 const square: LngLat[] = [
   [0, 0],
@@ -43,27 +35,6 @@ describe("pointInPolygon", () => {
   it("detects inside and outside points", () => {
     expect(pointInPolygon([0.5, 0.5], square)).toBe(true);
     expect(pointInPolygon([1.5, 0.5], square)).toBe(false);
-  });
-});
-
-describe("voronoiCells", () => {
-  it("splits the boundary into non-overlapping cells around each site", () => {
-    const cells = voronoiCells(
-      [
-        [0.25, 0.5],
-        [0.75, 0.5],
-      ],
-      square,
-    );
-    expect(cells).toHaveLength(2);
-    expect(pointInPolygon([0.1, 0.5], cells[0]!)).toBe(true);
-    expect(pointInPolygon([0.9, 0.5], cells[0]!)).toBe(false);
-    expect(pointInPolygon([0.9, 0.5], cells[1]!)).toBe(true);
-    expect(centroid(cells[0]!)[0]).toBeCloseTo(0.25, 5);
-  });
-
-  it("keeps the whole boundary for a single site", () => {
-    expect(voronoiCells([[0.5, 0.5]], square)).toEqual([square]);
   });
 });
 

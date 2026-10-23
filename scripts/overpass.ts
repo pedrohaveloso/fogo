@@ -11,6 +11,13 @@ export type OsmElement = {
   center?: { lat: number; lon: number };
   nodes?: number[];
   tags?: Record<string, string>;
+  geometry?: { lat: number; lon: number }[];
+  members?: {
+    type: string;
+    ref: number;
+    role: string;
+    geometry?: { lat: number; lon: number }[];
+  }[];
 };
 
 export async function overpass(query: string, attempt = 1): Promise<OsmElement[]> {

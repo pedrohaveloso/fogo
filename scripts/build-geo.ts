@@ -4,7 +4,6 @@ import {
   distanceKm,
   roundPolygon,
   scalePolygon,
-  voronoiCells,
   type LngLat,
 } from "../src/shared/geo.ts";
 import { overpass, USER_AGENT, type OsmElement } from "./overpass.ts";
@@ -209,34 +208,22 @@ async function main(): Promise<void> {
     convexHull(streets.map((street): LngLat => [street.lng, street.lat])),
     URBAN_MARGIN,
   );
-  const cells = voronoiCells(
-    neighborhoods.map((neighborhood): LngLat => [neighborhood.lng, neighborhood.lat]),
-    urban,
-  );
   const neighborhoodOutput = neighborhoods
-    .map((neighborhood, index) => ({
+    .map((neighborhood) => ({
       id: neighborhood.id,
       name: neighborhood.name,
       regionId: regionOf([neighborhood.lng, neighborhood.lat], center),
       lat: Number(neighborhood.lat.toFixed(6)),
       lng: Number(neighborhood.lng.toFixed(6)),
-      polygon: roundPolygon(cells[index] ?? []),
+      polygon: [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
-  const regionOutput = (Object.keys(REGION_NAMES) as RegionId[]).map((regionId) => {
-    const memberIds = new Set(
-      neighborhoodOutput.filter((item) => item.regionId === regionId).map((item) => item.id),
-    );
-    const points = neighborhoodOutput
-      .filter((item) => memberIds.has(item.id))
-      .flatMap((item) => item.polygon);
-    return {
-      id: regionId,
-      name: REGION_NAMES[regionId],
-      polygon: roundPolygon(convexHull(points)),
-    };
-  });
+  const regionOutput = (Object.keys(REGION_NAMES) as RegionId[]).map((regionId) => ({
+    id: regionId,
+    name: REGION_NAMES[regionId],
+    polygon: [],
+  }));
 
   const selected: Street[] = [];
   for (const neighborhood of neighborhoodOutput) {

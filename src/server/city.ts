@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import dataset from "../../data/marilia.json" with { type: "json" };
-import { distanceKm, type LngLat } from "../shared/geo.ts";
+import { distanceKm, pointInPolygon, type LngLat } from "../shared/geo.ts";
 import type { CityDataset, Neighborhood } from "../shared/types.ts";
 import { createRoadNetwork, type RoadData } from "./roads.ts";
 
@@ -24,6 +24,10 @@ export function regionOfNeighborhood(id: string): string {
 }
 
 export function nearestNeighborhood(point: LngLat): Neighborhood {
+  const containing = city.neighborhoods.find((item) => pointInPolygon(point, item.polygon));
+  if (containing) {
+    return containing;
+  }
   let best = city.neighborhoods[0]!;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const neighborhood of city.neighborhoods) {

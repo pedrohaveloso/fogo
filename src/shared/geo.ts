@@ -76,41 +76,6 @@ export function moveTowards(from: LngLat, to: LngLat, stepKm: number): LngLat {
   return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
 }
 
-function clipHalfPlane(polygon: LngLat[], site: LngLat, other: LngLat): LngLat[] {
-  const normal: LngLat = [other[0] - site[0], other[1] - site[1]];
-  const middle: LngLat = [(site[0] + other[0]) / 2, (site[1] + other[1]) / 2];
-  const side = (point: LngLat) =>
-    (point[0] - middle[0]) * normal[0] + (point[1] - middle[1]) * normal[1];
-  const result: LngLat[] = [];
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index]!;
-    const next = polygon[(index + 1) % polygon.length]!;
-    const currentSide = side(current);
-    const nextSide = side(next);
-    if (currentSide <= 0) {
-      result.push(current);
-    }
-    if ((currentSide < 0 && nextSide > 0) || (currentSide > 0 && nextSide < 0)) {
-      const ratio = currentSide / (currentSide - nextSide);
-      result.push([
-        current[0] + (next[0] - current[0]) * ratio,
-        current[1] + (next[1] - current[1]) * ratio,
-      ]);
-    }
-  }
-  return result;
-}
-
-export function voronoiCells(sites: LngLat[], boundary: LngLat[]): LngLat[][] {
-  return sites.map((site, index) =>
-    sites.reduce<LngLat[]>(
-      (cell, other, otherIndex) =>
-        otherIndex === index || cell.length === 0 ? cell : clipHalfPlane(cell, site, other),
-      boundary,
-    ),
-  );
-}
-
 export function roundPolygon(polygon: LngLat[]): LngLat[] {
   return polygon.map(([lng, lat]) => [Number(lng.toFixed(5)), Number(lat.toFixed(5))]);
 }

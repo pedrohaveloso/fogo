@@ -74,6 +74,7 @@ const STALE_OCCURRENCE_MS = 3 * HOUR;
 const CATCH_UP_HOURS = 48;
 const ANOMALY_MIN_VOLUME = 150;
 const COMMUNICATION_FAILURE_CHANCE = 0.15;
+const BURST_INTERVAL = 40 * MINUTE;
 
 const DISPATCH_ROLES: Record<OccurrenceKind, AgentRole[]> = {
   accident: ["traffic_agent", "military_police", "municipal_guard"],
@@ -410,7 +411,7 @@ export function createSimulator(
         }
       }
 
-      if (!burst && perTick(8 * MINUTE, dt)) {
+      if (!burst && perTick(BURST_INTERVAL, dt)) {
         const quiet = city.neighborhoods.filter(
           (item) => demand.neighborhoodRate(item.id, now) * multiplier < 1.2,
         );

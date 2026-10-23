@@ -102,6 +102,16 @@ export function toggleUnavailable(filters: EquipmentFilters): EquipmentFilters {
   };
 }
 
+export function showsDownOfType(filters: EquipmentFilters, type: EquipmentType): boolean {
+  return filters.type === type && showsUnavailableOnly(filters);
+}
+
+export function toggleDownOfType(filters: EquipmentFilters, type: EquipmentType): EquipmentFilters {
+  return showsDownOfType(filters, type)
+    ? { ...filters, type: "", statuses: [] }
+    : { ...filters, type, statuses: [...UNAVAILABLE_STATUSES] };
+}
+
 export function toggleUrgentMaintenance(filters: EquipmentFilters): EquipmentFilters {
   return { ...filters, maintenance: filters.maintenance === "urgent" ? "" : "urgent" };
 }

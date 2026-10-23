@@ -5,7 +5,9 @@ import {
   EMPTY_FILTERS,
   matchesFilters,
   placeFilterCount,
+  showsDownOfType,
   showsUnavailableOnly,
+  toggleDownOfType,
   toggleUnavailable,
   toggleUrgentMaintenance,
 } from "./OperationsFilters.tsx";
@@ -86,6 +88,21 @@ describe("summary shortcuts", () => {
         statuses: ["malfunction", "maintenance", "operational"],
       }),
     ).toBe(false);
+  });
+
+  it("shows only the units out of service of one type and toggles back to everything", () => {
+    const cameras = toggleDownOfType({ ...EMPTY_FILTERS, search: "av" }, "camera");
+    expect(cameras).toEqual({
+      ...EMPTY_FILTERS,
+      search: "av",
+      type: "camera",
+      statuses: ["malfunction", "maintenance", "stolen"],
+    });
+    expect(showsDownOfType(cameras, "camera")).toBe(true);
+    expect(showsDownOfType(cameras, "radar")).toBe(false);
+    expect(toggleDownOfType(cameras, "radar").type).toBe("radar");
+    expect(toggleDownOfType(cameras, "camera")).toEqual({ ...EMPTY_FILTERS, search: "av" });
+    expect(showsDownOfType({ ...EMPTY_FILTERS, type: "camera" }, "camera")).toBe(false);
   });
 
   it("toggles the urgent maintenance filter, replacing any other maintenance choice", () => {

@@ -11,6 +11,8 @@ import { EquipmentFilterBar } from "../components/EquipmentFilterBar.tsx";
 import {
   EMPTY_FILTERS,
   matchesFilters,
+  showsDownOfType,
+  toggleDownOfType,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
 import { formatDate, formatInteger, formatMaintenanceDue, formatRelative } from "../format.ts";
@@ -121,11 +123,9 @@ export function EquipmentListPage() {
               <button
                 key={entry.type}
                 type="button"
-                aria-pressed={filters.type === entry.type}
+                aria-pressed={showsDownOfType(filters, entry.type)}
                 aria-describedby="quick-filters-label"
-                onClick={() =>
-                  setFilters({ ...filters, type: filters.type === entry.type ? "" : entry.type })
-                }
+                onClick={() => setFilters(toggleDownOfType(filters, entry.type))}
               >
                 <Glyph d={TYPE_GLYPHS[entry.type]} size={16} />
                 {EQUIPMENT_TYPES[entry.type].plural}

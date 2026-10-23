@@ -7,6 +7,9 @@ import {
   agentQuery,
   equipmentFromQuery,
   equipmentQuery,
+  showsMapView,
+  withMapView,
+  withoutMapView,
 } from "./listQuery.ts";
 
 describe("equipment list query", () => {
@@ -59,5 +62,21 @@ describe("agent list query", () => {
     expect(agentFromQuery(new URLSearchParams(agentQuery(filters)))).toEqual(filters);
     expect(agentQuery(EMPTY_AGENT_FILTERS)).toBe("");
     expect(agentFromQuery(new URLSearchParams("funcao=bombeiro")).role).toBe("");
+  });
+});
+
+describe("map view in the address", () => {
+  it("adds and removes the map flag without touching the filters", () => {
+    const withMap = withMapView("?tipo=camera", true);
+    expect(withMap).toBe("?tipo=camera&vista=mapa");
+    expect(showsMapView(new URLSearchParams(withMap))).toBe(true);
+    expect(withoutMapView(withMap)).toBe("?tipo=camera");
+  });
+
+  it("keeps the address clean when the map is off", () => {
+    expect(withMapView("", false)).toBe("");
+    expect(withMapView("", true)).toBe("?vista=mapa");
+    expect(withoutMapView("?vista=mapa")).toBe("");
+    expect(showsMapView(new URLSearchParams("?vista=lista"))).toBe(false);
   });
 });

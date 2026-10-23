@@ -100,3 +100,23 @@ export function agentFromQuery(params: URLSearchParams): AgentFilters {
     regionId: params.get("regiao") ?? "",
   };
 }
+
+export function withMapView(query: string, map: boolean): string {
+  if (!map) {
+    return query;
+  }
+  const params = new URLSearchParams(query);
+  params.set("vista", "mapa");
+  return `?${params.toString()}`;
+}
+
+export function showsMapView(params: URLSearchParams): boolean {
+  return params.get("vista") === "mapa";
+}
+
+export function withoutMapView(query: string): string {
+  const params = new URLSearchParams(query);
+  params.delete("vista");
+  const rest = params.toString();
+  return rest ? `?${rest}` : "";
+}

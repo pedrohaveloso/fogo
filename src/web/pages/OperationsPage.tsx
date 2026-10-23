@@ -11,6 +11,7 @@ import {
 } from "../components/OperationsFilters.tsx";
 import { RegionHealthList } from "../components/RegionHealthList.tsx";
 import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
+import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LayerPanel } from "../map/LayerPanel.tsx";
 import { OperationsMap, type MapLayers, type Selection } from "../map/OperationsMap.tsx";
@@ -87,13 +88,7 @@ export function OperationsPage() {
   );
 
   if (!meta || !snapshot) {
-    return (
-      <main className="page">
-        <p className="hint" role="status">
-          Conectando à central de operações...
-        </p>
-      </main>
-    );
+    return <LoadingNotice label="Conectando à central de operações..." />;
   }
 
   const agents = regionNeighborhoods

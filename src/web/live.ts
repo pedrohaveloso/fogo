@@ -101,10 +101,35 @@ function connect(): void {
   });
 }
 
+function disconnect(): void {
+  source?.close();
+  source = null;
+  emit({ connected: false });
+}
+
+export function shouldStream(hidden: boolean, listenerCount: number): boolean {
+  return !hidden && listenerCount > 0;
+}
+
+function syncConnection(): void {
+  if (shouldStream(document.hidden, listeners.size)) {
+    connect();
+  } else if (source) {
+    disconnect();
+  }
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", syncConnection);
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
-  connect();
-  return () => listeners.delete(listener);
+  syncConnection();
+  return () => {
+    listeners.delete(listener);
+    syncConnection();
+  };
 }
 
 export function useLive(): LiveState {
@@ -129,6 +154,17 @@ function subscribeMeta(listener: () => void): () => void {
       metaPromise = null;
     });
   return () => metaListeners.delete(listener);
+}
+
+export function retryConnection(): void {
+  disconnect();
+  syncConnection();
+  if (!meta) {
+    metaPromise = null;
+    for (const listener of metaListeners) {
+      subscribeMeta(listener);
+    }
+  }
 }
 
 export function useMeta(): Meta | null {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OperationsSnapshot, StreamTick } from "../shared/types.ts";
 import { makeAgent, makeEquipment, makeOccurrence } from "../server/test-fixtures.ts";
-import { applyTick } from "./live.ts";
+import { applyTick, shouldStream } from "./live.ts";
 
 const summary = {
   generatedAt: "2026-10-14T15:00:00.000Z",
@@ -87,5 +87,13 @@ describe("applyTick", () => {
       }),
     );
     expect(next.occurrences.map((item) => item.id)).toEqual([2, 3]);
+  });
+});
+
+describe("shouldStream", () => {
+  it("streams only while the tab is visible and someone is listening", () => {
+    expect(shouldStream(false, 1)).toBe(true);
+    expect(shouldStream(true, 1)).toBe(false);
+    expect(shouldStream(false, 0)).toBe(false);
   });
 });

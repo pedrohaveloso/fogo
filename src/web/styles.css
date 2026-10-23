@@ -2766,3 +2766,14 @@ dialog::backdrop {
     outline: 2px solid CanvasText;
   }
 }
+
+.loading-notice {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  max-width: 60ch;
+}
+
+.loading-notice p {
+  margin: 0;
+}

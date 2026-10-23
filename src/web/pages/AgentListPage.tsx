@@ -12,6 +12,7 @@ import { AgentShield, AgentStatusBadge } from "../components/badges.tsx";
 import { FilterMenu } from "../components/FilterMenu.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
 import { AGENT_ROLE_GLYPHS, Glyph } from "../icons.tsx";
+import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { Link } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
@@ -36,13 +37,7 @@ export function AgentListPage() {
   }, [snapshot, meta, filters]);
 
   if (!meta || !snapshot) {
-    return (
-      <main className="page">
-        <p className="hint" role="status">
-          Carregando agentes...
-        </p>
-      </main>
-    );
+    return <LoadingNotice label="Carregando agentes..." />;
   }
 
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));

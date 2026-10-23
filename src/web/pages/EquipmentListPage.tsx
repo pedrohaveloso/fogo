@@ -17,6 +17,7 @@ import {
 } from "../components/OperationsFilters.tsx";
 import { formatDate, formatInteger, formatMaintenanceDue, formatRelative } from "../format.ts";
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
+import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { Link } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
@@ -88,13 +89,7 @@ export function EquipmentListPage() {
   }, [snapshot, meta, filters, now, sort, names]);
 
   if (!meta || !snapshot) {
-    return (
-      <main className="page">
-        <p className="hint" role="status">
-          Carregando inventário...
-        </p>
-      </main>
-    );
+    return <LoadingNotice label="Carregando inventário..." />;
   }
 
   const down = fleet.reduce((sum, entry) => sum + entry.down, 0);

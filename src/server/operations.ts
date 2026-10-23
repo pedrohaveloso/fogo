@@ -36,11 +36,7 @@ export const HEARTBEAT_WARNING_MINUTES = 3;
 export const HEARTBEAT_CRITICAL_MINUTES = 15;
 export const STALE_CRITICAL_MS = 24 * 60 * MINUTE;
 
-const SAFETY_CRITICAL: ReadonlySet<EquipmentType> = new Set([
-  "smart_traffic_light",
-  "radar",
-  "camera",
-]);
+const SAFETY_CRITICAL: ReadonlySet<EquipmentType> = new Set(["smart_traffic_light"]);
 
 export type OperationsInput = {
   city: CityDataset;

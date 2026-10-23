@@ -252,13 +252,13 @@ describe("computeSummary", () => {
         equipment: [
           makeEquipment({
             id: 1,
-            type: "camera",
+            type: "smart_traffic_light",
             status: "malfunction",
             updatedAt: new Date(NOW - 25 * 3_600_000).toISOString(),
           }),
           makeEquipment({
             id: 2,
-            type: "camera",
+            type: "smart_traffic_light",
             status: "malfunction",
             updatedAt: new Date(NOW - 23 * 3_600_000).toISOString(),
           }),
@@ -268,6 +268,12 @@ describe("computeSummary", () => {
     const level = (id: string) => summary.alerts.find((alert) => alert.id === id)?.level;
     expect(level("equipment-malfunction-1")).toBe("warning");
     expect(level("equipment-malfunction-2")).toBe("critical");
+    const camera = computeSummary(
+      input({ equipment: [makeEquipment({ id: 3, type: "camera", status: "malfunction" })] }),
+    );
+    expect(camera.alerts.find((alert) => alert.id === "equipment-malfunction-3")?.level).toBe(
+      "warning",
+    );
   });
 
   it("treats a stuck sensor as a warning and a burst of occurrences as critical", () => {

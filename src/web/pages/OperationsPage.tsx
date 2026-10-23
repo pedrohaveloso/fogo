@@ -10,6 +10,7 @@ import {
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
 import { RegionHealthList } from "../components/RegionHealthList.tsx";
+import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LayerPanel } from "../map/LayerPanel.tsx";
 import { OperationsMap, type MapLayers, type Selection } from "../map/OperationsMap.tsx";
@@ -164,27 +165,27 @@ export function OperationsPage() {
           filters={filters}
           onFiltersChange={setFilters}
         />
-        <div className="ops-tabs" role="tablist" aria-label="Painel">
-          {tabs.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              id={`ops-tab-${item.key}`}
-              aria-selected={tab === item.key}
-              aria-controls="ops-tab-panel"
-              onClick={() => setTab(item.key)}
-            >
-              {item.label}
-              <span className="ops-tab-count">{item.count}</span>
-            </button>
-          ))}
-        </div>
+        <TabList
+          items={tabs.map((item) => ({
+            key: item.key,
+            label: (
+              <>
+                {item.label}
+                <span className="ops-tab-count">{item.count}</span>
+              </>
+            ),
+          }))}
+          selected={tab}
+          onSelect={setTab}
+          label="Painel"
+          idPrefix="ops"
+          className="ops-tabs"
+        />
         <div
-          id="ops-tab-panel"
+          id={tabPanelId("ops")}
           className="ops-tab-panel"
           role="tabpanel"
-          aria-labelledby={`ops-tab-${tab}`}
+          aria-labelledby={tabId("ops", tab)}
         >
           {tab === "alerts" ? (
             <AlertFeed

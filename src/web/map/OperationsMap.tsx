@@ -128,7 +128,7 @@ export function OperationsMap(props: Props) {
           HEALTH_COLORS.attention,
           MAP_GROUND,
         ],
-        "fill-opacity": ["match", LEVEL, "critical", 0.14, "attention", 0.07, 0],
+        "fill-opacity": ["match", LEVEL, "critical", 0.14, 0],
       },
     });
     map.addLayer({

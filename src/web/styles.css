@@ -717,7 +717,6 @@ select.input {
 
 .swatch[data-pattern="lane"] {
   border: 1.5px dashed var(--warning);
-  background: rgb(250 178 25 / 12%);
 }
 
 .swatch[data-pattern="hairline"] {

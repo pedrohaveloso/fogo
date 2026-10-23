@@ -1717,6 +1717,72 @@ button.city-count[aria-pressed="true"] {
   cursor: wait;
 }
 
+.alert-group summary {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.alert-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.alert-group summary:focus-visible {
+  outline: 2px solid var(--sign);
+  outline-offset: 2px;
+}
+
+.alert-group summary .alert-title::after {
+  content: " ▾";
+  color: var(--muted);
+}
+
+.alert-group details[open] summary .alert-title::after {
+  content: " ▴";
+}
+
+.alert-group-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.alert-group-items {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert-group-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.alert-group-item[data-ack="true"] {
+  opacity: 0.6;
+}
+
+.alert-group-item .alert-title {
+  font-weight: 600;
+}
+
+.alert-error {
+  color: var(--critical-text);
+  font-size: var(--text-xs);
+}
+
 .drawer {
   position: absolute;
   z-index: 5;

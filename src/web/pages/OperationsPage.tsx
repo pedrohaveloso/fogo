@@ -13,6 +13,7 @@ import { RegionHealthList } from "../components/RegionHealthList.tsx";
 import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { useLive, useMeta } from "../live.ts";
+import { searchResults } from "../mapSearch.ts";
 import { LayerPanel } from "../map/LayerPanel.tsx";
 import { OperationsMap, type MapLayers, type Selection } from "../map/OperationsMap.tsx";
 import { useFetch } from "../useFetch.ts";
@@ -100,6 +101,7 @@ export function OperationsPage() {
   const occurrences = regionNeighborhoods
     ? snapshot.occurrences.filter((item) => regionNeighborhoods.has(item.neighborhoodId))
     : snapshot.occurrences;
+  const results = searchResults(equipment, agents, filters.search);
   const waiting = snapshot.occurrences.filter((item) => item.status === "open").length;
   const pendingAlerts = snapshot.alerts.filter((alert) => !alert.acknowledged).length;
   const flaggedRegions = snapshot.regions.filter((region) => region.level !== "normal").length;
@@ -135,6 +137,24 @@ export function OperationsPage() {
           matching={equipment.length}
           total={snapshot.equipment.length}
         />
+        {results.length > 0 && (
+          <ul className="map-overlay search-results" aria-label="Resultados da busca">
+            {results.map((item) => (
+              <li key={`${item.kind}-${item.id}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFocus({ lat: item.lat, lng: item.lng, key: Date.now() });
+                    setSelected({ kind: item.kind, id: item.id });
+                  }}
+                >
+                  <strong>{item.title}</strong>
+                  <span className="cell-sub">{item.detail}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <LayerPanel layers={layers} onChange={setLayers} />
         {selected && (
           <DetailDrawer

@@ -17,6 +17,7 @@ import { RISK_COLORS } from "../colors.ts";
 import { LevelPlate, Meter, RiskTag } from "../components/badges.tsx";
 import { LineChart } from "../components/charts/LineChart.tsx";
 import { WeekHeatmap } from "../components/charts/WeekHeatmap.tsx";
+import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
 import {
   formatCompact,
   formatDecimal,
@@ -29,6 +30,7 @@ import {
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { useMeta } from "../live.ts";
 import { RiskMap } from "../map/RiskMap.tsx";
+import { navigate, useLocation } from "../router.tsx";
 import { useFetch } from "../useFetch.ts";
 import { useNow } from "../useNow.ts";
 
@@ -56,17 +58,22 @@ function riskMark(level: RiskLevel): string {
 
 function Explain({ what, data, use }: { what: ReactNode; data: ReactNode; use: ReactNode }) {
   return (
-    <details className="explain disclosure">
-      <summary>Como esta previsão funciona</summary>
+    <div className="explain">
       <dl>
-        <dt>O que é previsto</dt>
-        <dd>{what}</dd>
-        <dt>Dados usados</dt>
-        <dd>{data}</dd>
-        <dt>Como usar na decisão</dt>
-        <dd>{use}</dd>
+        <div>
+          <dt>O que é previsto</dt>
+          <dd>{what}</dd>
+        </div>
+        <div>
+          <dt>Como usar na decisão</dt>
+          <dd>{use}</dd>
+        </div>
       </dl>
-    </details>
+      <details className="disclosure">
+        <summary>Dados usados no cálculo</summary>
+        <p>{data}</p>
+      </details>
+    </div>
   );
 }
 
@@ -593,60 +600,100 @@ function TrendSection() {
   );
 }
 
-function BacktestSection() {
+function ModelQuality() {
   const { data, error } = useFetch<BacktestResult>("/predictions/backtest");
   if (!data) {
     return <Loading error={error} />;
   }
   const rateScale = Math.max(data.topHitRate, data.baselineTopHitRate, 1);
   return (
-    <section className="panel" aria-labelledby="backtest-title">
-      <div className="panel-head">
-        <h2 id="backtest-title">Quanto o modelo de risco acerta</h2>
-        <p>Teste com os últimos {data.days} dias, sem que o modelo os tenha visto</p>
-      </div>
-      <div className="stat-row">
-        <div className="stat">
-          <div className="stat-value">{formatPercent(data.topHitRate)}</div>
-          <p className="stat-label">
-            das ocorrências caíram nos 10% de blocos de 4 horas que o modelo apontou como mais
-            arriscados
-          </p>
-          <div className="compare">
-            <span>Modelo</span>
-            <Meter value={data.topHitRate} max={rateScale} color="#3987e5" />
-            <span>{formatPercent(data.topHitRate)}</span>
-            <span>Média simples</span>
-            <Meter value={data.baselineTopHitRate} max={rateScale} color={MUTED_MARK} />
-            <span>{formatPercent(data.baselineTopHitRate)}</span>
+    <section className="model-quality" aria-labelledby="backtest-title">
+      <h2 id="backtest-title" className="model-quality-title">
+        Quanto o modelo de risco acerta
+      </h2>
+      <p>
+        No teste com os últimos {data.days} dias, que o modelo não viu, os 10% de blocos de 4 horas
+        apontados como mais arriscados concentraram {formatPercent(data.topHitRate)} das
+        ocorrências. A média histórica simples concentrou {formatPercent(data.baselineTopHitRate)}.
+      </p>
+      <details className="disclosure">
+        <summary>Ver o teste completo</summary>
+        <div className="stat-row">
+          <div className="stat">
+            <div className="stat-value">{formatPercent(data.topHitRate)}</div>
+            <p className="stat-label">
+              das ocorrências caíram nos 10% de blocos de 4 horas que o modelo apontou como mais
+              arriscados
+            </p>
+            <div className="compare">
+              <span>Modelo</span>
+              <Meter value={data.topHitRate} max={rateScale} color="#3987e5" />
+              <span>{formatPercent(data.topHitRate)}</span>
+              <span>Média simples</span>
+              <Meter value={data.baselineTopHitRate} max={rateScale} color={MUTED_MARK} />
+              <span>{formatPercent(data.baselineTopHitRate)}</span>
+            </div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{formatPercent(data.improvementPct)}</div>
+            <p className="stat-label">
+              menos erro que a média histórica simples ao prever quantas ocorrências cada região
+              terá em cada bloco de 4 horas
+            </p>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{formatDecimal(data.modelMae)}</div>
+            <p className="stat-label">
+              ocorrências de erro médio por região e bloco de 4 horas ({data.evaluatedCells} blocos
+              avaliados)
+            </p>
           </div>
         </div>
-        <div className="stat">
-          <div className="stat-value">{formatPercent(data.improvementPct)}</div>
-          <p className="stat-label">
-            menos erro que a média histórica simples ao prever quantas ocorrências cada região terá
-            em cada bloco de 4 horas
-          </p>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{formatDecimal(data.modelMae)}</div>
-          <p className="stat-label">
-            ocorrências de erro médio por região e bloco de 4 horas ({data.evaluatedCells} blocos
-            avaliados)
-          </p>
-        </div>
-      </div>
-      <Explain
-        what="A qualidade da previsão de risco, medida em dados que o modelo não usou para aprender."
-        data="O modelo é treinado com tudo o que aconteceu até sete dias atrás e prevê os sete dias seguintes. A comparação é com a média histórica simples de cada região, que ignora dia da semana e horário."
-        use="O índice de risco serve para priorizar onde e quando agir. Ele não diz onde cada ocorrência vai acontecer: ocorrências isoladas são, em grande parte, aleatórias."
-      />
+        <Explain
+          what="A qualidade da previsão de risco, medida em dados que o modelo não usou para aprender."
+          data="O modelo é treinado com tudo o que aconteceu até sete dias atrás e prevê os sete dias seguintes. A comparação é com a média histórica simples de cada região, que ignora dia da semana e horário."
+          use="O índice de risco serve para priorizar onde e quando agir. Ele não diz onde cada ocorrência vai acontecer: ocorrências isoladas são, em grande parte, aleatórias."
+        />
+      </details>
     </section>
   );
 }
 
+const TABS = [
+  {
+    key: "proximas-horas",
+    label: "Próximas horas",
+    question: "Onde e quando a cidade vai precisar de reforço?",
+  },
+  {
+    key: "fora-do-padrao",
+    label: "Fora do padrão",
+    question: "O que está fugindo do normal agora?",
+  },
+  {
+    key: "equipamentos",
+    label: "Equipamentos",
+    question: "Quais equipamentos devem falhar nos próximos 7 dias?",
+  },
+  {
+    key: "tendencias",
+    label: "Tendências",
+    question: "Para onde vão a disponibilidade, as ocorrências e o uso dos equipamentos?",
+  },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+function isTabKey(value: string | null): value is TabKey {
+  return TABS.some((tab) => tab.key === value);
+}
+
 export function PredictionsPage() {
   const [hours, setHours] = useState(6);
+  const { params } = useLocation();
+  const requested = params.get("aba");
+  const tab = isTabKey(requested) ? requested : TABS[0].key;
+  const current = TABS.find((item) => item.key === tab)!;
   return (
     <main className="page">
       <div className="page-head">
@@ -654,40 +701,58 @@ export function PredictionsPage() {
           <h1>Cidade preditiva</h1>
           <p>
             Previsões calculadas a partir do histórico de ocorrências, da telemetria dos
-            equipamentos e do efetivo em serviço. Cada bloco explica o que está sendo previsto e com
-            quais dados.
+            equipamentos e do efetivo em serviço. Cada aba responde uma pergunta e diz com quais
+            dados.
           </p>
         </div>
       </div>
-      <div className="horizon-bar">
-        <span id="horizon-label" className="label">
-          Horizonte da previsão
-        </span>
-        <div className="segmented" role="group" aria-labelledby="horizon-label">
-          {HORIZONS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={hours === value}
-              onClick={() => setHours(value)}
-            >
-              {value} h
-            </button>
-          ))}
-        </div>
-        <span className="hint horizon-hint">
-          Vale para o risco por bairro e o reforço de agentes.
-        </span>
+      <TabList
+        items={TABS}
+        selected={tab}
+        onSelect={(key) => navigate(`/previsoes?aba=${key}`, { replace: true })}
+        label="Perguntas da cidade preditiva"
+        idPrefix="predictions"
+        className="page-tabs"
+      />
+      <div
+        id={tabPanelId("predictions")}
+        className="tab-panel"
+        role="tabpanel"
+        aria-labelledby={tabId("predictions", tab)}
+      >
+        <p className="tab-question">{current.question}</p>
+        {tab === "proximas-horas" && (
+          <>
+            <div className="horizon-bar">
+              <span id="horizon-label" className="label">
+                Horizonte da previsão
+              </span>
+              <div className="segmented" role="group" aria-labelledby="horizon-label">
+                {HORIZONS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={hours === value}
+                    onClick={() => setHours(value)}
+                  >
+                    {value} h
+                  </button>
+                ))}
+              </div>
+              <span className="hint horizon-hint">
+                Vale para o risco por bairro e o reforço de agentes.
+              </span>
+            </div>
+            <RiskSection hours={hours} />
+            <StaffingSection hours={hours} />
+            <WeeklySection />
+            <ModelQuality />
+          </>
+        )}
+        {tab === "fora-do-padrao" && <AnomalySection />}
+        {tab === "equipamentos" && <FailureSection />}
+        {tab === "tendencias" && <TrendSection />}
       </div>
-      <RiskSection hours={hours} />
-      <StaffingSection hours={hours} />
-      <div className="grid-2">
-        <WeeklySection />
-        <BacktestSection />
-      </div>
-      <AnomalySection />
-      <FailureSection />
-      <TrendSection />
     </main>
   );
 }

@@ -1909,9 +1909,9 @@ button.city-count[aria-pressed="true"] {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin: -12px calc(-1 * var(--gutter)) 0;
+  margin: 0 calc(-1 * var(--gutter));
   padding: 10px var(--gutter);
-  background: rgb(24 27 31 / 96%);
+  background: var(--ground);
   border-bottom: 1px solid var(--line);
 }
 
@@ -2218,6 +2218,8 @@ button.city-count[aria-pressed="true"] {
 }
 
 .explain {
+  display: grid;
+  gap: 10px;
   margin-top: 18px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
@@ -2225,9 +2227,103 @@ button.city-count[aria-pressed="true"] {
 
 .explain dl {
   display: grid;
-  gap: 10px;
-  margin: 12px 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 10px 24px;
+  margin: 0;
   font-size: var(--text-sm);
+}
+
+.explain details p {
+  max-width: 75ch;
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  margin-bottom: -12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-tabs button {
+  position: relative;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: 1.05rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.page-tabs button:hover {
+  color: var(--ink);
+}
+
+.page-tabs button[aria-selected="true"] {
+  color: var(--ink);
+}
+
+.page-tabs button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 3px;
+  background: var(--ink);
+}
+
+.page-tabs button:focus-visible {
+  outline: 2px solid var(--sign);
+  outline-offset: -2px;
+}
+
+.tab-panel {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.tab-question {
+  margin: 0;
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+
+.model-quality {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.model-quality-title {
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.model-quality p {
+  max-width: 90ch;
+  margin: 0;
+}
+
+.model-quality .stat-row {
+  margin-top: 12px;
 }
 
 .explain dt {
@@ -2560,10 +2656,6 @@ dialog::backdrop {
 
   .risk-row .meter {
     display: none;
-  }
-
-  .horizon-bar {
-    margin-top: -8px;
   }
 
   .horizon-hint {

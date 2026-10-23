@@ -6,8 +6,14 @@ import {
   type EquipmentType,
   type Shift,
 } from "../../shared/catalog.ts";
-import { distanceKm } from "../../shared/geo.ts";
-import type { AgentInput, AttributeValue, CityDataset, Street } from "../../shared/types.ts";
+import { closestArea, distanceKm, pointInPolygon } from "../../shared/geo.ts";
+import type {
+  AgentInput,
+  AttributeValue,
+  CityDataset,
+  Neighborhood,
+  Street,
+} from "../../shared/types.ts";
 import type { Random } from "../random.ts";
 import { BRANDS, FIRST_NAMES, LAST_NAMES, SERIAL_PREFIX } from "./texts.ts";
 
@@ -57,6 +63,17 @@ export type EquipmentSeed = {
 
 function jitter(random: Random, value: number, meters: number): number {
   return value + random.normal(0, meters / 111_000);
+}
+
+function pointInside(random: Random, neighborhood: Neighborhood): { lat: number; lng: number } {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const lat = jitter(random, neighborhood.lat, 150);
+    const lng = jitter(random, neighborhood.lng, 150);
+    if (pointInPolygon([lng, lat], neighborhood.polygon)) {
+      return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+    }
+  }
+  return { lat: neighborhood.lat, lng: neighborhood.lng };
 }
 
 export function createInventory(city: CityDataset, random: Random): EquipmentSeed[] {
@@ -165,7 +182,7 @@ export function createInventory(city: CityDataset, random: Random): EquipmentSee
         cep: street.cep,
         street: street.name,
         reference: referenceFor(street, lat, lng),
-        neighborhoodId: street.neighborhoodId,
+        neighborhoodId: closestArea(city.neighborhoods, [lng, lat]).id,
         lat: Number(lat.toFixed(6)),
         lng: Number(lng.toFixed(6)),
         attributes,
@@ -325,8 +342,7 @@ export function createAgents(
         status: "off_duty",
         baseName,
         baseNeighborhoodId: base.id,
-        lat: Number(jitter(random, base.lat, 150).toFixed(6)),
-        lng: Number(jitter(random, base.lng, 150).toFixed(6)),
+        ...pointInside(random, base),
         vehicleId: vehicle?.id ?? null,
       });
     }

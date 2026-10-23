@@ -79,3 +79,30 @@ export function moveTowards(from: LngLat, to: LngLat, stepKm: number): LngLat {
 export function roundPolygon(polygon: LngLat[]): LngLat[] {
   return polygon.map(([lng, lat]) => [Number(lng.toFixed(5)), Number(lat.toFixed(5))]);
 }
+
+export function containingArea<T extends { lat: number; lng: number; polygon: LngLat[] }>(
+  areas: readonly T[],
+  point: LngLat,
+): T | null {
+  return areas.find((item) => pointInPolygon(point, item.polygon)) ?? null;
+}
+
+export function closestArea<T extends { lat: number; lng: number; polygon: LngLat[] }>(
+  areas: readonly T[],
+  point: LngLat,
+): T {
+  const containing = containingArea(areas, point);
+  if (containing) {
+    return containing;
+  }
+  let best = areas[0]!;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const area of areas) {
+    const distance = distanceKm(point, [area.lng, area.lat]);
+    if (distance < bestDistance) {
+      best = area;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}

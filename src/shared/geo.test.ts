@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { convexHull, distanceKm, moveTowards, pointInPolygon, type LngLat } from "./geo.ts";
+import {
+  closestArea,
+  containingArea,
+  convexHull,
+  distanceKm,
+  moveTowards,
+  pointInPolygon,
+  type LngLat,
+} from "./geo.ts";
 
 const square: LngLat[] = [
   [0, 0],
@@ -46,5 +54,32 @@ describe("moveTowards", () => {
   it("advances by the requested distance", () => {
     const next = moveTowards([0, 0], [0, 1], 11.119);
     expect(distanceKm([0, 0], next)).toBeCloseTo(11.119, 2);
+  });
+});
+
+describe("containingArea and closestArea", () => {
+  const areas = [
+    { id: "a", lat: 0.5, lng: 0.5, polygon: square },
+    {
+      id: "b",
+      lat: 0.5,
+      lng: 2.5,
+      polygon: [
+        [2, 0],
+        [3, 0],
+        [3, 1],
+        [2, 1],
+      ] as LngLat[],
+    },
+  ];
+
+  it("finds the polygon that holds the point", () => {
+    expect(containingArea(areas, [2.2, 0.4])?.id).toBe("b");
+    expect(closestArea(areas, [0.9, 0.9]).id).toBe("a");
+  });
+
+  it("returns nothing inside, and the closest center outside every polygon", () => {
+    expect(containingArea(areas, [1.5, 0.5])).toBeNull();
+    expect(closestArea(areas, [1.9, 0.5]).id).toBe("b");
   });
 });

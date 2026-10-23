@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EQUIPMENT_TYPES } from "../../shared/catalog.ts";
+import { pointInPolygon, type LngLat } from "../../shared/geo.ts";
 import { addDays } from "../../shared/time.ts";
 import { city } from "../city.ts";
 import { getSetting, openDatabase } from "../db.ts";
@@ -36,6 +37,22 @@ describe("seedDatabase", () => {
       ),
     ).toEqual([]);
     expect(getSetting(db, "seeded_at")).toBe(String(NOW));
+  });
+
+  it("puts every equipment and agent base inside its own neighborhood polygon", () => {
+    const { db } = seeded(3);
+    const byId = new Map(city.neighborhoods.map((item) => [item.id, item]));
+    const misplacedEquipment = listEquipment(db).filter((item) => {
+      const point: LngLat = [item.lng, item.lat];
+      const inOwn = pointInPolygon(point, byId.get(item.neighborhoodId)!.polygon);
+      return !inOwn && city.neighborhoods.some((other) => pointInPolygon(point, other.polygon));
+    });
+    expect(misplacedEquipment.map((item) => item.serialNumber)).toEqual([]);
+    const misplacedAgents = listAgents(db).filter(
+      (agent) =>
+        !pointInPolygon([agent.lng, agent.lat], byId.get(agent.baseNeighborhoodId)!.polygon),
+    );
+    expect(misplacedAgents.map((agent) => agent.name)).toEqual([]);
   });
 
   it("links vehicles to at most one agent of the right agency", () => {

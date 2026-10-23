@@ -36,6 +36,7 @@ import {
 import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import { useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
+import { containingArea } from "../../shared/geo.ts";
 import { Link, navigate } from "../router.tsx";
 import { showToast } from "../toast.tsx";
 
@@ -478,11 +479,15 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                 ...current,
                 lat: value.lat.toFixed(6),
                 lng: value.lng.toFixed(6),
+                neighborhoodId:
+                  containingArea(meta.neighborhoods, [value.lng, value.lat])?.id ??
+                  current.neighborhoodId,
               }))
             }
           />
           <p className="hint">
-            Clique no mapa ou arraste o marcador amarelo para ajustar as coordenadas GPS.
+            O bairro acompanha o ponto escolhido. Clique no mapa ou arraste o marcador amarelo para
+            ajustar as coordenadas GPS.
           </p>
         </fieldset>
 

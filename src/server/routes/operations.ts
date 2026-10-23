@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { HOUR } from "../../shared/time.ts";
+import { loadActivity } from "../activity.ts";
 import type { AppDeps } from "../app.ts";
 import type { LiveMessage } from "../live.ts";
 import {
@@ -60,6 +61,14 @@ export function operationsRoutes(deps: AppDeps): Hono {
       unsubscribe();
     }),
   );
+
+  routes.get("/activity", (c) => {
+    const current = now();
+    const requested = Number(c.req.query("since"));
+    const earliest = current - 24 * HOUR;
+    const since = Number.isFinite(requested) && requested > earliest ? requested : earliest;
+    return c.json(loadActivity(db, since));
+  });
 
   routes.get("/occurrences", (c) => {
     if (c.req.query("scope") === "recent") {

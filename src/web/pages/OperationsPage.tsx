@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Alert } from "../../shared/types.ts";
+import { ActivityPanel } from "../components/ActivityPanel.tsx";
 import { AlertFeed } from "../components/AlertFeed.tsx";
 import { DetailDrawer } from "../components/DetailDrawer.tsx";
 import { CityStatus } from "../components/CityStatus.tsx";
@@ -34,7 +35,7 @@ export function OperationsPage() {
     occurrences: true,
     heat: false,
   });
-  const [tab, setTab] = useState<"alerts" | "regions">("alerts");
+  const [tab, setTab] = useState<"alerts" | "regions" | "activity">("alerts");
   const [selected, setSelected] = useState<Selection | null>(null);
   const [focus, setFocus] = useState<{ lng: number; lat: number; key: number } | null>(null);
   const heat = useFetch<[number, number][]>(layers.heat ? "/occurrences/heat?days=30" : null);
@@ -108,6 +109,7 @@ export function OperationsPage() {
   const tabs = [
     { key: "alerts", label: "Alertas", count: pendingAlerts },
     { key: "regions", label: "Regiões", count: flaggedRegions },
+    { key: "activity", label: "Atividade", count: null },
   ] as const;
 
   return (
@@ -194,7 +196,7 @@ export function OperationsPage() {
             label: (
               <>
                 {item.label}
-                <span className="ops-tab-count">{item.count}</span>
+                {item.count !== null && <span className="ops-tab-count">{item.count}</span>}
               </>
             ),
           }))}
@@ -216,6 +218,11 @@ export function OperationsPage() {
               now={now}
               generatedAt={snapshot.generatedAt}
               onLocate={locate}
+            />
+          ) : tab === "activity" ? (
+            <ActivityPanel
+              now={now}
+              onOpen={(target) => setSelected({ kind: target.kind, id: target.id })}
             />
           ) : (
             <RegionHealthList

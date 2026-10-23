@@ -249,6 +249,19 @@ describe("operations API", () => {
   });
 });
 
+describe("activity API", () => {
+  it("never reaches back more than 24 hours", async () => {
+    const { status, body } = await call<{ since: string }>("GET", "/activity?since=0");
+    expect(status).toBe(200);
+    expect(Date.parse(body.since)).toBe(NOW - 24 * 3_600_000);
+  });
+
+  it("ignores a malformed cutoff", async () => {
+    const { body } = await call<{ since: string }>("GET", "/activity?since=ontem");
+    expect(Date.parse(body.since)).toBe(NOW - 24 * 3_600_000);
+  });
+});
+
 describe("predictions API", () => {
   it("serves every prediction and falls back to a default horizon", async () => {
     const risk = await call<{ horizonHours: number; neighborhoods: unknown[] }>(

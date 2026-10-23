@@ -2984,3 +2984,39 @@ dialog::backdrop {
   color: var(--ink-2);
   white-space: nowrap;
 }
+
+.activity {
+  padding: 4px 0 12px;
+}
+
+.activity-since {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.activity-since p {
+  margin: 0;
+}
+
+.activity-list li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-open {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.activity-open:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

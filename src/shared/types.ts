@@ -351,3 +351,21 @@ export type BacktestResult = {
   baselineTopHitRate: number;
   evaluatedCells: number;
 };
+
+export type ActivityKind =
+  | "occurrence_opened"
+  | "occurrence_resolved"
+  | "equipment_down"
+  | "equipment_restored";
+
+export type ActivityItem = {
+  id: string;
+  at: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  neighborhoodId: string;
+  target: { kind: "equipment" | "occurrence"; id: number };
+};
+
+export type ActivityFeed = { since: string; items: ActivityItem[] };

@@ -39,7 +39,7 @@ O mapa de ruas vem do OpenFreeMap e precisa de internet. Sem conexão, o sistema
 1. Abra a Central. No painel da direita, leia a situação de Marília (normal, atenção ou crítico) e o motivo, os três números de ação e os indicadores gerais: total de equipamentos, operacionais, indisponíveis, disponibilidade e agentes em atividade.
 2. Clique em "equipamentos parados": o mapa passa a mostrar só eles. Clique de novo para voltar. Abra "Camadas e legenda" para ver o que cada forma, cor e padrão quer dizer.
 3. Clique num marcador de equipamento, num agente e numa ocorrência para abrir os detalhes, com histórico e telemetria das últimas 48 horas.
-4. Na aba Alertas, localize um alerta no mapa pelo título e reconheça outro. Na aba Regiões, veja quais regiões e bairros pedem atenção.
+4. Na aba Alertas, localize um alerta no mapa pelo título e reconheça outro. Na aba Regiões, veja quais regiões e bairros pedem atenção. A aba Atividade resume o que mudou desde a sua última visita e lista as últimas 24 horas. Clique num bairro no mapa para ver os equipamentos parados e os agentes livres mais próximos, com o tempo estimado de chegada.
 5. Em Equipamentos, clique num tipo de "Parados por tipo", filtre por situação e abra a ficha de um item. Cadastre um equipamento novo: o botão "Buscar CEP" preenche o endereço e o clique no mapa ajusta o ponto e o bairro.
 6. Em Cidade preditiva, troque o horizonte em "Próximas horas", clique num bairro marcado como acima do normal e leia o número esperado, a faixa e o motivo. Passe pelas abas Fora do padrão, Equipamentos e Tendências.
 

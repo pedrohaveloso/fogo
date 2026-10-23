@@ -8,13 +8,20 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
+  AGENT_ROLE_KEYS,
   AGENT_STATUSES,
   EQUIPMENT_STATUSES,
   EQUIPMENT_TYPE_KEYS,
   STATUS_COLORS,
 } from "../../shared/catalog.ts";
 import { AGENT_STATUS_COLORS } from "../colors.ts";
-import { AGENT_GLYPH, STATUS_SHAPES, TYPE_GLYPHS, shapePath, type MarkerShape } from "../icons.tsx";
+import {
+  AGENT_ROLE_GLYPHS,
+  STATUS_SHAPES,
+  TYPE_GLYPHS,
+  shapePath,
+  type MarkerShape,
+} from "../icons.tsx";
 import { tintBasemap } from "./basemap.ts";
 
 setWorkerUrl(workerUrl);
@@ -119,8 +126,8 @@ export function equipmentImageId(type: string, status: string): string {
   return `equipment-${type}-${status}`;
 }
 
-export function agentImageId(status: string): string {
-  return `agent-${status}`;
+export function agentImageId(role: string, status: string): string {
+  return `agent-${role}-${status}`;
 }
 
 function registerImages(map: MapLibreMap): void {
@@ -143,14 +150,14 @@ function registerImages(map: MapLibreMap): void {
       );
     }
   }
-  for (const status of AGENT_STATUSES) {
-    map.addImage(
-      agentImageId(status),
-      drawMarker("shield", AGENT_STATUS_COLORS[status], AGENT_GLYPH, "#ffffff"),
-      {
-        pixelRatio: PIXEL_RATIO,
-      },
-    );
+  for (const role of AGENT_ROLE_KEYS) {
+    for (const status of AGENT_STATUSES) {
+      map.addImage(
+        agentImageId(role, status),
+        drawMarker("shield", AGENT_STATUS_COLORS[status], AGENT_ROLE_GLYPHS[role], "#ffffff"),
+        { pixelRatio: PIXEL_RATIO },
+      );
+    }
   }
 }
 

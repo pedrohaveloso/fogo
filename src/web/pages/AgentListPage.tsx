@@ -9,7 +9,7 @@ import {
   type AgentRole,
   type AgentStatus,
 } from "../../shared/catalog.ts";
-import { AgentGlyph, AgentShield, AgentStatusBadge } from "../components/badges.tsx";
+import { AgentRoleLabel, AgentShield, AgentStatusBadge } from "../components/badges.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
 import { useLive, useMeta } from "../live.ts";
 import { Link, navigate } from "../router.tsx";
@@ -188,13 +188,12 @@ export function AgentListPage() {
                       className="row-button"
                       onClick={() => navigate(`/agentes/${agent.id}`)}
                     >
-                      <AgentGlyph />
                       {agent.name}
                     </button>
                     <span className="cell-sub">Matrícula {agent.badge}</span>
                   </td>
                   <td>
-                    {AGENT_ROLES[agent.role].label}
+                    <AgentRoleLabel role={agent.role} />
                     {agent.rank && <span className="cell-sub">{agent.rank}</span>}
                   </td>
                   <td>

@@ -1,6 +1,10 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
+  AGENT_ROLE_KEYS,
+  AGENT_ROLES,
   EQUIPMENT_STATUSES,
+  EQUIPMENT_TYPE_KEYS,
+  EQUIPMENT_TYPES,
   SEVERITY_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
@@ -8,7 +12,7 @@ import {
 } from "../../shared/catalog.ts";
 import { SEVERITY_COLORS } from "../colors.ts";
 import { AgentShield, HealthSwatch } from "../components/badges.tsx";
-import { StatusShape } from "../icons.tsx";
+import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import type { MapLayers } from "./OperationsMap.tsx";
 
 const SEVERITIES: Severity[] = [1, 2, 3, 4];
@@ -78,6 +82,7 @@ export function LayerPanel({
             </span>
           </LayerItem>
           <LayerItem label="Equipamentos" checked={layers.equipment} onToggle={toggle("equipment")}>
+            <span className="key-group">Situação, pela forma e pela cor</span>
             {EQUIPMENT_STATUSES.map((status) => (
               <span key={status} className="key">
                 <StatusShape status={status} color={STATUS_COLORS[status]} size={13} />
@@ -92,8 +97,23 @@ export function LayerPanel({
               <span className="cluster-badge-key">2</span>
               Parados no grupo
             </span>
+            <span className="key-group">Tipo, pelo símbolo</span>
+            {EQUIPMENT_TYPE_KEYS.map((type) => (
+              <span key={type} className="key">
+                <Glyph d={TYPE_GLYPHS[type]} size={14} />
+                {EQUIPMENT_TYPES[type].label}
+              </span>
+            ))}
           </LayerItem>
           <LayerItem label="Agentes em serviço" checked={layers.agents} onToggle={toggle("agents")}>
+            <span className="key-group">Função, pelo símbolo</span>
+            {AGENT_ROLE_KEYS.map((role) => (
+              <span key={role} className="key">
+                <AgentShield status="available" role={role} size={16} />
+                {AGENT_ROLES[role].label}
+              </span>
+            ))}
+            <span className="key-group">Situação, pela cor</span>
             <span className="key">
               <AgentShield status="available" size={13} />
               Disponível

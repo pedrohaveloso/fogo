@@ -285,7 +285,7 @@ export function OperationsMap(props: Props) {
       type: "symbol",
       source: "agents",
       layout: {
-        "icon-image": ["concat", "agent-", ["get", "status"]],
+        "icon-image": ["concat", "agent-", ["get", "role"], "-", ["get", "status"]],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -366,7 +366,9 @@ export function OperationsMap(props: Props) {
       features: props.layers.agents
         ? props.agents
             .filter((agent) => agent.status !== "off_duty")
-            .map((agent) => point(agent.lng, agent.lat, { id: agent.id, status: agent.status }))
+            .map((agent) =>
+              point(agent.lng, agent.lat, { id: agent.id, role: agent.role, status: agent.status }),
+            )
         : [],
     });
   }, [handle, props.agents, props.layers.agents]);

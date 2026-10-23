@@ -1309,11 +1309,27 @@ tbody tr:last-child td {
   color: var(--ink-2);
 }
 
+.key-group {
+  flex-basis: 100%;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.key-group:first-child {
+  margin-top: 0;
+}
+
 .key {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  white-space: nowrap;
+  min-width: 0;
+}
+
+.key > svg,
+.key > span:first-child {
+  flex-shrink: 0;
 }
 
 .key-dot {

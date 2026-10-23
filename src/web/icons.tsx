@@ -1,4 +1,4 @@
-import type { EquipmentStatus, EquipmentType } from "../shared/catalog.ts";
+import type { AgentRole, EquipmentStatus, EquipmentType } from "../shared/catalog.ts";
 
 const CAR = "M3 17v-3.5l2-5h14l2 5V17z M6.5 17v2.5 M17.5 17v2.5 M3 13.5h18";
 
@@ -22,6 +22,12 @@ export const TYPE_GLYPHS: Record<EquipmentType, string> = {
 };
 
 export const AGENT_GLYPH = "M9 7.5a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M6 19.5a6 6 0 0 1 12 0";
+
+export const AGENT_ROLE_GLYPHS: Record<AgentRole, string> = {
+  traffic_agent: "M9.5 3.5h5l4 16h-13z M7.6 11.5h8.8 M3.5 19.5h17",
+  municipal_guard: "M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z",
+  military_police: "M4 13.5c0-4.5 3.6-7.5 8-7.5s8 3 8 7.5z M3 13.5h18 M7 13.5l-1 5h12l-1-5",
+};
 
 export const MAP_GLYPH = "M9 4.5L3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2z M9 4.5v13 M15 6.5v13";
 

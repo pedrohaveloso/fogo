@@ -1,10 +1,12 @@
 import type { CSSProperties } from "react";
 import {
+  AGENT_ROLES,
   AGENT_STATUS_LABELS,
   EQUIPMENT_TYPES,
   SEVERITY_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
+  type AgentRole,
   type AgentStatus,
   type EquipmentStatus,
   type EquipmentType,
@@ -20,7 +22,7 @@ import {
   RISK_LABELS,
   SEVERITY_COLORS,
 } from "../colors.ts";
-import { AGENT_GLYPH, Glyph, StatusShape, TYPE_GLYPHS, shapePath } from "../icons.tsx";
+import { AGENT_ROLE_GLYPHS, Glyph, StatusShape, TYPE_GLYPHS, shapePath } from "../icons.tsx";
 
 export function StatusBadge({ status }: { status: EquipmentStatus }) {
   return (
@@ -31,10 +33,31 @@ export function StatusBadge({ status }: { status: EquipmentStatus }) {
   );
 }
 
-export function AgentShield({ status, size = 14 }: { status: AgentStatus; size?: number }) {
+export function AgentShield({
+  status,
+  role,
+  size = 14,
+}: {
+  status: AgentStatus;
+  role?: AgentRole;
+  size?: number;
+}) {
+  const glyphSize = size * 0.6;
+  const offset = (size - glyphSize) / 2;
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
       <path d={shapePath("shield", size)} fill={AGENT_STATUS_COLORS[status]} />
+      {role && (
+        <path
+          d={AGENT_ROLE_GLYPHS[role]}
+          transform={`translate(${offset} ${offset}) scale(${glyphSize / 24})`}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   );
 }
@@ -124,6 +147,11 @@ export function TypeLabel({ type }: { type: EquipmentType }) {
   );
 }
 
-export function AgentGlyph() {
-  return <Glyph d={AGENT_GLYPH} size={18} />;
+export function AgentRoleLabel({ role }: { role: AgentRole }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <Glyph d={AGENT_ROLE_GLYPHS[role]} size={18} />
+      {AGENT_ROLES[role].label}
+    </span>
+  );
 }

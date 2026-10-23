@@ -13,6 +13,7 @@ import {
   maintenanceDaysLeft,
   maintenanceState,
 } from "../shared/maintenance.ts";
+import { SILENT_LONG_MINUTES, silentMinutes } from "../shared/telemetry.ts";
 import { MINUTE } from "../shared/time.ts";
 import { plural } from "../shared/text.ts";
 import type {
@@ -32,8 +33,6 @@ import type {
 } from "../shared/types.ts";
 import { nearestNeighborhood } from "./city.ts";
 
-export const HEARTBEAT_WARNING_MINUTES = 3;
-export const HEARTBEAT_CRITICAL_MINUTES = 15;
 export const STALE_CRITICAL_MS = 24 * 60 * MINUTE;
 
 const SAFETY_CRITICAL: ReadonlySet<EquipmentType> = new Set(["smart_traffic_light"]);
@@ -48,10 +47,6 @@ export type OperationsInput = {
   acknowledged: ReadonlySet<string>;
   now: number;
 };
-
-function minutesSince(iso: string | null, now: number): number {
-  return iso === null ? Number.POSITIVE_INFINITY : (now - Date.parse(iso)) / MINUTE;
-}
 
 export function equipmentLabel(item: Equipment): string {
   return `${EQUIPMENT_TYPES[item.type].label} ${item.serialNumber}`;
@@ -77,6 +72,7 @@ export function computeKpis(input: OperationsInput, alerts: Alert[]): Kpis {
       .length,
     maintenanceUrgent: states.filter((state) => state === "urgent").length,
     maintenanceSoon: states.filter((state) => state === "soon").length,
+    silent: equipment.filter((item) => silentMinutes(item, now) !== null).length,
   };
 }
 
@@ -310,22 +306,20 @@ export function computeAlerts(
       }
     }
 
-    if (item.status === "operational" && item.installedAt !== null) {
-      const silentMinutes = minutesSince(item.lastSeenAt, now);
-      if (silentMinutes >= HEARTBEAT_WARNING_MINUTES) {
-        add({
-          id: `telemetry-silent-${item.id}`,
-          level: silentMinutes >= HEARTBEAT_CRITICAL_MINUTES ? "warning" : "info",
-          category: "telemetry",
-          title: Number.isFinite(silentMinutes)
-            ? `Sem comunicação há ${Math.floor(silentMinutes)} min`
-            : "Sem comunicação registrada",
-          detail: `${equipmentLabel(item)} consta como operacional, mas parou de enviar telemetria`,
-          target,
-          ...position,
-          since: item.lastSeenAt ?? item.updatedAt,
-        });
-      }
+    const quiet = silentMinutes(item, now);
+    if (quiet !== null) {
+      add({
+        id: `telemetry-silent-${item.id}`,
+        level: quiet >= SILENT_LONG_MINUTES ? "warning" : "info",
+        category: "telemetry",
+        title: Number.isFinite(quiet)
+          ? `Sem comunicação há ${Math.floor(quiet)} min`
+          : "Sem comunicação registrada",
+        detail: `${equipmentLabel(item)} consta como operacional, mas parou de enviar telemetria`,
+        target,
+        ...position,
+        since: item.lastSeenAt ?? item.updatedAt,
+      });
     }
   }
 

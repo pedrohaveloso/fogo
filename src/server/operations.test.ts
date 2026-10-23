@@ -129,6 +129,7 @@ describe("computeSummary", () => {
     expect(byId.get("maintenance-overdue-2")?.title).toBe("Manutenção vencida há 13 dias");
     expect(byId.get("maintenance-soon-3")?.level).toBe("info");
     expect(summary.kpis.maintenanceUrgent).toBe(1);
+    expect(summary.kpis.silent).toBe(1);
     expect(summary.kpis.maintenanceSoon).toBe(1);
   });
 

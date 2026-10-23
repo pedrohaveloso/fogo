@@ -20,6 +20,7 @@ import {
   AGENT_ROLE_GLYPHS,
   STATUS_SHAPES,
   TYPE_GLYPHS,
+  SIGNAL_OFF_GLYPH,
   WRENCH_GLYPH,
   shapePath,
   type MarkerShape,
@@ -137,7 +138,9 @@ export const MAINTENANCE_BADGE_COLOR = "#fab219";
 export const NEIGHBORHOOD_ATTRIBUTION =
   'Bairros com limites aproximados a partir do <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
 
-function drawMaintenanceBadge(urgent: boolean): ImageData {
+export const SILENT_BADGE_COLOR = "#c1c7ce";
+
+function drawBadge(fill: string, ring: string, ink: string, glyph: string): ImageData {
   const badge = 15;
   const size = badge * PIXEL_RATIO;
   const canvas = document.createElement("canvas");
@@ -147,24 +150,39 @@ function drawMaintenanceBadge(urgent: boolean): ImageData {
   context.scale(PIXEL_RATIO, PIXEL_RATIO);
   context.beginPath();
   context.arc(badge / 2, badge / 2, badge / 2 - 1.5, 0, Math.PI * 2);
-  context.fillStyle = urgent ? MAINTENANCE_BADGE_COLOR : "#1f2328";
+  context.fillStyle = fill;
   context.fill();
   context.lineWidth = 1.5;
-  context.strokeStyle = urgent ? RING : MAINTENANCE_BADGE_COLOR;
+  context.strokeStyle = ring;
   context.stroke();
-  const glyph = 9;
-  context.translate((badge - glyph) / 2, (badge - glyph) / 2);
-  context.scale(glyph / 24, glyph / 24);
-  context.strokeStyle = urgent ? "#1b1f24" : MAINTENANCE_BADGE_COLOR;
+  const glyphSize = 9;
+  context.translate((badge - glyphSize) / 2, (badge - glyphSize) / 2);
+  context.scale(glyphSize / 24, glyphSize / 24);
+  context.strokeStyle = ink;
   context.lineWidth = 3.2;
+  context.lineCap = "round";
   context.lineJoin = "round";
-  context.stroke(new Path2D(WRENCH_GLYPH));
+  context.stroke(new Path2D(glyph));
   return context.getImageData(0, 0, size, size);
 }
 
 function registerImages(map: MapLibreMap): void {
-  map.addImage("maintenance-urgent", drawMaintenanceBadge(true), { pixelRatio: PIXEL_RATIO });
-  map.addImage("maintenance-soon", drawMaintenanceBadge(false), { pixelRatio: PIXEL_RATIO });
+  const ratio = { pixelRatio: PIXEL_RATIO };
+  map.addImage(
+    "maintenance-urgent",
+    drawBadge(MAINTENANCE_BADGE_COLOR, RING, "#1b1f24", WRENCH_GLYPH),
+    ratio,
+  );
+  map.addImage(
+    "maintenance-soon",
+    drawBadge("#1f2328", MAINTENANCE_BADGE_COLOR, MAINTENANCE_BADGE_COLOR, WRENCH_GLYPH),
+    ratio,
+  );
+  map.addImage(
+    "signal-off",
+    drawBadge("#1f2328", SILENT_BADGE_COLOR, SILENT_BADGE_COLOR, SIGNAL_OFF_GLYPH),
+    ratio,
+  );
   map.addImage(CRITICAL_HATCH, drawHatch("rgba(208, 59, 59, 0.9)"), { pixelRatio: PIXEL_RATIO });
   for (const type of EQUIPMENT_TYPE_KEYS) {
     for (const status of EQUIPMENT_STATUSES) {

@@ -54,6 +54,7 @@ const KPIS: Kpis = {
   criticalAlerts: 3,
   maintenanceUrgent: 5,
   maintenanceSoon: 13,
+  silent: 0,
 };
 
 describe("generalIndicators", () => {
@@ -83,5 +84,11 @@ describe("generalIndicators", () => {
       "100% de disponibilidade",
       "1 agente em atividade",
     ]);
+  });
+
+  it("adds units without communication only when there are any", () => {
+    const items = generalIndicators({ ...KPIS, silent: 3 });
+    expect(items.at(-1)).toEqual({ key: "silent", value: "3", label: "sem comunicação" });
+    expect(generalIndicators(KPIS).some((item) => item.key === "silent")).toBe(false);
   });
 });

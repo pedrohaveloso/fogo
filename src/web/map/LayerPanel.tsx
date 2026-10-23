@@ -12,29 +12,33 @@ import {
 } from "../../shared/catalog.ts";
 import { SEVERITY_COLORS } from "../colors.ts";
 import { AgentShield, HealthSwatch } from "../components/badges.tsx";
-import { Glyph, StatusShape, TYPE_GLYPHS, WRENCH_GLYPH } from "../icons.tsx";
-import { MAINTENANCE_BADGE_COLOR } from "./base.ts";
+import { Glyph, SIGNAL_OFF_GLYPH, StatusShape, TYPE_GLYPHS, WRENCH_GLYPH } from "../icons.tsx";
+import { MAINTENANCE_BADGE_COLOR, SILENT_BADGE_COLOR } from "./base.ts";
 import type { MapLayers } from "./OperationsMap.tsx";
 
 const SEVERITIES: Severity[] = [1, 2, 3, 4];
 
-function MaintenanceKey({ urgent }: { urgent: boolean }) {
+function BadgeKey({
+  fill,
+  ring,
+  ink,
+  glyph,
+}: {
+  fill: string;
+  ring: string;
+  ink: string;
+  glyph: string;
+}) {
   return (
     <svg viewBox="0 0 15 15" width={15} height={15} aria-hidden="true" focusable="false">
-      <circle
-        cx={7.5}
-        cy={7.5}
-        r={6}
-        fill={urgent ? MAINTENANCE_BADGE_COLOR : "#1f2328"}
-        stroke={urgent ? "#111417" : MAINTENANCE_BADGE_COLOR}
-        strokeWidth={1.5}
-      />
+      <circle cx={7.5} cy={7.5} r={6} fill={fill} stroke={ring} strokeWidth={1.5} />
       <path
-        d={WRENCH_GLYPH}
+        d={glyph}
         transform="translate(3 3) scale(0.375)"
         fill="none"
-        stroke={urgent ? "#1b1f24" : MAINTENANCE_BADGE_COLOR}
+        stroke={ink}
         strokeWidth={3.2}
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
@@ -122,12 +126,31 @@ export function LayerPanel({
               Parados no grupo
             </span>
             <span className="key">
-              <MaintenanceKey urgent />
+              <BadgeKey
+                fill={MAINTENANCE_BADGE_COLOR}
+                ring="#111417"
+                ink="#1b1f24"
+                glyph={WRENCH_GLYPH}
+              />
               Manutenção urgente (imediata ou vencida)
             </span>
             <span className="key">
-              <MaintenanceKey urgent={false} />
+              <BadgeKey
+                fill="#1f2328"
+                ring={MAINTENANCE_BADGE_COLOR}
+                ink={MAINTENANCE_BADGE_COLOR}
+                glyph={WRENCH_GLYPH}
+              />
               Manutenção nos próximos 7 dias
+            </span>
+            <span className="key">
+              <BadgeKey
+                fill="#1f2328"
+                ring={SILENT_BADGE_COLOR}
+                ink={SILENT_BADGE_COLOR}
+                glyph={SIGNAL_OFF_GLYPH}
+              />
+              Sem comunicação há mais de 3 min
             </span>
             <span className="key-group">Tipo, pelo símbolo</span>
             {EQUIPMENT_TYPE_KEYS.map((type) => (

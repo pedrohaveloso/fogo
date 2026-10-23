@@ -5,6 +5,7 @@ import {
   maintenanceDaysLeft,
   maintenanceState,
 } from "../../shared/maintenance.ts";
+import { silentMinutes } from "../../shared/telemetry.ts";
 import type { Equipment } from "../../shared/types.ts";
 import { StatusBadge } from "../components/badges.tsx";
 import { EquipmentFilterBar } from "../components/EquipmentFilterBar.tsx";
@@ -220,7 +221,12 @@ export function EquipmentListPage() {
                           <span className="cell-alert">manutenção imediata</span>
                         )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>{formatRelative(item.lastSeenAt, now)}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {formatRelative(item.lastSeenAt, now)}
+                      {silentMinutes(item, now) !== null && (
+                        <span className="cell-warning">sem comunicação</span>
+                      )}
+                    </td>
                     <td style={{ whiteSpace: "nowrap" }}>{AGENCY_SHORT_LABELS[item.agency]}</td>
                   </tr>
                 );

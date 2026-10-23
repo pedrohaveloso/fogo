@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { silentMinutes } from "../../shared/telemetry.ts";
 import { InlineLoading } from "./LoadingNotice.tsx";
 import {
   AGENCY_LABELS,
@@ -143,7 +144,14 @@ function EquipmentPanel({
         <dt>Instalação</dt>
         <dd>{formatDate(item.installedAt)}</dd>
         <dt>Última comunicação</dt>
-        <dd>{formatRelative(item.lastSeenAt, now)}</dd>
+        <dd>
+          {formatRelative(item.lastSeenAt, now)}
+          {silentMinutes(item, now) !== null && (
+            <span className="cell-warning">
+              Sem comunicação: o equipamento consta como operacional, mas parou de enviar dados
+            </span>
+          )}
+        </dd>
         {item.battery !== null && (
           <>
             <dt>Bateria</dt>

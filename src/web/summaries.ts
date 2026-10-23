@@ -49,5 +49,8 @@ export function generalIndicators(kpis: Kpis): Indicator[] {
       label: "de disponibilidade",
     },
     counted("agents", kpis.agentsActive, "agente em atividade", "agentes em atividade"),
+    ...(kpis.silent > 0
+      ? [counted("silent", kpis.silent, "sem comunicação", "sem comunicação")]
+      : []),
   ];
 }

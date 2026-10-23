@@ -129,6 +129,7 @@ export type Kpis = {
   openOccurrences: number;
   criticalAlerts: number;
   maintenanceUrgent: number;
+  silent: number;
   maintenanceSoon: number;
 };
 

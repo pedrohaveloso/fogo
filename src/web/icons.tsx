@@ -29,6 +29,9 @@ export const AGENT_ROLE_GLYPHS: Record<AgentRole, string> = {
   military_police: "M4 13.5c0-4.5 3.6-7.5 8-7.5s8 3 8 7.5z M3 13.5h18 M7 13.5l-1 5h12l-1-5",
 };
 
+export const SIGNAL_OFF_GLYPH =
+  "M4.5 11a11 11 0 0 1 15 0 M8 14.5a6 6 0 0 1 8 0 M12 18.5v0.5 M4 4l16 16";
+
 export const WRENCH_GLYPH =
   "M14.7 6.3a4 4 0 0 0 -5.4 5.4L4 17l3 3 5.3 -5.3a4 4 0 0 0 5.4 -5.4l-2.4 2.4 -2.6 -0.4 -0.4 -2.6z";
 

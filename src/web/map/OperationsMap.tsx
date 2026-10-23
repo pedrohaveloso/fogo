@@ -8,6 +8,7 @@ import {
 import { useEffect, useEffectEvent, useRef } from "react";
 import { OCCURRENCE_KINDS, SEVERITY_LABELS } from "../../shared/catalog.ts";
 import { maintenanceState } from "../../shared/maintenance.ts";
+import { silentMinutes } from "../../shared/telemetry.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
 import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
 import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, cameraMotion, useMap } from "./base.ts";
@@ -345,6 +346,18 @@ export function OperationsMap(props: Props) {
       },
     });
     map.addLayer({
+      id: "equipment-silent",
+      type: "symbol",
+      source: "equipment",
+      filter: ["all", ["!", ["has", "point_count"]], ["has", "silent"]],
+      layout: {
+        "icon-image": "signal-off",
+        "icon-offset": [-11, -11],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      },
+    });
+    map.addLayer({
       id: "equipment-maintenance",
       type: "symbol",
       source: "equipment",
@@ -435,6 +448,7 @@ export function OperationsMap(props: Props) {
               type: item.type,
               status: item.status,
               ...(maintenance && { maintenance }),
+              ...(silentMinutes(item, props.now) !== null && { silent: true }),
             });
           })
         : [],

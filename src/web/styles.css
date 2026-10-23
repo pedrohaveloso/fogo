@@ -1113,6 +1113,7 @@ button.city-count[aria-pressed="true"] {
 .ops-map {
   position: relative;
   min-height: 0;
+  scroll-margin-top: var(--header-h);
   background: var(--map-ground);
 }
 

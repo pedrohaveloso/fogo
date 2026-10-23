@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Alert } from "../../shared/types.ts";
 import { AlertFeed } from "../components/AlertFeed.tsx";
 import { DetailDrawer } from "../components/DetailDrawer.tsx";
@@ -18,11 +18,14 @@ import { OperationsMap, type MapLayers, type Selection } from "../map/Operations
 import { useFetch } from "../useFetch.ts";
 import { useNow } from "../useNow.ts";
 
+const STACKED_LAYOUT = "(max-width: 1024px)";
+
 export function OperationsPage() {
   const meta = useMeta();
   const { snapshot } = useLive();
   const now = useNow(10_000);
   const [filters, setFilters] = useState<EquipmentFilters>(EMPTY_FILTERS);
+  const mapBox = useRef<HTMLDivElement>(null);
   const [layers, setLayers] = useState<MapLayers>({
     health: true,
     equipment: true,
@@ -108,7 +111,7 @@ export function OperationsPage() {
   return (
     <main className="ops">
       <h1 className="visually-hidden">Central de operações</h1>
-      <div className="ops-map">
+      <div className="ops-map" ref={mapBox}>
         <OperationsMap
           meta={meta}
           equipment={equipment}
@@ -158,7 +161,12 @@ export function OperationsPage() {
           kpis={snapshot.kpis}
           waiting={waiting}
           filters={filters}
-          onFiltersChange={setFilters}
+          onFiltersChange={(next) => {
+            setFilters(next);
+            if (window.matchMedia(STACKED_LAYOUT).matches) {
+              mapBox.current?.scrollIntoView({ block: "start" });
+            }
+          }}
         />
         <TabList
           items={tabs.map((item) => ({

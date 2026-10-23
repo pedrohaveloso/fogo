@@ -183,12 +183,12 @@ function RiskSection({ hours }: { hours: number }) {
                       {OCCURRENCE_KINDS[item.topKinds[0]!.kind].label}, pico às{" "}
                       {formatHour(item.peakHour)}
                     </span>
+                    {item.level !== "normal" && <RiskTag level={item.level} />}
                   </span>
                   <Meter value={item.expected} max={highest} color={riskMark(item.level)} />
                   <span className="risk-score">
                     <strong>{formatDecimal(item.expected)}</strong>
                     <span className="cell-sub">{rangeText(item.range)}</span>
-                    {item.level !== "normal" && <RiskTag level={item.level} />}
                   </span>
                 </button>
               </li>

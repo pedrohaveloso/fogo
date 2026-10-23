@@ -1184,6 +1184,7 @@ button.city-count[aria-pressed="true"] {
 }
 
 .map-overlay.filter-bar {
+  z-index: 3;
   top: 12px;
   left: 12px;
   max-width: calc(100% - 72px);
@@ -1382,6 +1383,23 @@ button.city-count[aria-pressed="true"] {
 
 .filter-options .check {
   min-height: 32px;
+}
+
+.filter-stack {
+  display: grid;
+  gap: 8px;
+  width: min(260px, calc(100vw - 80px));
+}
+
+.filter-stack .filter-fields {
+  width: auto;
+}
+
+.filter-group-title {
+  padding: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .filter-fields {
@@ -2760,6 +2778,12 @@ dialog::backdrop {
     bottom: auto;
     left: auto;
     max-height: calc(100% - 116px);
+  }
+
+  .filter-menu-body {
+    right: -4px;
+    left: auto;
+    max-width: calc(100vw - 32px);
   }
 
   .map-overlay.filter-bar .filter-search {

@@ -8,7 +8,12 @@ import {
   countsTowardAvailability,
   type EquipmentType,
 } from "../shared/catalog.ts";
-import { MINUTE, daysBetween, localDate } from "../shared/time.ts";
+import {
+  MAINTENANCE_SOON_DAYS,
+  maintenanceDaysLeft,
+  maintenanceState,
+} from "../shared/maintenance.ts";
+import { MINUTE } from "../shared/time.ts";
 import type {
   Agent,
   Alert,
@@ -28,7 +33,6 @@ import { nearestNeighborhood } from "./city.ts";
 
 export const HEARTBEAT_WARNING_MINUTES = 3;
 export const HEARTBEAT_CRITICAL_MINUTES = 15;
-export const MAINTENANCE_SOON_DAYS = 7;
 
 const SAFETY_CRITICAL: ReadonlySet<EquipmentType> = new Set([
   "smart_traffic_light",
@@ -51,17 +55,6 @@ function minutesSince(iso: string | null, now: number): number {
   return iso === null ? Number.POSITIVE_INFINITY : (now - Date.parse(iso)) / MINUTE;
 }
 
-export function maintenanceDaysLeft(item: Equipment, now: number): number | null {
-  if (
-    item.nextMaintenanceAt === null ||
-    !countsTowardAvailability(item.status) ||
-    item.status === "stolen"
-  ) {
-    return null;
-  }
-  return daysBetween(localDate(now), item.nextMaintenanceAt);
-}
-
 export function equipmentLabel(item: Equipment): string {
   return `${EQUIPMENT_TYPES[item.type].label} ${item.serialNumber}`;
 }
@@ -70,7 +63,7 @@ export function computeKpis(input: OperationsInput, alerts: Alert[]): Kpis {
   const { equipment, agents, occurrences, now } = input;
   const countable = equipment.filter((item) => countsTowardAvailability(item.status));
   const operational = countable.filter((item) => item.status === "operational").length;
-  const daysLeft = equipment.map((item) => maintenanceDaysLeft(item, now));
+  const states = equipment.map((item) => maintenanceState(item, now));
   return {
     equipmentTotal: equipment.length,
     operational,
@@ -84,11 +77,8 @@ export function computeKpis(input: OperationsInput, alerts: Alert[]): Kpis {
     openOccurrences: occurrences.filter((item) => item.status !== "resolved").length,
     criticalAlerts: alerts.filter((alert) => alert.level === "critical" && !alert.acknowledged)
       .length,
-    maintenanceOverdue: daysLeft.filter((days) => days !== null && days < 0).length,
-    maintenanceDueSoon: daysLeft.filter(
-      (days) => days !== null && days >= 0 && days <= MAINTENANCE_SOON_DAYS,
-    ).length,
-    maintenanceImmediate: equipment.filter((item) => item.maintenanceNeed === "immediate").length,
+    maintenanceUrgent: states.filter((state) => state === "urgent").length,
+    maintenanceSoon: states.filter((state) => state === "soon").length,
   };
 }
 

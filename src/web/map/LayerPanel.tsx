@@ -12,10 +12,34 @@ import {
 } from "../../shared/catalog.ts";
 import { SEVERITY_COLORS } from "../colors.ts";
 import { AgentShield, HealthSwatch } from "../components/badges.tsx";
-import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
+import { Glyph, StatusShape, TYPE_GLYPHS, WRENCH_GLYPH } from "../icons.tsx";
+import { MAINTENANCE_BADGE_COLOR } from "./base.ts";
 import type { MapLayers } from "./OperationsMap.tsx";
 
 const SEVERITIES: Severity[] = [1, 2, 3, 4];
+
+function MaintenanceKey({ urgent }: { urgent: boolean }) {
+  return (
+    <svg viewBox="0 0 15 15" width={15} height={15} aria-hidden="true" focusable="false">
+      <circle
+        cx={7.5}
+        cy={7.5}
+        r={6}
+        fill={urgent ? MAINTENANCE_BADGE_COLOR : "#1f2328"}
+        stroke={urgent ? "#111417" : MAINTENANCE_BADGE_COLOR}
+        strokeWidth={1.5}
+      />
+      <path
+        d={WRENCH_GLYPH}
+        transform="translate(3 3) scale(0.375)"
+        fill="none"
+        stroke={urgent ? "#1b1f24" : MAINTENANCE_BADGE_COLOR}
+        strokeWidth={3.2}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function LayerItem({
   label,
@@ -96,6 +120,14 @@ export function LayerPanel({
             <span className="key">
               <span className="cluster-badge-key">2</span>
               Parados no grupo
+            </span>
+            <span className="key">
+              <MaintenanceKey urgent />
+              Manutenção urgente (imediata ou vencida)
+            </span>
+            <span className="key">
+              <MaintenanceKey urgent={false} />
+              Manutenção nos próximos 7 dias
             </span>
             <span className="key-group">Tipo, pelo símbolo</span>
             {EQUIPMENT_TYPE_KEYS.map((type) => (

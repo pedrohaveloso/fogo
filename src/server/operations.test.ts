@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
 import { city } from "./city.ts";
-import {
-  computeCityHealth,
-  computeSummary,
-  maintenanceDaysLeft,
-  type OperationsInput,
-} from "./operations.ts";
+import { computeCityHealth, computeSummary, type OperationsInput } from "./operations.ts";
 import { NOW, makeAgent, makeEquipment, makeOccurrence } from "./test-fixtures.ts";
 
 function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
@@ -83,8 +78,8 @@ describe("computeSummary", () => {
     expect(byId.get("telemetry-silent-1")?.level).toBe("critical");
     expect(byId.get("maintenance-overdue-2")?.title).toBe("Manutenção vencida há 13 dia(s)");
     expect(byId.get("maintenance-soon-3")?.level).toBe("info");
-    expect(summary.kpis.maintenanceOverdue).toBe(1);
-    expect(summary.kpis.maintenanceDueSoon).toBe(1);
+    expect(summary.kpis.maintenanceUrgent).toBe(1);
+    expect(summary.kpis.maintenanceSoon).toBe(1);
   });
 
   it("sorts acknowledged alerts last and marks them", () => {
@@ -141,14 +136,6 @@ describe("computeSummary", () => {
     const ids = summary.alerts.map((alert) => alert.id);
     expect(ids).toContain("anomaly-flow_drop-1");
     expect(ids).toContain("staffing-exhausted");
-  });
-});
-
-describe("maintenanceDaysLeft", () => {
-  it("ignores equipment that is stolen or without a date", () => {
-    expect(maintenanceDaysLeft(makeEquipment({ status: "stolen" }), NOW)).toBeNull();
-    expect(maintenanceDaysLeft(makeEquipment({ nextMaintenanceAt: null }), NOW)).toBeNull();
-    expect(maintenanceDaysLeft(makeEquipment({ nextMaintenanceAt: "2026-10-20" }), NOW)).toBe(6);
   });
 });
 

@@ -6,6 +6,9 @@ import {
   advancedFilterCount,
   matchesFilters,
   placeFilterCount,
+  showsUnavailableOnly,
+  toggleUnavailable,
+  toggleUrgentMaintenance,
 } from "./OperationsFilters.tsx";
 
 const meta = {
@@ -55,6 +58,44 @@ describe("matchesFilters", () => {
     );
     expect(matchesFilters(stolen, { ...EMPTY_FILTERS, maintenance: "immediate" }, meta, NOW)).toBe(
       true,
+    );
+    const urgent = { ...EMPTY_FILTERS, maintenance: "urgent" } as const;
+    const immediate = makeEquipment({ maintenanceNeed: "immediate", nextMaintenanceAt: null });
+    expect(matchesFilters(overdue, urgent, meta, NOW)).toBe(true);
+    expect(matchesFilters(immediate, urgent, meta, NOW)).toBe(true);
+    expect(matchesFilters(soon, urgent, meta, NOW)).toBe(false);
+    expect(matchesFilters(stolen, urgent, meta, NOW)).toBe(false);
+  });
+});
+
+describe("summary shortcuts", () => {
+  it("toggles the map between every status and only the units out of service", () => {
+    const down = toggleUnavailable({ ...EMPTY_FILTERS, search: "cam" });
+    expect(down.statuses).toEqual(["malfunction", "maintenance", "stolen"]);
+    expect(down.search).toBe("cam");
+    expect(showsUnavailableOnly(down)).toBe(true);
+    expect(toggleUnavailable(down).statuses).toEqual([]);
+  });
+
+  it("replaces a partial status choice instead of clearing it", () => {
+    const partial = { ...EMPTY_FILTERS, statuses: ["stolen" as const] };
+    expect(showsUnavailableOnly(partial)).toBe(false);
+    expect(toggleUnavailable(partial).statuses).toEqual(["malfunction", "maintenance", "stolen"]);
+    expect(
+      showsUnavailableOnly({
+        ...EMPTY_FILTERS,
+        statuses: ["malfunction", "maintenance", "operational"],
+      }),
+    ).toBe(false);
+  });
+
+  it("toggles the urgent maintenance filter, replacing any other maintenance choice", () => {
+    expect(toggleUrgentMaintenance(EMPTY_FILTERS).maintenance).toBe("urgent");
+    expect(toggleUrgentMaintenance({ ...EMPTY_FILTERS, maintenance: "soon" }).maintenance).toBe(
+      "urgent",
+    );
+    expect(toggleUrgentMaintenance({ ...EMPTY_FILTERS, maintenance: "urgent" }).maintenance).toBe(
+      "",
     );
   });
 });

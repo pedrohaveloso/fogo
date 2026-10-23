@@ -52,9 +52,8 @@ const KPIS: Kpis = {
   agentsTotal: 70,
   openOccurrences: 9,
   criticalAlerts: 3,
-  maintenanceOverdue: 1,
-  maintenanceDueSoon: 13,
-  maintenanceImmediate: 4,
+  maintenanceUrgent: 5,
+  maintenanceSoon: 13,
 };
 
 describe("generalIndicators", () => {

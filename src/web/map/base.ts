@@ -19,6 +19,7 @@ import {
   AGENT_ROLE_GLYPHS,
   STATUS_SHAPES,
   TYPE_GLYPHS,
+  WRENCH_GLYPH,
   shapePath,
   type MarkerShape,
 } from "../icons.tsx";
@@ -130,7 +131,36 @@ export function agentImageId(role: string, status: string): string {
   return `agent-${role}-${status}`;
 }
 
+export const MAINTENANCE_BADGE_COLOR = "#fab219";
+
+function drawMaintenanceBadge(urgent: boolean): ImageData {
+  const badge = 15;
+  const size = badge * PIXEL_RATIO;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.scale(PIXEL_RATIO, PIXEL_RATIO);
+  context.beginPath();
+  context.arc(badge / 2, badge / 2, badge / 2 - 1.5, 0, Math.PI * 2);
+  context.fillStyle = urgent ? MAINTENANCE_BADGE_COLOR : "#1f2328";
+  context.fill();
+  context.lineWidth = 1.5;
+  context.strokeStyle = urgent ? RING : MAINTENANCE_BADGE_COLOR;
+  context.stroke();
+  const glyph = 9;
+  context.translate((badge - glyph) / 2, (badge - glyph) / 2);
+  context.scale(glyph / 24, glyph / 24);
+  context.strokeStyle = urgent ? "#1b1f24" : MAINTENANCE_BADGE_COLOR;
+  context.lineWidth = 3.2;
+  context.lineJoin = "round";
+  context.stroke(new Path2D(WRENCH_GLYPH));
+  return context.getImageData(0, 0, size, size);
+}
+
 function registerImages(map: MapLibreMap): void {
+  map.addImage("maintenance-urgent", drawMaintenanceBadge(true), { pixelRatio: PIXEL_RATIO });
+  map.addImage("maintenance-soon", drawMaintenanceBadge(false), { pixelRatio: PIXEL_RATIO });
   map.addImage(CRITICAL_HATCH, drawHatch("rgba(208, 59, 59, 0.9)"), { pixelRatio: PIXEL_RATIO });
   for (const type of EQUIPMENT_TYPE_KEYS) {
     for (const status of EQUIPMENT_STATUSES) {

@@ -2,15 +2,48 @@ import type { CityHealth, Kpis } from "../../shared/types.ts";
 import { HEALTH_LABELS } from "../colors.ts";
 import { formatInteger } from "../format.ts";
 import { generalIndicators } from "../summaries.ts";
+import {
+  showsUnavailableOnly,
+  toggleUnavailable,
+  toggleUrgentMaintenance,
+  type EquipmentFilters,
+} from "./OperationsFilters.tsx";
 
 const NORMAL_TEXT = "Todas as regiões operam normalmente e nenhuma ocorrência espera equipe.";
 
-function Count({ value, label, tone }: { value: number; label: string; tone: string }) {
-  return (
-    <div className="city-count" data-tone={value > 0 ? tone : undefined}>
+type CountProps = {
+  value: number;
+  label: string;
+  tone: string;
+  filter?: { pressed: boolean; onToggle: () => void };
+};
+
+function Count({ value, label, tone, filter }: CountProps) {
+  const content = (
+    <>
       <span className="city-count-value">{formatInteger(value)}</span>
       <span className="city-count-label">{label}</span>
-    </div>
+    </>
+  );
+  const toneValue = value > 0 ? tone : undefined;
+  if (!filter) {
+    return (
+      <div className="city-count" data-tone={toneValue}>
+        {content}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="city-count"
+      data-tone={toneValue}
+      aria-pressed={filter.pressed}
+      title={filter.pressed ? "Mostrar todos no mapa" : "Mostrar só estes no mapa"}
+      onClick={filter.onToggle}
+    >
+      {content}
+    </button>
   );
 }
 
@@ -18,10 +51,14 @@ export function CityStatus({
   city,
   kpis,
   waiting,
+  filters,
+  onFiltersChange,
 }: {
   city: CityHealth;
   kpis: Kpis;
   waiting: number;
+  filters: EquipmentFilters;
+  onFiltersChange: (filters: EquipmentFilters) => void;
 }) {
   return (
     <section className="city-status" data-level={city.level} aria-labelledby="city-status-title">
@@ -38,11 +75,23 @@ export function CityStatus({
       </div>
       <div className="city-counts">
         <Count value={waiting} label="ocorrências sem equipe" tone="warning" />
-        <Count value={kpis.unavailable} label="equipamentos parados" tone="critical" />
         <Count
-          value={kpis.maintenanceImmediate + kpis.maintenanceOverdue}
+          value={kpis.unavailable}
+          label="equipamentos parados"
+          tone="critical"
+          filter={{
+            pressed: showsUnavailableOnly(filters),
+            onToggle: () => onFiltersChange(toggleUnavailable(filters)),
+          }}
+        />
+        <Count
+          value={kpis.maintenanceUrgent}
           label="manutenções urgentes"
           tone="warning"
+          filter={{
+            pressed: filters.maintenance === "urgent",
+            onToggle: () => onFiltersChange(toggleUrgentMaintenance(filters)),
+          }}
         />
       </div>
       <section className="city-fleet" aria-labelledby="city-fleet-title">

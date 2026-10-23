@@ -6,15 +6,20 @@ import {
   EQUIPMENT_TYPE_KEYS,
   STATUS_COLORS,
   STATUS_LABELS,
+  UNAVAILABLE_STATUSES,
   type Agency,
   type EquipmentStatus,
   type EquipmentType,
 } from "../../shared/catalog.ts";
-import { daysBetween, localDate } from "../../shared/time.ts";
+import {
+  MAINTENANCE_SOON_DAYS,
+  maintenanceDaysLeft,
+  maintenanceState,
+} from "../../shared/maintenance.ts";
 import type { Equipment, Meta } from "../../shared/types.ts";
 import { StatusShape } from "../icons.tsx";
 
-export type MaintenanceFilter = "" | "immediate" | "overdue" | "soon";
+export type MaintenanceFilter = "" | "urgent" | "immediate" | "overdue" | "soon";
 
 export type EquipmentFilters = {
   type: EquipmentType | "";
@@ -63,19 +68,20 @@ export function matchesFilters(
     return false;
   }
   if (filters.maintenance) {
-    const tracked =
-      item.status !== "not_installed" && item.status !== "disabled" && item.status !== "stolen";
-    const daysLeft =
-      tracked && item.nextMaintenanceAt
-        ? daysBetween(localDate(now), item.nextMaintenanceAt)
-        : null;
+    const daysLeft = maintenanceDaysLeft(item, now);
+    if (filters.maintenance === "urgent" && maintenanceState(item, now) !== "urgent") {
+      return false;
+    }
     if (filters.maintenance === "immediate" && item.maintenanceNeed !== "immediate") {
       return false;
     }
     if (filters.maintenance === "overdue" && !(daysLeft !== null && daysLeft < 0)) {
       return false;
     }
-    if (filters.maintenance === "soon" && !(daysLeft !== null && daysLeft >= 0 && daysLeft <= 7)) {
+    if (
+      filters.maintenance === "soon" &&
+      !(daysLeft !== null && daysLeft >= 0 && daysLeft <= MAINTENANCE_SOON_DAYS)
+    ) {
       return false;
     }
   }
@@ -96,6 +102,24 @@ type Props = {
   total: number;
   expanded?: boolean;
 };
+
+export function showsUnavailableOnly(filters: EquipmentFilters): boolean {
+  return (
+    filters.statuses.length === UNAVAILABLE_STATUSES.length &&
+    UNAVAILABLE_STATUSES.every((status) => filters.statuses.includes(status))
+  );
+}
+
+export function toggleUnavailable(filters: EquipmentFilters): EquipmentFilters {
+  return {
+    ...filters,
+    statuses: showsUnavailableOnly(filters) ? [] : [...UNAVAILABLE_STATUSES],
+  };
+}
+
+export function toggleUrgentMaintenance(filters: EquipmentFilters): EquipmentFilters {
+  return { ...filters, maintenance: filters.maintenance === "urgent" ? "" : "urgent" };
+}
 
 export function placeFilterCount(filters: EquipmentFilters): number {
   return [filters.regionId, filters.neighborhoodId, filters.agency, filters.maintenance].filter(
@@ -180,6 +204,7 @@ export function PlaceFilterFields({
           }
         >
           <option value="">Qualquer situação</option>
+          <option value="urgent">Urgente (imediata ou vencida)</option>
           <option value="immediate">Manutenção imediata</option>
           <option value="overdue">Manutenção vencida</option>
           <option value="soon">Prevista nos próximos 7 dias</option>

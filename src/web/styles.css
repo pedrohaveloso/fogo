@@ -957,6 +957,27 @@ tbody tr:last-child td {
   min-width: 0;
 }
 
+button.city-count {
+  margin: -6px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.city-count:hover {
+  border-color: var(--line-strong);
+}
+
+button.city-count[aria-pressed="true"] {
+  border-color: var(--ink-2);
+  background: var(--surface);
+}
+
 .city-count-value {
   font-family: var(--font-sign);
   font-weight: 600;

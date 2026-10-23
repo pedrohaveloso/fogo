@@ -6,6 +6,7 @@ import {
 } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { OCCURRENCE_KINDS, SEVERITY_LABELS } from "../../shared/catalog.ts";
+import { maintenanceState } from "../../shared/maintenance.ts";
 import type { Agent, AreaHealth, Equipment, Meta, Occurrence } from "../../shared/types.ts";
 import { AGENT_STATUS_COLORS, HEALTH_COLORS, SEVERITY_COLORS } from "../colors.ts";
 import { CRITICAL_HATCH, useMap } from "./base.ts";
@@ -35,6 +36,7 @@ type Props = {
   layers: MapLayers;
   selected: Selection | null;
   focus: { lng: number; lat: number; key: number } | null;
+  now: number;
   onSelect: (selection: Selection | null) => void;
 };
 
@@ -281,6 +283,18 @@ export function OperationsMap(props: Props) {
       },
     });
     map.addLayer({
+      id: "equipment-maintenance",
+      type: "symbol",
+      source: "equipment",
+      filter: ["all", ["!", ["has", "point_count"]], ["has", "maintenance"]],
+      layout: {
+        "icon-image": ["concat", "maintenance-", ["get", "maintenance"]],
+        "icon-offset": [11, 11],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      },
+    });
+    map.addLayer({
       id: "agents",
       type: "symbol",
       source: "agents",
@@ -348,16 +362,18 @@ export function OperationsMap(props: Props) {
     void source?.setData({
       type: "FeatureCollection",
       features: props.layers.equipment
-        ? props.equipment.map((item) =>
-            point(...equipmentPosition(item), {
+        ? props.equipment.map((item) => {
+            const maintenance = maintenanceState(item, props.now);
+            return point(...equipmentPosition(item), {
               id: item.id,
               type: item.type,
               status: item.status,
-            }),
-          )
+              ...(maintenance && { maintenance }),
+            });
+          })
         : [],
     });
-  }, [handle, props.equipment, props.layers.equipment]);
+  }, [handle, props.equipment, props.layers.equipment, props.now]);
 
   useEffect(() => {
     const source = handle?.map.getSource<GeoJSONSource>("agents");

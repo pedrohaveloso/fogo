@@ -128,9 +128,8 @@ export type Kpis = {
   agentsTotal: number;
   openOccurrences: number;
   criticalAlerts: number;
-  maintenanceOverdue: number;
-  maintenanceDueSoon: number;
-  maintenanceImmediate: number;
+  maintenanceUrgent: number;
+  maintenanceSoon: number;
 };
 
 export type HealthLevel = "normal" | "attention" | "critical";

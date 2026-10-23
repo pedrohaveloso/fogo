@@ -123,6 +123,7 @@ export function OperationsPage() {
           layers={layers}
           selected={selected}
           focus={focus}
+          now={now}
           onSelect={setSelected}
         />
         <MapFilterBar
@@ -153,7 +154,13 @@ export function OperationsPage() {
         )}
       </div>
       <aside className="ops-panel" aria-label="Situação da cidade">
-        <CityStatus city={snapshot.city} kpis={snapshot.kpis} waiting={waiting} />
+        <CityStatus
+          city={snapshot.city}
+          kpis={snapshot.kpis}
+          waiting={waiting}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
         <div className="ops-tabs" role="tablist" aria-label="Painel">
           {tabs.map((item) => (
             <button

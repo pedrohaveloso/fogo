@@ -1,14 +1,36 @@
+name: fogo
+
 services:
-  fogo:
+  db:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fogo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fogo}
+      POSTGRES_DB: fogo_simulation
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "fogo", "-d", "fogo_simulation"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
     build: .
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "3210:3210"
+      - "${PORT:-3210}:3210"
     environment:
       FOGO_MODE: ${FOGO_MODE:-simulation}
-      FOGO_DB: /app/storage/fogo-${FOGO_MODE:-simulation}.db
-    volumes:
-      - fogo-data:/app/storage
+      DATABASE_URL: postgres://fogo:${POSTGRES_PASSWORD:-fogo}@db:5432/fogo_${FOGO_MODE:-simulation}
+      FOGO_ROOT_PASSWORD: ${FOGO_ROOT_PASSWORD:-}
 
 volumes:
-  fogo-data:
+  postgres-data:

@@ -1,14 +1,19 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ApiError } from "../api.ts";
 import { Field, issuesToErrors, type Errors } from "../components/form.tsx";
 import { BrandMark } from "../icons.tsx";
-import { login } from "../session.ts";
+import { login, useSession } from "../session.ts";
 
 export function LoginPage() {
+  const simulation = useSession().session?.mode === "simulation";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    document.title = "Entrar: FOGO";
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -64,6 +69,11 @@ export function LoginPage() {
         <button type="submit" className="button button-primary" disabled={busy}>
           {busy ? "Entrando..." : "Entrar"}
         </button>
+        {simulation && (
+          <p className="login-hint">
+            Modo simulação: entre com <strong>root</strong> / <strong>root</strong>
+          </p>
+        )}
       </form>
     </main>
   );

@@ -3,7 +3,7 @@ import { getCookie } from "hono/cookie";
 import { csrf } from "hono/csrf";
 import { HTTPException } from "hono/http-exception";
 import type { RunMode, SessionUser } from "../shared/types.ts";
-import { VISITOR, canAccessCity } from "./access.ts";
+import { canAccessCity } from "./access.ts";
 import { sessionUser } from "./auth.ts";
 import { CityInUseError, CityTakenError, type CityContext, type CityRegistry } from "./cities.ts";
 import type { Database } from "./db.ts";
@@ -158,7 +158,7 @@ const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
-  const { db, cities, mode, now } = deps;
+  const { db, cities, now } = deps;
   const app = new Hono<AppEnv>();
 
   app.onError((error, c) => {
@@ -183,9 +183,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
 
   const resolveUser = async (c: Context): Promise<SessionUser | null> => {
-    if (mode === "simulation") {
-      return VISITOR;
-    }
     const token = getCookie(c, SESSION_COOKIE);
     return token ? sessionUser(db, token, now()) : null;
   };

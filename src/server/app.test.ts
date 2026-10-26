@@ -11,6 +11,7 @@ import type {
 } from "../shared/types.ts";
 import { createApp } from "./app.ts";
 import { createCityRegistry } from "./cities.ts";
+import { ensureRootUser } from "./repositories/users.ts";
 import type { Database } from "./db.ts";
 import { NOW } from "./test-fixtures.ts";
 import { emptyDatabase, seededDatabase } from "./test-database.ts";
@@ -18,6 +19,7 @@ import { emptyDatabase, seededDatabase } from "./test-database.ts";
 let db: Database;
 let city: CityDataset;
 let app: ReturnType<typeof createApp>;
+let cookie = "";
 const fetchImpl = vi.fn<typeof fetch>();
 
 const validEquipment = {
@@ -57,7 +59,7 @@ async function api<T>(
   path: string,
   body?: unknown,
 ): Promise<{ status: number; body: T }> {
-  const headers: Record<string, string> = { "Sec-Fetch-Site": "same-origin" };
+  const headers: Record<string, string> = { "Sec-Fetch-Site": "same-origin", Cookie: cookie };
   const init: RequestInit = { method, headers };
   if (body !== undefined) {
     init.body = typeof body === "string" ? body : JSON.stringify(body);
@@ -72,11 +74,22 @@ function call<T>(method: string, path: string, body?: unknown) {
   return api<T>(method, `/cities/${city.city.id}${path}`, body);
 }
 
+async function signIn(target: ReturnType<typeof createApp>): Promise<string> {
+  const response = await target.request("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "root", password: "root" }),
+  });
+  return response.headers.get("Set-Cookie")!.split(";")[0]!;
+}
+
 beforeAll(async () => {
   ({ db } = await seededDatabase());
+  await ensureRootUser(db, "root", NOW);
   const cities = await createCityRegistry(db, { liveMultiplier: 60 });
   city = cities.get(1)!.city;
   app = createApp({ db, cities, mode: "simulation", now: () => NOW, fetchImpl });
+  cookie = await signIn(app);
 });
 
 describe("health check", () => {
@@ -242,6 +255,7 @@ describe("operations API", () => {
     const controller = new AbortController();
     const response = await app.request(`/api/cities/${city.city.id}/operations/stream`, {
       signal: controller.signal,
+      headers: { Cookie: cookie },
     });
     expect(response.headers.get("content-type")).toContain("text/event-stream");
     const reader = response.body!.getReader();
@@ -263,7 +277,7 @@ describe("operations API", () => {
   it("refuses form posts from other sites", async () => {
     const response = await app.request(`/api/cities/${city.city.id}/agencies`, {
       method: "POST",
-      headers: { "Content-Type": "text/plain", Origin: "https://evil.example" },
+      headers: { "Content-Type": "text/plain", Origin: "https://evil.example", Cookie: cookie },
       body: JSON.stringify({ name: "Invasor" }),
     });
     expect(response.status).toBe(403);
@@ -654,17 +668,21 @@ describe("cities API in simulation", () => {
     });
   });
 
-  it("remembers the visitor's city and lists every city", async () => {
-    const session = await api<{ mode: string; user: { role: string }; cityId: number }>(
+  it("asks for login in simulation too and remembers the chosen city", async () => {
+    const guest = await app.request("/api/cities");
+    expect(guest.status).toBe(401);
+    const session = await api<{ mode: string; user: { username: string }; cityId: number }>(
       "GET",
       "/session",
     );
-    expect(session.body).toMatchObject({ mode: "simulation", user: { role: "admin" }, cityId: 1 });
+    expect(session.body).toMatchObject({
+      mode: "simulation",
+      user: { username: "root" },
+      cityId: 1,
+    });
     expect((await api("PUT", "/session/city", { cityId: 999 })).status).toBe(422);
     expect((await api("PUT", "/session/city", { cityId: 1 })).status).toBe(204);
-    expect((await api("POST", "/session", { username: "root", password: "root" })).status).toBe(
-      404,
-    );
+    expect((await api<unknown[]>("GET", "/users")).body).toHaveLength(1);
   });
 
   it("looks up municipalities and boundaries from outside services", async () => {
@@ -747,17 +765,19 @@ describe("a city created in an empty database", () => {
   it("serves the panel, the metadata and every prediction with no data yet", async () => {
     const empty = await emptyDatabase();
     const cities = await createCityRegistry(empty, { liveMultiplier: 1 });
+    await ensureRootUser(empty, "root", NOW);
     const production = createApp({
       db: empty,
       cities,
-      mode: "simulation",
+      mode: "production",
       now: () => NOW,
       fetchImpl,
     });
+    const session = await signIn(production);
     const send = async (method: string, path: string, body?: unknown) => {
       const response = await production.request(`/api${path}`, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Cookie: session },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };

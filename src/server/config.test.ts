@@ -14,9 +14,12 @@ describe("readConfig", () => {
     });
   });
 
-  it("takes the root password from the environment, ignoring an empty one", () => {
+  it("takes the production root password from the environment, ignoring an empty one", () => {
     expect(readConfig([], { FOGO_ROOT_PASSWORD: "troque-me" }).rootPassword).toBe("troque-me");
     expect(readConfig([], { FOGO_ROOT_PASSWORD: "" }).rootPassword).toBe("root");
+    expect(readConfig(["--simulation"], { FOGO_ROOT_PASSWORD: "troque-me" }).rootPassword).toBe(
+      "root",
+    );
   });
 
   it("runs the simulation from the flag or the variable", () => {

@@ -103,7 +103,7 @@ function NoCity({ user }: { user: SessionUser }) {
   );
 }
 
-function adminRoute(pathname: string, session: Session) {
+function adminRoute(pathname: string) {
   if (pathname === "/cities") {
     return <CitiesPage />;
   }
@@ -114,17 +114,15 @@ function adminRoute(pathname: string, session: Session) {
   if (city) {
     return <CityFormPage id={Number(city[1])} />;
   }
-  if (session.mode === "production") {
-    if (pathname === "/users") {
-      return <UsersPage />;
-    }
-    if (pathname === "/users/new") {
-      return <UserFormPage id={null} />;
-    }
-    const user = /^\/users\/(\d+)$/.exec(pathname);
-    if (user) {
-      return <UserFormPage id={Number(user[1])} />;
-    }
+  if (pathname === "/users") {
+    return <UsersPage />;
+  }
+  if (pathname === "/users/new") {
+    return <UserFormPage id={null} />;
+  }
+  const user = /^\/users\/(\d+)$/.exec(pathname);
+  if (user) {
+    return <UserFormPage id={Number(user[1])} />;
   }
   return null;
 }
@@ -167,10 +165,10 @@ function cityRoute(pathname: string) {
 
 function Route({ pathname, session }: { pathname: string; session: Session }) {
   const user = session.user!;
-  if (pathname === "/account" && session.mode === "production") {
+  if (pathname === "/account") {
     return <AccountPage />;
   }
-  const admin = user.role === "admin" ? adminRoute(pathname, session) : null;
+  const admin = user.role === "admin" ? adminRoute(pathname) : null;
   if (admin) {
     return admin;
   }
@@ -250,21 +248,18 @@ function CitySwitcher({ session }: { session: Session }) {
 
 function UserMenu({ session, user }: { session: Session; user: SessionUser }) {
   const ref = useRef<HTMLDetailsElement>(null);
-  const production = session.mode === "production";
   const close = () => ref.current?.removeAttribute("open");
   return (
     <details ref={ref} className="user-menu">
       <summary aria-label={`Menu de ${user.name}`}>
         <Glyph d={AGENT_GLYPH} size={20} />
-        <span className="user-menu-name">{production ? user.name : "Configurações"}</span>
+        <span className="user-menu-name">{user.name}</span>
       </summary>
       <div className="user-menu-body">
-        {production && (
-          <p className="user-menu-who">
-            <strong>{user.name}</strong>
-            <span>{user.role === "admin" ? "Administrador" : "Usuário"}</span>
-          </p>
-        )}
+        <p className="user-menu-who">
+          <strong>{user.name}</strong>
+          <span>{user.role === "admin" ? "Administrador" : "Usuário"}</span>
+        </p>
         <nav aria-label="Configurações">
           {session.cityId !== null && (
             <Link href="/agencies" onClick={close}>
@@ -276,22 +271,18 @@ function UserMenu({ session, user }: { session: Session; user: SessionUser }) {
               Cidades
             </Link>
           )}
-          {user.role === "admin" && production && (
+          {user.role === "admin" && (
             <Link href="/users" onClick={close}>
               Usuários
             </Link>
           )}
-          {production && (
-            <Link href="/account" onClick={close}>
-              Minha senha
-            </Link>
-          )}
+          <Link href="/account" onClick={close}>
+            Minha senha
+          </Link>
         </nav>
-        {production && (
-          <button type="button" className="button button-small" onClick={() => void exit()}>
-            Sair
-          </button>
-        )}
+        <button type="button" className="button button-small" onClick={() => void exit()}>
+          Sair
+        </button>
       </div>
     </details>
   );

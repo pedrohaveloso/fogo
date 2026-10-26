@@ -12,10 +12,8 @@ import {
   SESSION_MS,
   verifyPassword,
 } from "../auth.ts";
-import { getSetting, setSetting } from "../db.ts";
 import {
   credentialsOf,
-  getUser,
   passwordHashOf,
   preferredCityId,
   setPassword,
@@ -29,7 +27,6 @@ import {
 } from "../validation.ts";
 
 export const SESSION_COOKIE = "fogo_session";
-const VISITOR_CITY = "visitor_city";
 
 function clientAddress(c: Context): string {
   try {
@@ -53,10 +50,7 @@ export function sessionRoutes(
 
   async function chosenCity(user: SessionUser): Promise<number | null> {
     const summaries = cities.summaries(await visibleCityIds(db, user));
-    const stored =
-      mode === "simulation"
-        ? Number(await getSetting(db, VISITOR_CITY))
-        : await preferredCityId(db, user.id);
+    const stored = await preferredCityId(db, user.id);
     const preferred = summaries.find((item) => item.id === stored);
     return (preferred ?? summaries.find((item) => item.simulated) ?? summaries[0])?.id ?? null;
   }
@@ -72,9 +66,6 @@ export function sessionRoutes(
   });
 
   routes.post("/", async (c) => {
-    if (mode === "simulation") {
-      return c.json({ error: "O modo simulação não usa login" }, 404);
-    }
     const { username, password } = parseLogin(await c.req.json());
     const key = `${clientAddress(c)}|${username.toLowerCase()}`;
     const current = now();
@@ -114,19 +105,12 @@ export function sessionRoutes(
     if (!cities.get(cityId) || !(await canAccessCity(db, user, cityId))) {
       throw new ValidationError([{ path: "cityId", message: "Selecione uma cidade da lista" }]);
     }
-    if (mode === "simulation") {
-      await setSetting(db, VISITOR_CITY, String(cityId));
-    } else {
-      await setPreferredCity(db, user.id, cityId);
-    }
+    await setPreferredCity(db, user.id, cityId);
     return c.body(null, 204);
   });
 
   routes.put("/password", async (c) => {
     const user = c.get("user");
-    if (mode === "simulation" || !(await getUser(db, user.id))) {
-      return c.json({ error: "O modo simulação não usa senha" }, 404);
-    }
     const { current, next } = parsePasswordChange(await c.req.json());
     if (!(await verifyPassword(current, (await passwordHashOf(db, user.id))!))) {
       throw new ValidationError([{ path: "current", message: "Senha atual incorreta" }]);

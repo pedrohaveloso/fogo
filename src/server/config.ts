@@ -39,7 +39,7 @@ export function readConfig(argv: readonly string[], env: NodeJS.ProcessEnv): Con
     liveMultiplier: simulation ? Number(env["FOGO_LIVE_MULTIPLIER"] ?? 20) : 1,
     seed: Number(env["FOGO_SEED"] ?? 20261027),
     reset,
-    rootPassword: env["FOGO_ROOT_PASSWORD"] || "root",
+    rootPassword: simulation ? "root" : env["FOGO_ROOT_PASSWORD"] || "root",
   };
 }
 

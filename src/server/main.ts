@@ -84,9 +84,9 @@ if (mode === "simulation" && (await isDatabaseEmpty(db))) {
   );
 }
 
-if (mode === "production" && (await ensureRootUser(db, rootPassword, Date.now()))) {
+if (await ensureRootUser(db, rootPassword, Date.now())) {
   console.log(
-    process.env["FOGO_ROOT_PASSWORD"]
+    mode === "production" && process.env["FOGO_ROOT_PASSWORD"]
       ? `Usuário ${ROOT_USERNAME} criado com a senha de FOGO_ROOT_PASSWORD.`
       : `Usuário ${ROOT_USERNAME} criado com a senha padrão "root". Troque a senha depois de entrar.`,
   );

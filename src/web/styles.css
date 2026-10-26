@@ -3507,6 +3507,14 @@ dialog::backdrop {
   height: 40px;
 }
 
+.login-hint {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
 .login-brand h1 {
   font-size: var(--text-2xl);
   letter-spacing: 0.08em;

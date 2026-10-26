@@ -3119,3 +3119,33 @@ dialog::backdrop {
 .saved-form input {
   min-height: 32px;
 }
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  font-size: var(--text-sm);
+}
+
+.pagination-range {
+  margin-right: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-current {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .pagination {
+    justify-content: space-between;
+  }
+
+  .pagination-range {
+    flex-basis: 100%;
+  }
+}

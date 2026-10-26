@@ -18,14 +18,16 @@ import { FilterMenu } from "../components/FilterMenu.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
 import { AGENT_ROLE_GLYPHS, Glyph } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { Pagination } from "../components/Pagination.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { agentFromQuery, agentQuery } from "../listQuery.ts";
+import { pageFromQuery, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
-function setFilters(filters: AgentFilters): void {
-  navigate(`/agentes${agentQuery(filters)}`, { replace: true });
+function setFilters(filters: AgentFilters, page = 1): void {
+  navigate(`/agentes${withPage(agentQuery(filters), page)}`, { replace: true });
 }
 
 export function AgentListPage() {
@@ -52,6 +54,7 @@ export function AgentListPage() {
     return <LoadingNotice label="Carregando agentes..." />;
   }
 
+  const page = paginate(rows, pageFromQuery(params));
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
   const vehicles = new Map(snapshot.equipment.map((item) => [item.id, item]));
   const counts = agentStatusCounts(snapshot.agents);
@@ -186,7 +189,7 @@ export function AgentListPage() {
                   </td>
                 </tr>
               )}
-              {rows.map((agent) => {
+              {page.items.map((agent) => {
                 const vehicle =
                   agent.vehicleId === null ? undefined : vehicles.get(agent.vehicleId);
                 return (
@@ -221,6 +224,7 @@ export function AgentListPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} label="agentes" onChange={(next) => setFilters(filters, next)} />
       </div>
     </main>
   );

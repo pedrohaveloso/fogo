@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AGENCY_SHORT_LABELS, EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
 import {
   MAINTENANCE_SOON_DAYS,
@@ -21,6 +21,7 @@ import { formatDate, formatRelative } from "../format.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { Pagination } from "../components/Pagination.tsx";
 import { useLive, useMeta } from "../live.ts";
 import {
   equipmentFromQuery,
@@ -30,6 +31,7 @@ import {
   type Sort,
   type SortKey,
 } from "../listQuery.ts";
+import { pageFromQuery, pageOfIndex, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
@@ -57,8 +59,8 @@ function dueClass(days: number): string {
   return days <= MAINTENANCE_SOON_DAYS ? "cell-warning" : "cell-sub";
 }
 
-function go(query: string, map: boolean): void {
-  navigate(`/equipamentos${withMapView(query, map)}`, { replace: true });
+function go(query: string, map: boolean, page = 1): void {
+  navigate(`/equipamentos${withPage(withMapView(query, map), page)}`, { replace: true });
 }
 
 export function EquipmentListPage() {
@@ -114,6 +116,16 @@ export function EquipmentListPage() {
       });
   }, [snapshot, meta, filters, now, sort, names]);
 
+  const page = paginate(rows, pageFromQuery(params));
+
+  const selectedVisible = page.items.some((item) => item.id === selectedId);
+
+  useEffect(() => {
+    if (selectedId !== null && selectedVisible) {
+      document.getElementById(`equipment-row-${selectedId}`)?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedId, selectedVisible]);
+
   if (!meta || !snapshot) {
     return <LoadingNotice label="Carregando inventário..." />;
   }
@@ -164,7 +176,7 @@ export function EquipmentListPage() {
             type="button"
             className="button button-small"
             aria-pressed={showMap}
-            onClick={() => go(currentQuery, !showMap)}
+            onClick={() => go(currentQuery, !showMap, page.page)}
           >
             {showMap ? "Ocultar mapa" : "Mostrar mapa"}
           </button>
@@ -186,9 +198,10 @@ export function EquipmentListPage() {
                 onSelect={(selection) => {
                   if (selection?.kind === "equipment") {
                     setSelectedId(selection.id);
-                    document
-                      .getElementById(`equipment-row-${selection.id}`)
-                      ?.scrollIntoView({ block: "nearest" });
+                    const index = rows.findIndex((item) => item.id === selection.id);
+                    if (index >= 0 && pageOfIndex(index) !== page.page) {
+                      go(currentQuery, showMap, pageOfIndex(index));
+                    }
                   }
                 }}
               />
@@ -243,7 +256,7 @@ export function EquipmentListPage() {
                     </td>
                   </tr>
                 )}
-                {rows.map((item) => {
+                {page.items.map((item) => {
                   const days = maintenanceDaysLeft(item, now);
                   const address = `${item.street}, ${item.reference}`;
                   return (
@@ -304,6 +317,11 @@ export function EquipmentListPage() {
             </table>
           </div>
         </div>
+        <Pagination
+          page={page}
+          label="equipamentos"
+          onChange={(next) => go(currentQuery, showMap, next)}
+        />
       </div>
     </main>
   );

@@ -188,15 +188,9 @@ export function AgentFormPage({ id }: { id: number | null }) {
     draft.lat && draft.lng ? { lat: Number(draft.lat), lng: Number(draft.lng) } : null;
 
   return (
-    <main className="page page-narrow">
+    <main className="page">
       <div className="page-head">
-        <div>
-          <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
-          <p>
-            Agentes com situação "Disponível" ou "Em atendimento" aparecem no mapa da central e
-            entram no cálculo de reforço.
-          </p>
-        </div>
+        <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
         <Link href="/agentes" className="button">
           Voltar para a lista
         </Link>

@@ -734,14 +734,7 @@ export function PredictionsPage() {
   return (
     <main className="page">
       <div className="page-head">
-        <div>
-          <h1>Cidade preditiva</h1>
-          <p>
-            Previsões calculadas a partir do histórico de ocorrências, da telemetria dos
-            equipamentos e do efetivo em serviço. Cada aba responde uma pergunta e diz com quais
-            dados.
-          </p>
-        </div>
+        <h1>Cidade preditiva</h1>
       </div>
       <TabList
         items={TABS}

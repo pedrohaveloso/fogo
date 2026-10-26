@@ -58,16 +58,9 @@ export function AgentListPage() {
   const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_AGENT_FILTERS);
 
   return (
-    <main className="page page-wide">
+    <main className="page">
       <div className="page-head">
-        <div>
-          <h1>Agentes</h1>
-          <p>
-            Agentes de trânsito, guardas municipais e policiais que atuam nas operações de
-            mobilidade e segurança. {formatInteger(counts.available + counts.responding)} em
-            atividade agora, de {formatInteger(snapshot.agents.length)} cadastrados.
-          </p>
-        </div>
+        <h1>Agentes</h1>
         <Link href="/agentes/novo" className="button button-primary">
           Cadastrar agente
         </Link>

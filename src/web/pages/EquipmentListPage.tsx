@@ -17,7 +17,7 @@ import {
   toggleDownOfType,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
-import { formatDate, formatInteger, formatRelative } from "../format.ts";
+import { formatDate, formatRelative } from "../format.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
 import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
@@ -118,20 +118,12 @@ export function EquipmentListPage() {
     return <LoadingNotice label="Carregando inventário..." />;
   }
 
-  const down = fleet.reduce((sum, entry) => sum + entry.down, 0);
   const downTypes = fleet.filter((entry) => entry.down > 0);
 
   return (
-    <main className="page page-wide">
+    <main className="page">
       <div className="page-head">
-        <div>
-          <h1>Equipamentos</h1>
-          <p>
-            Inventário dos equipamentos de trânsito e segurança instalados ou previstos para
-            Marília. {formatInteger(snapshot.equipment.length)} cadastrados, {formatInteger(down)}{" "}
-            fora de operação agora.
-          </p>
-        </div>
+        <h1>Equipamentos</h1>
         <Link href="/equipamentos/novo" className="button button-primary">
           Cadastrar equipamento
         </Link>

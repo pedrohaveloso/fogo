@@ -242,12 +242,9 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
   );
 
   return (
-    <main className="page page-narrow">
+    <main className="page">
       <div className="page-head">
-        <div>
-          <h1>{id === null ? "Cadastrar equipamento" : `Editar ${draft.serialNumber}`}</h1>
-          <p>Os campos de características mudam conforme o tipo de equipamento.</p>
-        </div>
+        <h1>{id === null ? "Cadastrar equipamento" : `Editar ${draft.serialNumber}`}</h1>
         <Link href="/equipamentos" className="button">
           Voltar para a lista
         </Link>

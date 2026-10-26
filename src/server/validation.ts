@@ -13,8 +13,9 @@ import {
   type EquipmentType,
 } from "../shared/catalog.ts";
 import { isSimplePolygon, type LngLat } from "../shared/geo.ts";
-import type { AgentInput, AttributeValue, EquipmentInput } from "../shared/types.ts";
+import type { AgentInput, AttributeValue, EquipmentInput, TagTarget } from "../shared/types.ts";
 import { neighborhoodsById } from "./city.ts";
+import type { LocationReport } from "./repositories/tags.ts";
 
 export const AREA_BOUNDS = { south: -22.45, north: -22.05, west: -50.15, east: -49.75 };
 
@@ -308,4 +309,52 @@ export function parseNeighborhoodShape(raw: unknown): LngLat[] {
     throw new ValidationError(issuesFrom(result.error));
   }
   return result.data.polygon;
+}
+
+const tagTargetSchema = z.union(
+  [
+    z.object({ equipmentId: z.number().int().positive() }).strict(),
+    z.object({ agentId: z.number().int().positive() }).strict(),
+  ],
+  { error: "Informe equipmentId ou agentId" },
+);
+
+export function parseTagTarget(raw: unknown): TagTarget {
+  const result = tagTargetSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError([{ path: "target", message: "Informe equipmentId ou agentId" }]);
+  }
+  return "equipmentId" in result.data
+    ? { kind: "equipment", id: result.data.equipmentId }
+    : { kind: "agent", id: result.data.agentId };
+}
+
+const locationSchema = z.object({
+  lat: z
+    .number({ error: "Envie a latitude como número" })
+    .min(-90, { error: "Latitude fora do intervalo de -90 a 90" })
+    .max(90, { error: "Latitude fora do intervalo de -90 a 90" }),
+  lng: z
+    .number({ error: "Envie a longitude como número" })
+    .min(-180, { error: "Longitude fora do intervalo de -180 a 180" })
+    .max(180, { error: "Longitude fora do intervalo de -180 a 180" }),
+  battery: z
+    .number({ error: "Envie a bateria como número de 0 a 100" })
+    .min(0, { error: "Bateria entre 0 e 100" })
+    .max(100, { error: "Bateria entre 0 e 100" })
+    .nullable()
+    .default(null),
+  at: z.iso
+    .datetime({ offset: true, error: "Envie at em ISO 8601, como 2026-10-26T14:03:00Z" })
+    .nullable()
+    .default(null),
+});
+
+export function parseLocationReport(raw: unknown): LocationReport {
+  const result = locationSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  const { at, ...rest } = result.data;
+  return { ...rest, at: at === null ? null : Date.parse(at) };
 }

@@ -195,6 +195,17 @@ export type Neighborhood = {
   polygon: LngLat[];
 };
 
+export type TagTarget = { kind: "equipment" | "agent"; id: number };
+
+export type Tag = {
+  id: string;
+  target: TagTarget;
+  createdAt: string;
+  lastReportAt: string | null;
+};
+
+export type CreatedTag = { tag: Tag; token: string };
+
 export type NeighborhoodShape = Neighborhood & { edited: boolean; updatedAt: string | null };
 
 export type Street = {

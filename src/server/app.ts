@@ -6,10 +6,12 @@ import type { NeighborhoodShapes } from "./neighborhoods.ts";
 import type { PredictionService } from "./predictions/service.ts";
 import { BadgeTakenError } from "./repositories/agents.ts";
 import { SerialNumberTakenError } from "./repositories/equipment.ts";
+import { TagTakenError } from "./repositories/tags.ts";
 import { inventoryRoutes } from "./routes/inventory.ts";
 import { neighborhoodRoutes } from "./routes/neighborhoods.ts";
 import { operationsRoutes } from "./routes/operations.ts";
 import { predictionRoutes } from "./routes/predictions.ts";
+import { tagRoutes } from "./routes/tags.ts";
 import { ValidationError } from "./validation.ts";
 
 export type AppDeps = {
@@ -50,6 +52,15 @@ export function createApp(deps: AppDeps): Hono {
         409,
       );
     }
+    if (error instanceof TagTakenError) {
+      return c.json(
+        {
+          error: "Já existe uma tag vinculada",
+          issues: [{ path: "target", message: "Remova a tag atual antes de criar outra" }],
+        },
+        409,
+      );
+    }
     if (error instanceof SyntaxError) {
       return c.json({ error: "JSON inválido" }, 400);
     }
@@ -64,6 +75,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/api", inventoryRoutes(deps));
   app.route("/api", operationsRoutes(deps));
   app.route("/api", neighborhoodRoutes(deps));
+  app.route("/api", tagRoutes(deps));
   app.route("/api/predictions", predictionRoutes(deps));
   app.notFound((c) => c.json({ error: "Recurso não encontrado" }, 404));
 

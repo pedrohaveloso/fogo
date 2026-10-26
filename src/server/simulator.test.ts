@@ -7,7 +7,9 @@ import { city, roads } from "./city.ts";
 import { openDatabase, type Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import { createDemandModel } from "./patterns.ts";
-import { setEquipmentStatus } from "./repositories/equipment.ts";
+import { listAgents } from "./repositories/agents.ts";
+import { listEquipment, setEquipmentStatus } from "./repositories/equipment.ts";
+import { createTag } from "./repositories/tags.ts";
 import { getOccurrence, insertOccurrence } from "./repositories/occurrences.ts";
 import type { RoadData } from "./roads.ts";
 import { seedDatabase } from "./seed/index.ts";
@@ -341,5 +343,43 @@ describe("simulator", () => {
       .prepare("SELECT SUM(count) AS total FROM readings WHERE hour_start = ?")
       .get(startOfHour(later)) as { total: number };
     expect(after.total).toBeGreaterThan(before.total);
+  });
+
+  it("leaves tagged agents and equipment to their tags", { timeout: 30_000 }, () => {
+    const { db, simulator } = setup();
+    const agent = listAgents(db).find(
+      (item) => item.status === "available" && item.vehicleId !== null,
+    )!;
+    const equipment = listEquipment(db);
+    const scooter = equipment.find(
+      (item) => item.type === "e_scooter" && item.status === "operational",
+    )!;
+    const camera = equipment.find(
+      (item) => item.type === "camera" && item.status === "operational" && item.installedAt,
+    )!;
+    for (const target of [
+      { kind: "agent" as const, id: agent.id },
+      { kind: "equipment" as const, id: scooter.id },
+      { kind: "equipment" as const, id: camera.id },
+    ]) {
+      createTag(db, target, NOW);
+    }
+    db.prepare("UPDATE equipment SET last_seen_at = ? WHERE id = ?").run(NOW - HOUR, camera.id);
+    const untagged = listAgents(db).find(
+      (item) => item.status === "available" && item.vehicleId !== null && item.id !== agent.id,
+    )!;
+
+    run(simulator, NOW, 120);
+
+    const agentsAfter = new Map(listAgents(db).map((item) => [item.id, item]));
+    const equipmentAfter = new Map(listEquipment(db).map((item) => [item.id, item]));
+    expect(agentsAfter.get(agent.id)).toMatchObject({ lat: agent.lat, lng: agent.lng });
+    expect(equipmentAfter.get(scooter.id)).toMatchObject({
+      currentLat: scooter.currentLat,
+      currentLng: scooter.currentLng,
+    });
+    expect(Date.parse(equipmentAfter.get(camera.id)!.lastSeenAt!)).toBe(NOW - HOUR);
+    const moved = agentsAfter.get(untagged.id)!;
+    expect([moved.lng, moved.lat]).not.toEqual([untagged.lng, untagged.lat]);
   });
 });

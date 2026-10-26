@@ -20,6 +20,7 @@ import {
   statusHistory,
   updateEquipment,
 } from "../repositories/equipment.ts";
+import { tagFor } from "../repositories/tags.ts";
 import { ValidationError, parseAgentInput, parseEquipmentInput, parseId } from "../validation.ts";
 
 const VEHICLE_TYPES = new Set(["agent_motorcycle", "patrol_vehicle"]);
@@ -102,6 +103,7 @@ export function inventoryRoutes(deps: AppDeps): Hono {
       readings: readingsSince(db, item.id, now() - 48 * HOUR),
       occurrences: occurrences.map(toOccurrenceSummary),
       operator,
+      tag: tagFor(db, { kind: "equipment", id: item.id }),
     });
   });
 
@@ -175,6 +177,7 @@ export function inventoryRoutes(deps: AppDeps): Hono {
       agent,
       vehicle: agent.vehicleId === null ? null : getEquipment(db, agent.vehicleId),
       occurrences: handled.map(toOccurrenceSummary),
+      tag: tagFor(db, { kind: "agent", id: agent.id }),
     });
   });
 

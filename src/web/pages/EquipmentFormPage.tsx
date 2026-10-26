@@ -15,7 +15,7 @@ import {
   type EquipmentType,
 } from "../../shared/catalog.ts";
 import { addDays, localDate } from "../../shared/time.ts";
-import type { AddressLookup, Equipment } from "../../shared/types.ts";
+import type { AddressLookup, Equipment, Tag } from "../../shared/types.ts";
 import {
   LABELS,
   REFERENCE_SUGGESTIONS,
@@ -35,6 +35,7 @@ import {
 } from "../components/form.tsx";
 import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { TagPanel } from "../components/TagPanel.tsx";
 import { useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { containingArea } from "../../shared/geo.ts";
@@ -110,15 +111,17 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
   const [saving, setSaving] = useState(false);
   const [lookup, setLookup] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tag, setTag] = useState<Tag | null>(null);
 
   useEffect(() => {
     if (id === null) {
       return;
     }
     api
-      .get<{ equipment: Equipment }>(`/equipment/${id}`)
+      .get<{ equipment: Equipment; tag: Tag | null }>(`/equipment/${id}`)
       .then((data) => {
         setDraft(fromEquipment(data.equipment));
+        setTag(data.tag);
         setLoaded(true);
       })
       .catch((error: unknown) =>
@@ -614,6 +617,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           </button>
         </div>
       </form>
+      {id !== null && <TagPanel target={{ equipmentId: id }} initial={tag} moves={spec.mobile} />}
       <ConfirmDialog
         open={confirmDelete}
         title="Excluir este equipamento?"

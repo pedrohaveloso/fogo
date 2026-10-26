@@ -120,6 +120,16 @@ CREATE TABLE IF NOT EXISTS neighborhood_shapes (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS tags (
+  id TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL,
+  equipment_id INTEGER UNIQUE REFERENCES equipment (id) ON DELETE CASCADE,
+  agent_id INTEGER UNIQUE REFERENCES agents (id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  last_report_at INTEGER,
+  CHECK ((equipment_id IS NULL) <> (agent_id IS NULL))
+);
+
 CREATE TABLE IF NOT EXISTS alert_acks (
   alert_id TEXT PRIMARY KEY,
   acknowledged_at INTEGER NOT NULL

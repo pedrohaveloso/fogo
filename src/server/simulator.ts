@@ -38,6 +38,7 @@ import {
   type TravelMode,
 } from "./roads.ts";
 import { listAgents } from "./repositories/agents.ts";
+import { trackedIds } from "./repositories/tags.ts";
 import {
   completeMaintenance,
   getEquipment,
@@ -372,6 +373,7 @@ export function createSimulator(
       }
       const agents = listAgents(db);
       const equipment = listEquipment(db);
+      const tracked = trackedIds(db);
       const byId = new Map(equipment.map((item) => [item.id, item]));
 
       if (hour !== lastShiftHour) {
@@ -493,6 +495,9 @@ export function createSimulator(
       );
 
       for (const agent of agentById.values()) {
+        if (tracked.agents.has(agent.id)) {
+          continue;
+        }
         let position: LngLat = [agent.lng, agent.lat];
         const key = `agent-${agent.id}`;
         const vehicle = agentVehicle(agent, byId);
@@ -550,7 +555,7 @@ export function createSimulator(
           status: agent.status,
           occurrenceId: agent.occurrenceId,
         });
-        if (vehicle && agent.status !== "off_duty") {
+        if (vehicle && agent.status !== "off_duty" && !tracked.equipment.has(vehicle.id)) {
           updateVehicle.run(position[1], position[0], now, vehicle.id);
           moving.push({
             id: vehicle.id,
@@ -568,7 +573,8 @@ export function createSimulator(
         if (
           !EQUIPMENT_TYPES[item.type].mobile ||
           item.status !== "operational" ||
-          assignedVehicles.has(item.id)
+          assignedVehicles.has(item.id) ||
+          tracked.equipment.has(item.id)
         ) {
           continue;
         }
@@ -635,7 +641,8 @@ export function createSimulator(
             item.status === "operational" &&
             !EQUIPMENT_TYPES[item.type].mobile &&
             item.installedAt !== null &&
-            !silent.has(item.id),
+            !silent.has(item.id) &&
+            !tracked.equipment.has(item.id),
         );
         if (candidates.length > 0) {
           silent.set(random.pick(candidates).id, now + random.int(4, 10) * MINUTE);
@@ -645,6 +652,7 @@ export function createSimulator(
       const silentIds = [...silent.keys()];
       db.prepare(
         `UPDATE equipment SET last_seen_at = ? WHERE status IN ('operational', 'maintenance') AND installed_at IS NOT NULL
+         AND id NOT IN (SELECT equipment_id FROM tags WHERE equipment_id IS NOT NULL)
          ${silentIds.length > 0 ? `AND id NOT IN (${silentIds.join(",")})` : ""}`,
       ).run(now);
 

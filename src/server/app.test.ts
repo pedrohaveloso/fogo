@@ -1,10 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type {
   Agent,
+  CreatedTag,
   Equipment,
   NeighborhoodShape,
   Occurrence,
   OperationsSnapshot,
+  Tag,
 } from "../shared/types.ts";
 import { createApp } from "./app.ts";
 import { city } from "./city.ts";
@@ -362,5 +364,106 @@ describe("neighborhood shapes API", () => {
       404,
     );
     expect((await call("DELETE", "/neighborhoods/nada/shape")).status).toBe(404);
+  });
+});
+
+async function report(id: string, token: string | null, body: unknown) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token !== null) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const response = await app.request(`/api/tags/${id}/location`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+}
+
+describe("tags API", () => {
+  it("links a tag to a vehicle and moves it with each report", async () => {
+    const equipment = (await call<Equipment[]>("GET", "/equipment")).body;
+    const scooter = equipment.find((item) => item.type === "e_scooter")!;
+    const created = await call<CreatedTag>("POST", "/tags", { equipmentId: scooter.id });
+    expect(created.status).toBe(201);
+    expect(created.body.tag.id).toMatch(/^TAG-[A-Z2-9]{8}$/);
+    expect(created.body.token.length).toBeGreaterThanOrEqual(32);
+    expect(JSON.stringify(created.body.tag)).not.toContain(created.body.token);
+
+    const { tag, token } = created.body;
+    const accepted = await report(tag.id, token, { lat: -22.22, lng: -49.95, battery: 64 });
+    expect(accepted).toEqual({
+      status: 200,
+      body: { applied: true, at: new Date(NOW).toISOString() },
+    });
+    const details = await call<{ equipment: Equipment; tag: Tag }>(
+      "GET",
+      `/equipment/${scooter.id}`,
+    );
+    expect(details.body.equipment).toMatchObject({
+      currentLat: -22.22,
+      currentLng: -49.95,
+      battery: 64,
+      lastSeenAt: new Date(NOW).toISOString(),
+    });
+    expect(details.body.tag).toMatchObject({
+      id: tag.id,
+      lastReportAt: new Date(NOW).toISOString(),
+    });
+
+    const late = await report(tag.id, token, {
+      lat: -22.3,
+      lng: -49.9,
+      at: new Date(NOW - 60_000).toISOString(),
+    });
+    expect(late.body["applied"]).toBe(false);
+
+    expect((await call("POST", "/tags", { equipmentId: scooter.id })).status).toBe(409);
+    expect((await call("DELETE", `/tags/${tag.id}`)).status).toBe(204);
+    expect((await report(tag.id, token, { lat: -22.22, lng: -49.95 })).status).toBe(401);
+    expect((await call("DELETE", `/tags/${tag.id}`)).status).toBe(404);
+  });
+
+  it("moves an agent and keeps a fixed camera in its registered place", async () => {
+    const agent = (await call<Agent[]>("GET", "/agents")).body[0]!;
+    const agentTag = (await call<CreatedTag>("POST", "/tags", { agentId: agent.id })).body;
+    await report(agentTag.tag.id, agentTag.token, { lat: -22.23, lng: -49.96 });
+    const moved = await call<{ agent: Agent; tag: Tag }>("GET", `/agents/${agent.id}`);
+    expect(moved.body.agent).toMatchObject({ lat: -22.23, lng: -49.96 });
+    expect(moved.body.tag.id).toBe(agentTag.tag.id);
+
+    const camera = (await call<Equipment[]>("GET", "/equipment")).body.find(
+      (item) => item.type === "camera",
+    )!;
+    const cameraTag = (await call<CreatedTag>("POST", "/tags", { equipmentId: camera.id })).body;
+    await report(cameraTag.tag.id, cameraTag.token, { lat: -22.3, lng: -49.9 });
+    const fixed = (await call<{ equipment: Equipment }>("GET", `/equipment/${camera.id}`)).body
+      .equipment;
+    expect(fixed).toMatchObject({
+      lat: camera.lat,
+      lng: camera.lng,
+      currentLat: camera.currentLat,
+    });
+    expect(fixed.lastSeenAt).toBe(new Date(NOW).toISOString());
+  });
+
+  it("refuses missing or wrong tokens, bad readings and unknown targets", async () => {
+    const agent = (await call<Agent[]>("GET", "/agents")).body[1]!;
+    const { tag, token } = (await call<CreatedTag>("POST", "/tags", { agentId: agent.id })).body;
+    expect((await report(tag.id, null, { lat: -22.2, lng: -49.9 })).status).toBe(401);
+    expect((await report(tag.id, `${token}x`, { lat: -22.2, lng: -49.9 })).status).toBe(401);
+    expect((await report("TAG-NOPE0000", token, { lat: -22.2, lng: -49.9 })).status).toBe(401);
+    const invalid = await report(tag.id, token, { lat: 120, lng: "x", battery: 140, at: "ontem" });
+    expect(invalid.status).toBe(422);
+    expect((invalid.body["issues"] as { path: string }[]).map((issue) => issue.path)).toEqual([
+      "lat",
+      "lng",
+      "battery",
+      "at",
+    ]);
+    expect((await call("POST", "/tags", { agentId: 999_999 })).status).toBe(404);
+    expect((await call("POST", "/tags", { equipmentId: 999_999 })).status).toBe(404);
+    expect((await call("POST", "/tags", {})).status).toBe(422);
+    expect((await call("POST", "/tags", { agentId: 1, equipmentId: 2 })).status).toBe(422);
   });
 });

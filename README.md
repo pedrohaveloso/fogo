@@ -85,6 +85,8 @@ Os alertas seguem a norma ISA-18.2: crítico é o que pede ação agora, como oc
 
 Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o papel dos dispositivos IoT: movimenta agentes e veículos, gera ocorrências segundo o padrão histórico de cada bairro, despacha o agente disponível que chega mais rápido, registra falhas, reparos, manutenções preventivas, furtos, reposições e quedas de comunicação, e acumula as contagens dos sensores. Para a demonstração ter movimento, ocorrências e falhas acontecem 20 vezes mais rápido que na vida real, com as mesmas taxas por equipamento do histórico. Os modelos de previsão descontam essa aceleração.
 
+Dispositivos de verdade entram por tags. Na ficha de um equipamento ou agente, o gestor cria uma tag e grava o ID e o token num GPS ou numa placa como o ESP32, que passa a mandar a posição para `POST /api/tags/{id}/location`. O simulador deixa de mover esse cadastro e de inventar o sinal de vida dele. O passo a passo, o contrato da rota e um exemplo para ESP32 estão em [docs/rastreadores.md](docs/rastreadores.md).
+
 O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h na ronda e a 7 km/h a caminho de uma ocorrência. Viaturas e motos patrulham a 30 km/h e vão a um chamado a até 60 e 65 km/h. Táxis e mototáxis rodam a 40 km/h, o veículo de fiscalização a 15 km/h e os patinetes a 15 ou 20 km/h, conforme o limitador. Veículos respeitam a mão de direção e o limite de cada trecho; só viaturas e motos em atendimento passam um pouco do limite. O despacho só considera quem chega em até 20 minutos.
 
 ### Bairros
@@ -112,6 +114,7 @@ flowchart LR
   api -- "SSE a cada 2 s" --> web
   api --> db[("SQLite (node:sqlite)")]
   sim["Simulador IoT"] --> db
+  tag["Rastreadores (tags)"] -- "POST /api/tags/{id}/location" --> api
   sim --> hub["Hub ao vivo"]
   hub --> api
   pred["Modelos de previsão"] --> db
@@ -167,8 +170,8 @@ São cerca de 200 testes com Vitest: regras de alerta e de nível, modelos de pr
 
 ## Limitações
 
-- Equipamentos, agentes, ocorrências e telemetria são simulados, e os modelos foram avaliados nessa base. Com dados reais, os limiares e a qualidade precisariam ser medidos de novo.
-- Não há autenticação nem perfis de acesso.
+- Equipamentos, agentes, ocorrências e telemetria são simulados, com exceção dos cadastros que têm tag, e os modelos foram avaliados nessa base. Com dados reais, os limiares e a qualidade precisariam ser medidos de novo.
+- Não há autenticação nem perfis de acesso. A única rota protegida é a de localização das tags, que exige o token do dispositivo.
 - Tudo roda num único processo com SQLite, suficiente para uma cidade do porte de Marília, mas sem escala horizontal.
 - O mapa de fundo depende de internet; sem ela aparecem só os bairros e os marcadores.
 - Os limites de bairro são aproximados (ver Dados). Mudar o limite de um bairro não muda o bairro gravado em equipamentos, agentes e ocorrências que já existiam.

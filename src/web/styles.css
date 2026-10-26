@@ -3248,6 +3248,69 @@ dialog::backdrop {
   }
 }
 
+.tag-panel {
+  margin-top: 16px;
+}
+
+.tag-panel-title {
+  font-size: var(--text-lg);
+}
+
+.tag-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+}
+
+.tag-facts dt {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.tag-facts dd {
+  margin: 0;
+}
+
+.tag-panel code,
+.tag-example {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.tag-secret {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1.5px dashed var(--warning);
+  border-radius: var(--radius);
+}
+
+.tag-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.tag-copy code {
+  flex: 1 1 260px;
+  padding: 6px 8px;
+  background: var(--raised);
+  border-radius: var(--radius);
+}
+
+.tag-example {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: var(--raised);
+  border-radius: var(--radius);
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
 @media (max-width: 720px) {
   .pagination {
     justify-content: space-between;

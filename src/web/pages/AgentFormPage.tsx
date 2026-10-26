@@ -11,7 +11,7 @@ import {
   type AgentStatus,
   type Shift,
 } from "../../shared/catalog.ts";
-import type { Agent } from "../../shared/types.ts";
+import type { Agent, Tag } from "../../shared/types.ts";
 import { api, ApiError } from "../api.ts";
 import {
   ConfirmDialog,
@@ -23,6 +23,7 @@ import {
 } from "../components/form.tsx";
 import { AgentShield } from "../components/badges.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { TagPanel } from "../components/TagPanel.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -99,15 +100,17 @@ export function AgentFormPage({ id }: { id: number | null }) {
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tag, setTag] = useState<Tag | null>(null);
 
   useEffect(() => {
     if (id === null) {
       return;
     }
     api
-      .get<{ agent: Agent }>(`/agents/${id}`)
+      .get<{ agent: Agent; tag: Tag | null }>(`/agents/${id}`)
       .then((data) => {
         setDraft(fromAgent(data.agent));
+        setTag(data.tag);
         setLoaded(true);
       })
       .catch((error: unknown) =>
@@ -394,6 +397,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
           </button>
         </div>
       </form>
+      {id !== null && <TagPanel target={{ agentId: id }} initial={tag} moves />}
       <ConfirmDialog
         open={confirmDelete}
         title="Excluir este agente?"

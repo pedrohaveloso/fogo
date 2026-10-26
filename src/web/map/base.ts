@@ -15,7 +15,7 @@ import {
   EQUIPMENT_TYPE_KEYS,
   STATUS_COLORS,
 } from "../../shared/catalog.ts";
-import { AGENT_STATUS_COLORS } from "../colors.ts";
+import { AGENT_STATUS_COLORS, agentGlyphColor } from "../colors.ts";
 import {
   AGENT_ROLE_GLYPHS,
   STATUS_SHAPES,
@@ -26,22 +26,29 @@ import {
   type MarkerShape,
 } from "../icons.tsx";
 import { tintBasemap } from "./basemap.ts";
+import {
+  DARK_GLYPH,
+  LIGHT_GLYPH,
+  MAP_GROUND,
+  MAP_SURFACE,
+  MARKER_RING,
+  OUTLINE_GLYPH,
+} from "./palette.ts";
 
 setWorkerUrl(workerUrl);
 
-export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const STYLE_TIMEOUT_MS = 5000;
 const MARKER_SIZE = 30;
 const PIXEL_RATIO = 2;
 const HATCH_TILE = 10;
-const RING = "#111417";
 
 export const CRITICAL_HATCH = "hatch-critical";
 
 const FALLBACK_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": RING } }],
+  layers: [{ id: "background", type: "background", paint: { "background-color": MAP_GROUND } }],
 };
 
 let stylePromise: Promise<{ style: StyleSpecification; online: boolean }> | null = null;
@@ -81,10 +88,10 @@ function drawMarker(
   const path = new Path2D(shapePath(shape, MARKER_SIZE));
 
   context.lineJoin = "round";
-  context.strokeStyle = RING;
+  context.strokeStyle = MARKER_RING;
   context.lineWidth = 4;
   context.stroke(path);
-  context.fillStyle = outline ? "#1f2328" : fill;
+  context.fillStyle = outline ? MAP_SURFACE : fill;
   context.fill(path);
   if (outline) {
     context.strokeStyle = fill;
@@ -138,7 +145,7 @@ export const MAINTENANCE_BADGE_COLOR = "#fab219";
 export const NEIGHBORHOOD_ATTRIBUTION =
   'Bairros com limites aproximados a partir do <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
 
-export const SILENT_BADGE_COLOR = "#c1c7ce";
+export const SILENT_BADGE_COLOR = "#5e6670";
 
 function drawBadge(fill: string, ring: string, ink: string, glyph: string): ImageData {
   const badge = 15;
@@ -170,17 +177,17 @@ function registerImages(map: MapLibreMap): void {
   const ratio = { pixelRatio: PIXEL_RATIO };
   map.addImage(
     "maintenance-urgent",
-    drawBadge(MAINTENANCE_BADGE_COLOR, RING, "#1b1f24", WRENCH_GLYPH),
+    drawBadge(MAINTENANCE_BADGE_COLOR, MARKER_RING, DARK_GLYPH, WRENCH_GLYPH),
     ratio,
   );
   map.addImage(
     "maintenance-soon",
-    drawBadge("#1f2328", MAINTENANCE_BADGE_COLOR, MAINTENANCE_BADGE_COLOR, WRENCH_GLYPH),
+    drawBadge(MAP_SURFACE, MAINTENANCE_BADGE_COLOR, DARK_GLYPH, WRENCH_GLYPH),
     ratio,
   );
   map.addImage(
     "signal-off",
-    drawBadge("#1f2328", SILENT_BADGE_COLOR, SILENT_BADGE_COLOR, SIGNAL_OFF_GLYPH),
+    drawBadge(MAP_SURFACE, SILENT_BADGE_COLOR, SILENT_BADGE_COLOR, SIGNAL_OFF_GLYPH),
     ratio,
   );
   map.addImage(CRITICAL_HATCH, drawHatch("rgba(208, 59, 59, 0.9)"), { pixelRatio: PIXEL_RATIO });
@@ -189,10 +196,10 @@ function registerImages(map: MapLibreMap): void {
       const color = STATUS_COLORS[status];
       const shape = STATUS_SHAPES[status];
       const glyphColor = shape.startsWith("outline")
-        ? "#c1c7ce"
+        ? OUTLINE_GLYPH
         : darkInk(color)
-          ? "#1b1f24"
-          : "#ffffff";
+          ? DARK_GLYPH
+          : LIGHT_GLYPH;
       map.addImage(
         equipmentImageId(type, status),
         drawMarker(shape, color, TYPE_GLYPHS[type], glyphColor),
@@ -210,7 +217,7 @@ function registerImages(map: MapLibreMap): void {
           "shield",
           AGENT_STATUS_COLORS[status],
           AGENT_ROLE_GLYPHS[role],
-          status === "responding" ? "#1b1f24" : "#ffffff",
+          agentGlyphColor(status),
         ),
         { pixelRatio: PIXEL_RATIO },
       );

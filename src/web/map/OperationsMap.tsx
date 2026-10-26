@@ -19,6 +19,16 @@ import {
   useMap,
 } from "./base.ts";
 import { dispatchLines, idFilter, idsAtLevel, neighborhoodFeatures } from "./geojson.ts";
+import {
+  DARK_GLYPH,
+  LIGHT_GLYPH,
+  MAP_AREA_LINE,
+  MAP_GROUND,
+  MAP_INK,
+  MAP_LABEL,
+  MAP_SURFACE,
+  MARKER_RING,
+} from "./palette.ts";
 
 export type Selection =
   | { kind: "equipment"; id: number }
@@ -51,7 +61,6 @@ type Props = {
 const NARROW_SHARE = 0.8;
 const LANDMARK_MIN_ZOOM = 13.5;
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
-const MAP_GROUND = "#111417";
 const CLUSTER_BADGE_OFFSET: [number, number] = [13, -13];
 const CLUSTER_MAINTENANCE_OFFSET: [number, number] = [13, 13];
 const CLICKABLE_LAYERS = [
@@ -178,13 +187,7 @@ export function OperationsMap(props: Props) {
       type: "line",
       source: "neighborhoods",
       paint: {
-        "line-color": [
-          "match",
-          LEVEL,
-          "critical",
-          HEALTH_COLORS.critical,
-          "rgba(255, 255, 255, 0.13)",
-        ],
+        "line-color": ["match", LEVEL, "critical", HEALTH_COLORS.critical, MAP_AREA_LINE],
         "line-width": ["match", LEVEL, "critical", 1.6, 0.8],
       },
     });
@@ -206,7 +209,7 @@ export function OperationsMap(props: Props) {
       type: "line",
       source: "neighborhoods",
       filter: idFilter([]),
-      paint: { "line-color": "#ffffff", "line-width": 2.5 },
+      paint: { "line-color": MAP_INK, "line-width": 2.5 },
     });
     map.addSource("landmarks", {
       type: "geojson",
@@ -224,7 +227,7 @@ export function OperationsMap(props: Props) {
       minzoom: LANDMARK_MIN_ZOOM,
       paint: {
         "circle-radius": 3,
-        "circle-color": "#6b7079",
+        "circle-color": MAP_LABEL,
         "circle-stroke-color": MAP_GROUND,
         "circle-stroke-width": 1,
       },
@@ -244,7 +247,7 @@ export function OperationsMap(props: Props) {
           "text-max-width": 9,
         },
         paint: {
-          "text-color": "#8a929c",
+          "text-color": MAP_LABEL,
           "text-halo-color": MAP_GROUND,
           "text-halo-width": 1.2,
         },
@@ -293,7 +296,7 @@ export function OperationsMap(props: Props) {
       source: "equipment",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#1f2328",
+        "circle-color": MAP_SURFACE,
         "circle-stroke-color": [
           "case",
           [">", ["get", "down"], 0],
@@ -312,7 +315,7 @@ export function OperationsMap(props: Props) {
       paint: {
         "circle-color": HEALTH_COLORS.critical,
         "circle-radius": 8,
-        "circle-stroke-color": MAP_GROUND,
+        "circle-stroke-color": MARKER_RING,
         "circle-stroke-width": 2,
         "circle-translate": CLUSTER_BADGE_OFFSET,
       },
@@ -325,7 +328,7 @@ export function OperationsMap(props: Props) {
       paint: {
         "circle-color": MAINTENANCE_BADGE_COLOR,
         "circle-radius": 8,
-        "circle-stroke-color": MAP_GROUND,
+        "circle-stroke-color": MARKER_RING,
         "circle-stroke-width": 2,
         "circle-translate": CLUSTER_MAINTENANCE_OFFSET,
       },
@@ -343,7 +346,7 @@ export function OperationsMap(props: Props) {
           "text-allow-overlap": true,
           "text-ignore-placement": true,
         },
-        paint: { "text-color": "#eef0f2" },
+        paint: { "text-color": MAP_INK },
       });
       map.addLayer({
         id: "cluster-badge-count",
@@ -357,7 +360,7 @@ export function OperationsMap(props: Props) {
           "text-allow-overlap": true,
           "text-ignore-placement": true,
         },
-        paint: { "text-color": "#ffffff", "text-translate": CLUSTER_BADGE_OFFSET },
+        paint: { "text-color": LIGHT_GLYPH, "text-translate": CLUSTER_BADGE_OFFSET },
       });
       map.addLayer({
         id: "cluster-maintenance-count",
@@ -371,7 +374,7 @@ export function OperationsMap(props: Props) {
           "text-allow-overlap": true,
           "text-ignore-placement": true,
         },
-        paint: { "text-color": "#1b1f24", "text-translate": CLUSTER_MAINTENANCE_OFFSET },
+        paint: { "text-color": DARK_GLYPH, "text-translate": CLUSTER_MAINTENANCE_OFFSET },
       });
     }
     map.addLayer({
@@ -427,7 +430,7 @@ export function OperationsMap(props: Props) {
       paint: {
         "circle-radius": 21,
         "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-color": "#ffffff",
+        "circle-stroke-color": MAP_INK,
         "circle-stroke-width": 2.5,
       },
     });

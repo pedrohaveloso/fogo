@@ -12,14 +12,14 @@ const style: StyleSpecification = {
       type: "line",
       source: "openmaptiles",
       "source-layer": "transportation",
-      paint: { "line-color": "#181818", "line-width": 2 },
+      paint: { "line-color": "hsl(0,0%,88%)", "line-width": 2 },
     },
     {
-      id: "place_suburb",
+      id: "label_town",
       type: "symbol",
       source: "openmaptiles",
       "source-layer": "place",
-      paint: { "text-color": "rgb(101,101,101)" },
+      paint: { "text-color": "#000" },
     },
     {
       id: "custom_layer",
@@ -32,11 +32,11 @@ const style: StyleSpecification = {
 };
 
 describe("tintBasemap", () => {
-  it("repaints known layers with the asphalt palette and keeps other paint values", () => {
+  it("repaints known layers with the light palette and keeps other paint values", () => {
     const tinted = tintBasemap(style);
-    expect(tinted.layers[0]).toMatchObject({ paint: { "background-color": "#111417" } });
-    expect(tinted.layers[1]).toMatchObject({ paint: { "line-color": "#22272d", "line-width": 2 } });
-    expect(tinted.layers[2]).toMatchObject({ paint: { "text-color": "#858d97" } });
+    expect(tinted.layers[0]).toMatchObject({ paint: { "background-color": "#eceef1" } });
+    expect(tinted.layers[1]).toMatchObject({ paint: { "line-color": "#ffffff", "line-width": 2 } });
+    expect(tinted.layers[2]).toMatchObject({ paint: { "text-color": "#7a828c" } });
   });
 
   it("leaves unknown layers and the original style untouched", () => {

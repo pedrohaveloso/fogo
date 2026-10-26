@@ -1,41 +1,36 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import { MAP_GROUND } from "./palette.ts";
 
-const MAP_GROUND = "#111417";
+const HALO = "rgba(255,255,255,0.9)";
 
-const PLACE_PAINT = { "text-color": "#858d97", "text-halo-color": "rgba(17,20,23,0.85)" };
+const LABEL_PAINT = { "text-color": "#7a828c", "text-halo-color": HALO };
 
-const RAILWAY_PAINT = { "line-color": "#3a414a" };
+const RAILWAY_PAINT = { "line-color": "#d3d7dc" };
 
 const BASEMAP_PAINT: Record<string, Record<string, string>> = {
   background: { "background-color": MAP_GROUND },
-  water: { "fill-color": "#16242e" },
-  waterway: { "line-color": "#1d3442" },
-  "aeroway-area": { "fill-color": "#181c21" },
-  "aeroway-runway": { "line-color": "#2b3138" },
-  "aeroway-runway-casing": { "line-color": "#353c44" },
-  "aeroway-taxiway": { "line-color": "#22272d" },
-  water_name: { "text-color": "#4f6575", "text-halo-color": MAP_GROUND },
-  landuse_residential: { "fill-color": "#14171b" },
-  landcover_wood: { "fill-color": "#141a18" },
-  landuse_park: { "fill-color": "#141a18" },
-  building: { "fill-color": "#171b20", "fill-outline-color": "#1e2329" },
-  highway_path: { "line-color": "#1c2025" },
-  highway_minor: { "line-color": "#22272d" },
-  highway_major_casing: { "line-color": "#30363e" },
-  highway_major_inner: { "line-color": "#262b31" },
-  highway_major_subtle: { "line-color": "#2b3037" },
-  highway_motorway_casing: { "line-color": "#3a414a" },
-  highway_motorway_inner: { "line-color": "#2c3239" },
-  highway_motorway_subtle: { "line-color": "#262b31" },
+  park: { "fill-color": "#e3e8e2" },
+  water: { "fill-color": "#c9d3db" },
+  waterway: { "line-color": "#bccad4" },
+  landuse_residential: { "fill-color": "#e7e9ec" },
+  landcover_wood: { "fill-color": "#dfe5df" },
+  building: { "fill-color": "#e2e5e9", "fill-outline-color": "#d6dade" },
+  highway_path: { "line-color": "#e4e7ea" },
+  highway_minor: { "line-color": "#ffffff" },
+  highway_major_casing: { "line-color": "#cfd4d9" },
+  highway_major_inner: { "line-color": "#ffffff" },
+  highway_motorway_casing: { "line-color": "#c3c9cf" },
   railway: RAILWAY_PAINT,
-  railway_minor: RAILWAY_PAINT,
   railway_transit: RAILWAY_PAINT,
-  highway_name_other: { "text-color": "#69717b", "text-halo-color": MAP_GROUND },
-  highway_name_motorway: { "text-color": "#7d858f", "text-halo-color": MAP_GROUND },
+  railway_service: RAILWAY_PAINT,
+  "highway-name-minor": { "text-color": "#858d97", "text-halo-color": HALO },
+  "highway-name-major": { "text-color": "#6f7781", "text-halo-color": HALO },
+  water_name_point_label: { "text-color": "#6c7f8f", "text-halo-color": HALO },
+  water_name_line_label: { "text-color": "#6c7f8f", "text-halo-color": HALO },
 };
 
 function paintFor(id: string): Record<string, string> | undefined {
-  return BASEMAP_PAINT[id] ?? (id.startsWith("place_") ? PLACE_PAINT : undefined);
+  return BASEMAP_PAINT[id] ?? (id.startsWith("label_") ? LABEL_PAINT : undefined);
 }
 
 export function tintBasemap(style: StyleSpecification): StyleSpecification {

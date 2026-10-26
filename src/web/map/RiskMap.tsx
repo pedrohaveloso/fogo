@@ -4,6 +4,7 @@ import type { Meta, NeighborhoodRisk, RiskLevel } from "../../shared/types.ts";
 import { RISK_COLORS } from "../colors.ts";
 import { CRITICAL_HATCH, NEIGHBORHOOD_ATTRIBUTION, useMap } from "./base.ts";
 import { idFilter, neighborhoodFeatures } from "./geojson.ts";
+import { MAP_AREA_LINE, MAP_INK } from "./palette.ts";
 
 type Props = {
   meta: Meta;
@@ -69,8 +70,8 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
         "line-color": [
           "case",
           ["boolean", ["feature-state", "selected"], false],
-          "#ffffff",
-          "rgba(255, 255, 255, 0.16)",
+          MAP_INK,
+          MAP_AREA_LINE,
         ],
         "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1],
       },

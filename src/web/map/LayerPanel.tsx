@@ -14,6 +14,7 @@ import { SEVERITY_COLORS } from "../colors.ts";
 import { AgentShield, HealthSwatch } from "../components/badges.tsx";
 import { Glyph, SIGNAL_OFF_GLYPH, StatusShape, TYPE_GLYPHS, WRENCH_GLYPH } from "../icons.tsx";
 import { MAINTENANCE_BADGE_COLOR, SILENT_BADGE_COLOR } from "./base.ts";
+import { DARK_GLYPH, MAP_SURFACE, MARKER_RING } from "./palette.ts";
 import type { MapLayers } from "./OperationsMap.tsx";
 
 const SEVERITIES: Severity[] = [1, 2, 3, 4];
@@ -136,24 +137,24 @@ export function LayerPanel({
             <span className="key">
               <BadgeKey
                 fill={MAINTENANCE_BADGE_COLOR}
-                ring="#111417"
-                ink="#1b1f24"
+                ring={MARKER_RING}
+                ink={DARK_GLYPH}
                 glyph={WRENCH_GLYPH}
               />
               Manutenção urgente (imediata ou vencida)
             </span>
             <span className="key">
               <BadgeKey
-                fill="#1f2328"
+                fill={MAP_SURFACE}
                 ring={MAINTENANCE_BADGE_COLOR}
-                ink={MAINTENANCE_BADGE_COLOR}
+                ink={DARK_GLYPH}
                 glyph={WRENCH_GLYPH}
               />
               Manutenção nos próximos 7 dias
             </span>
             <span className="key">
               <BadgeKey
-                fill="#1f2328"
+                fill={MAP_SURFACE}
                 ring={SILENT_BADGE_COLOR}
                 ink={SILENT_BADGE_COLOR}
                 glyph={SIGNAL_OFF_GLYPH}

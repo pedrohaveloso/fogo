@@ -8,10 +8,17 @@ import type { AlertCategory, AlertLevel, HealthLevel, RiskLevel } from "../share
 
 export const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
   available: "#7b838d",
-  responding: "#c1c7ce",
-  break: "#6b7079",
-  off_duty: "#3d4249",
+  responding: "#2b3037",
+  break: "#8a929b",
+  off_duty: "#c4c9cf",
 };
+
+export const DARK_GLYPH = "#1b1f24";
+export const LIGHT_GLYPH = "#ffffff";
+
+export function agentGlyphColor(status: AgentStatus): string {
+  return status === "off_duty" ? DARK_GLYPH : LIGHT_GLYPH;
+}
 
 export const SEVERITY_COLORS: Record<Severity, string> = {
   1: "#898781",
@@ -61,13 +68,13 @@ export const ALERT_CATEGORY_LABELS: Record<AlertCategory, string> = {
 };
 
 export const SEQUENTIAL_BLUE = [
-  "#13304f",
-  "#184f95",
-  "#256abf",
-  "#3987e5",
-  "#6da7ec",
-  "#9ec5f4",
+  "#e6f0fc",
   "#cde2fb",
+  "#9ec5f4",
+  "#6da7ec",
+  "#3987e5",
+  "#256abf",
+  "#184f95",
 ];
 
 export function availabilityLevel(pct: number): HealthLevel {

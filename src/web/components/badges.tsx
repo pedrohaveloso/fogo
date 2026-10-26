@@ -19,6 +19,7 @@ import {
   HEALTH_LABELS,
   RISK_LABELS,
   SEVERITY_COLORS,
+  agentGlyphColor,
 } from "../colors.ts";
 import { AGENT_ROLE_GLYPHS, Glyph, StatusShape, TYPE_GLYPHS, shapePath } from "../icons.tsx";
 
@@ -50,7 +51,7 @@ export function AgentShield({
           d={AGENT_ROLE_GLYPHS[role]}
           transform={`translate(${offset} ${offset}) scale(${glyphSize / 24})`}
           fill="none"
-          stroke={status === "responding" ? "#1b1f24" : "#ffffff"}
+          stroke={agentGlyphColor(status)}
           strokeWidth={2.4}
           strokeLinecap="round"
           strokeLinejoin="round"

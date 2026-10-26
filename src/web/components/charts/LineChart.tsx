@@ -24,7 +24,7 @@ type Props = {
 
 const PAD = { top: 12, right: 14, bottom: 26, left: 46 };
 const LABEL_SPACING = 64;
-const SURFACE = "#1f2328";
+const SURFACE = "#ffffff";
 
 function linePath(points: [number, number][]): string {
   return points
@@ -100,7 +100,7 @@ export function LineChart({
                 x2={width - PAD.right}
                 y1={y(tick)}
                 y2={y(tick)}
-                stroke="#2f353c"
+                stroke="#dfe3e8"
                 strokeWidth={1}
               />
               <text x={PAD.left - 8} y={y(tick) + 4} textAnchor="end">
@@ -181,7 +181,7 @@ export function LineChart({
               x2={x(hover)}
               y1={PAD.top}
               y2={PAD.top + innerHeight}
-              stroke="#959ca5"
+              stroke="#858e98"
               strokeWidth={1}
             />
           )}

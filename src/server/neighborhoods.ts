@@ -1,6 +1,8 @@
 import { centroid, pointInPolygon, type LngLat } from "../shared/geo.ts";
+import { fold } from "../shared/text.ts";
 import type { CityDataset, Neighborhood, NeighborhoodShape } from "../shared/types.ts";
-import type { Database } from "./db.ts";
+import { transaction, type Database } from "./db.ts";
+import type { NewNeighborhood } from "./validation.ts";
 
 type ShapeRow = {
   neighborhood_id: string;
@@ -10,6 +12,12 @@ type ShapeRow = {
   edited: number;
   updated_at: number;
 };
+
+type CustomRow = { id: string; name: string; region_id: string };
+
+export class NeighborhoodNameTakenError extends Error {}
+
+export class NeighborhoodInUseError extends Error {}
 
 export type NeighborhoodShapes = ReturnType<typeof createNeighborhoodShapes>;
 
@@ -31,12 +39,16 @@ function anchorFor(polygon: LngLat[], current: LngLat): LngLat {
   return [Number(lng.toFixed(6)), Number(lat.toFixed(6))];
 }
 
-function toShape(neighborhood: Neighborhood, row: ShapeRow | undefined): NeighborhoodShape {
-  return {
-    ...neighborhood,
-    edited: row?.edited === 1,
-    updatedAt: row ? new Date(row.updated_at).toISOString() : null,
-  };
+export function slugFor(name: string, taken: (id: string) => boolean): string {
+  const base =
+    fold(name)
+      .replaceAll(/[^a-z0-9]+/g, "-")
+      .replaceAll(/^-|-$/g, "") || "bairro";
+  let id = base;
+  for (let suffix = 2; taken(id); suffix += 1) {
+    id = `${base}-${suffix}`;
+  }
+  return id;
 }
 
 export function createNeighborhoodShapes(db: Database, city: CityDataset) {
@@ -67,11 +79,39 @@ export function createNeighborhoodShapes(db: Database, city: CityDataset) {
       | undefined;
   }
 
+  function adopt(row: CustomRow): void {
+    if (byId.has(row.id)) {
+      return;
+    }
+    const neighborhood: Neighborhood = {
+      id: row.id,
+      name: row.name,
+      regionId: row.region_id,
+      lat: 0,
+      lng: 0,
+      polygon: [],
+    };
+    city.neighborhoods.push(neighborhood);
+    byId.set(row.id, neighborhood);
+  }
+
   function load(now: number): void {
+    for (const row of db.prepare("SELECT * FROM custom_neighborhoods").all() as CustomRow[]) {
+      adopt(row);
+    }
     storeDefaultShapes(db, city, now);
     for (const row of rows()) {
       apply(row);
     }
+  }
+
+  function toShape(neighborhood: Neighborhood, row: ShapeRow | undefined): NeighborhoodShape {
+    return {
+      ...neighborhood,
+      edited: row?.edited === 1,
+      custom: !defaults.has(neighborhood.id),
+      updatedAt: row ? new Date(row.updated_at).toISOString() : null,
+    };
   }
 
   function list(): NeighborhoodShape[] {
@@ -96,7 +136,14 @@ export function createNeighborhoodShapes(db: Database, city: CityDataset) {
     if (!neighborhood) {
       return null;
     }
-    return write(id, polygon, anchorFor(polygon, [neighborhood.lng, neighborhood.lat]), true, now);
+    const edited = defaults.has(id);
+    return write(
+      id,
+      polygon,
+      anchorFor(polygon, [neighborhood.lng, neighborhood.lat]),
+      edited,
+      now,
+    );
   }
 
   function reset(id: string, now: number): NeighborhoodShape | null {
@@ -107,5 +154,52 @@ export function createNeighborhoodShapes(db: Database, city: CityDataset) {
     return write(id, original.polygon, original.anchor, false, now);
   }
 
-  return { load, list, save, reset };
+  function create(input: NewNeighborhood, now: number): NeighborhoodShape {
+    const name = fold(input.name);
+    if (city.neighborhoods.some((item) => fold(item.name) === name)) {
+      throw new NeighborhoodNameTakenError();
+    }
+    const id = slugFor(input.name, (candidate) => byId.has(candidate));
+    return transaction(db, () => {
+      db.prepare(
+        "INSERT INTO custom_neighborhoods (id, name, region_id, created_at) VALUES (?, ?, ?, ?)",
+      ).run(id, input.name, input.regionId, now);
+      adopt({ id, name: input.name, region_id: input.regionId });
+      return write(
+        id,
+        input.polygon,
+        anchorFor(input.polygon, centroid(input.polygon)),
+        false,
+        now,
+      );
+    });
+  }
+
+  function remove(id: string): boolean {
+    if (defaults.has(id) || !byId.has(id)) {
+      return false;
+    }
+    const { total } = db
+      .prepare(
+        `SELECT (SELECT COUNT(*) FROM equipment WHERE neighborhood_id = ?)
+          + (SELECT COUNT(*) FROM agents WHERE base_neighborhood_id = ?)
+          + (SELECT COUNT(*) FROM occurrences WHERE neighborhood_id = ?) AS total`,
+      )
+      .get(id, id, id) as { total: number };
+    if (total > 0) {
+      throw new NeighborhoodInUseError();
+    }
+    transaction(db, () => {
+      db.prepare("DELETE FROM neighborhood_shapes WHERE neighborhood_id = ?").run(id);
+      db.prepare("DELETE FROM custom_neighborhoods WHERE id = ?").run(id);
+    });
+    city.neighborhoods.splice(
+      city.neighborhoods.findIndex((item) => item.id === id),
+      1,
+    );
+    byId.delete(id);
+    return true;
+  }
+
+  return { load, list, save, reset, create, remove };
 }

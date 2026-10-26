@@ -3,7 +3,12 @@ import type { LngLat } from "../shared/geo.ts";
 import type { CityDataset } from "../shared/types.ts";
 import { city } from "./city.ts";
 import { openDatabase } from "./db.ts";
-import { createNeighborhoodShapes } from "./neighborhoods.ts";
+import {
+  NeighborhoodInUseError,
+  NeighborhoodNameTakenError,
+  createNeighborhoodShapes,
+  slugFor,
+} from "./neighborhoods.ts";
 import { NOW } from "./test-fixtures.ts";
 
 const triangle: LngLat[] = [
@@ -75,5 +80,64 @@ describe("neighborhood shapes", () => {
     });
     expect(shapes.save("nada", triangle, NOW)).toBeNull();
     expect(shapes.reset("nada", NOW)).toBeNull();
+  });
+});
+
+describe("custom neighborhoods", () => {
+  it("brings a new neighborhood back after a restart", () => {
+    const db = openDatabase(":memory:");
+    const first = freshCity();
+    const shapes = createNeighborhoodShapes(db, first);
+    shapes.load(NOW);
+    const created = shapes.create({ name: "Vila Nova", regionId: "north", polygon: triangle }, NOW);
+    expect(created).toMatchObject({ id: "vila-nova", custom: true, polygon: triangle });
+    expect(first.neighborhoods.at(-1)!.id).toBe("vila-nova");
+
+    const restarted = freshCity();
+    const reloaded = createNeighborhoodShapes(db, restarted);
+    reloaded.load(NOW + 1000);
+    const back = restarted.neighborhoods.find((item) => item.id === "vila-nova")!;
+    expect(back).toMatchObject({ name: "Vila Nova", regionId: "north", polygon: triangle });
+    expect(reloaded.list().find((item) => item.id === "vila-nova")).toMatchObject({
+      custom: true,
+      edited: false,
+    });
+    expect(reloaded.reset("vila-nova", NOW)).toBeNull();
+    expect(reloaded.save("vila-nova", triangle, NOW)!.edited).toBe(false);
+  });
+
+  it("refuses a repeated name, ignoring accents and case", () => {
+    const shapes = createNeighborhoodShapes(openDatabase(":memory:"), freshCity());
+    shapes.load(NOW);
+    expect(() =>
+      shapes.create({ name: "CENTRO", regionId: "center", polygon: triangle }, NOW),
+    ).toThrow(NeighborhoodNameTakenError);
+  });
+
+  it("removes only unused custom neighborhoods", () => {
+    const db = openDatabase(":memory:");
+    const target = freshCity();
+    const shapes = createNeighborhoodShapes(db, target);
+    shapes.load(NOW);
+    shapes.create({ name: "Vila Nova", regionId: "north", polygon: triangle }, NOW);
+    db.prepare(
+      `INSERT INTO occurrences (kind, severity, status, source, neighborhood_id, lat, lng, description, created_at)
+       VALUES ('accident', 2, 'open', 'manual', 'vila-nova', 0, 0, '', ?)`,
+    ).run(NOW);
+    expect(() => shapes.remove("vila-nova")).toThrow(NeighborhoodInUseError);
+    db.prepare("DELETE FROM occurrences").run();
+    expect(shapes.remove("vila-nova")).toBe(true);
+    expect(target.neighborhoods.some((item) => item.id === "vila-nova")).toBe(false);
+    expect(shapes.remove("centro")).toBe(false);
+    expect(shapes.remove("nada")).toBe(false);
+  });
+});
+
+describe("slugFor", () => {
+  it("builds an id from the name and skips ids in use", () => {
+    expect(slugFor("Jardim São Gabriel", () => false)).toBe("jardim-sao-gabriel");
+    const taken = new Set(["vila", "vila-2"]);
+    expect(slugFor("Vila!", (id) => taken.has(id))).toBe("vila-3");
+    expect(slugFor("***", () => false)).toBe("bairro");
   });
 });

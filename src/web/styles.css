@@ -826,6 +826,12 @@ td.cell-actions {
   white-space: nowrap;
 }
 
+td.cell-actions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .cell-sub {
   display: block;
   margin-top: 1px;
@@ -3129,30 +3135,33 @@ dialog::backdrop {
 .pagination {
   display: flex;
   flex-wrap: wrap;
+.pagination-range,
+.pagination-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
   align-items: center;
   justify-content: flex-end;
   gap: 8px 12px;
-  font-size: var(--text-sm);
 }
 
 .pagination-range,
 .pagination-current {
-  display: inline-flex;
   align-items: center;
   gap: 8px;
   font-variant-numeric: tabular-nums;
 }
 
 .pagination-range,
-.pagination-current {
   display: inline-flex;
   gap: 8px;
   font-variant-numeric: tabular-nums;
-}
-
+  contain: size;
   margin-right: auto;
   color: var(--muted);
-}
 
 .pagination-current {
   color: var(--ink-2);
@@ -3214,6 +3223,17 @@ dialog::backdrop {
   min-width: 0;
 }
 
+.shape-fields {
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.shape-fields .field {
+  flex: 1 1 160px;
+}
+
 .shape-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -3239,7 +3259,7 @@ dialog::backdrop {
 }
 
 .shape-canvas {
-  height: min(68dvh, 720px);
+    contain: none;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);

@@ -46,7 +46,6 @@ export type PredictionService = ReturnType<typeof createPredictionService>;
 
 export function createPredictionService(db: Database, city: CityDataset, liveMultiplier: number) {
   const cache = new Map<string, CacheEntry>();
-  const neighborhoodIds = city.neighborhoods.map((item) => item.id);
 
   function cached<T>(key: string, ttlMs: number, now: number, compute: () => T): T {
     const entry = cache.get(key);
@@ -98,7 +97,11 @@ export function createPredictionService(db: Database, city: CityDataset, liveMul
 
   function model(now: number): RiskModel {
     return cached("model", 60_000, now, () =>
-      trainRiskModel(occurrenceRecords(now - HISTORY_DAYS * DAY), neighborhoodIds, now),
+      trainRiskModel(
+        occurrenceRecords(now - HISTORY_DAYS * DAY),
+        city.neighborhoods.map((item) => item.id),
+        now,
+      ),
     );
   }
 

@@ -12,15 +12,18 @@ export const roads = createRoadNetwork(
   ) as RoadData,
 );
 
-export const neighborhoodsById = new Map(city.neighborhoods.map((item) => [item.id, item]));
+export function findNeighborhood(id: string): Neighborhood | undefined {
+  return city.neighborhoods.find((item) => item.id === id);
+}
+
 export const regionsById = new Map(city.regions.map((item) => [item.id, item]));
 
 export function neighborhoodName(id: string): string {
-  return neighborhoodsById.get(id)?.name ?? id;
+  return findNeighborhood(id)?.name ?? id;
 }
 
 export function regionOfNeighborhood(id: string): string {
-  return neighborhoodsById.get(id)?.regionId ?? "center";
+  return findNeighborhood(id)?.regionId ?? "center";
 }
 
 export function nearestNeighborhood(point: LngLat): Neighborhood {

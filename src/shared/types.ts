@@ -206,7 +206,11 @@ export type Tag = {
 
 export type CreatedTag = { tag: Tag; token: string };
 
-export type NeighborhoodShape = Neighborhood & { edited: boolean; updatedAt: string | null };
+export type NeighborhoodShape = Neighborhood & {
+  edited: boolean;
+  custom: boolean;
+  updatedAt: string | null;
+};
 
 export type Street = {
   name: string;
@@ -239,9 +243,12 @@ export type Landmark = { name: string; kind: string; lat: number; lng: number };
 
 export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
 
+export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
+
 export type Meta = {
   city: CityDataset["city"];
   regions: Region[];
+  streets: StreetPlace[];
   neighborhoods: Neighborhood[];
   landmarks: Landmark[];
   streets: StreetPlace[];

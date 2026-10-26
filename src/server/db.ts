@@ -120,6 +120,13 @@ CREATE TABLE IF NOT EXISTS neighborhood_shapes (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS custom_neighborhoods (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  region_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY,
   token_hash TEXT NOT NULL,

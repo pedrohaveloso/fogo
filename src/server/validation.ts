@@ -14,7 +14,7 @@ import {
 } from "../shared/catalog.ts";
 import { isSimplePolygon, type LngLat } from "../shared/geo.ts";
 import type { AgentInput, AttributeValue, EquipmentInput, TagTarget } from "../shared/types.ts";
-import { neighborhoodsById } from "./city.ts";
+import { city, findNeighborhood } from "./city.ts";
 import type { LocationReport } from "./repositories/tags.ts";
 
 export const AREA_BOUNDS = { south: -22.45, north: -22.05, west: -50.15, east: -49.75 };
@@ -64,7 +64,7 @@ const longitude = z
 
 const neighborhoodId = z
   .string({ error: "Selecione o bairro" })
-  .refine((value) => neighborhoodsById.has(value), {
+  .refine((value) => findNeighborhood(value) !== undefined, {
     error: (issue) => (issue.input === "" ? "Selecione o bairro" : "Selecione um bairro da lista"),
   });
 
@@ -309,6 +309,29 @@ export function parseNeighborhoodShape(raw: unknown): LngLat[] {
     throw new ValidationError(issuesFrom(result.error));
   }
   return result.data.polygon;
+}
+
+const newNeighborhoodSchema = shapeSchema.extend({
+  name: z
+    .string({ error: "Digite o nome do bairro" })
+    .trim()
+    .min(2, { error: "Digite o nome do bairro" })
+    .max(80, { error: "Use no máximo 80 caracteres" }),
+  regionId: z
+    .string({ error: "Selecione a região" })
+    .refine((value) => city.regions.some((region) => region.id === value), {
+      error: "Selecione uma região da lista",
+    }),
+});
+
+export type NewNeighborhood = z.infer<typeof newNeighborhoodSchema>;
+
+export function parseNewNeighborhood(raw: unknown): NewNeighborhood {
+  const result = newNeighborhoodSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data;
 }
 
 const tagTargetSchema = z.union(

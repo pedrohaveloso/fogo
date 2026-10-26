@@ -2,7 +2,11 @@ import { Hono } from "hono";
 import type { CityDataset } from "../shared/types.ts";
 import type { Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
-import type { NeighborhoodShapes } from "./neighborhoods.ts";
+import {
+  NeighborhoodInUseError,
+  NeighborhoodNameTakenError,
+  type NeighborhoodShapes,
+} from "./neighborhoods.ts";
 import type { PredictionService } from "./predictions/service.ts";
 import { BadgeTakenError } from "./repositories/agents.ts";
 import { SerialNumberTakenError } from "./repositories/equipment.ts";
@@ -57,6 +61,30 @@ export function createApp(deps: AppDeps): Hono {
         {
           error: "Já existe uma tag vinculada",
           issues: [{ path: "target", message: "Remova a tag atual antes de criar outra" }],
+        },
+        409,
+      );
+    }
+    if (error instanceof NeighborhoodNameTakenError) {
+      return c.json(
+        {
+          error: "Bairro já cadastrado",
+          issues: [{ path: "name", message: "Já existe um bairro com este nome" }],
+        },
+        409,
+      );
+    }
+    if (error instanceof NeighborhoodInUseError) {
+      return c.json(
+        {
+          error: "Bairro em uso",
+          issues: [
+            {
+              path: "id",
+              message:
+                "Há equipamentos, agentes ou ocorrências neste bairro. Mude-os de bairro antes de excluir.",
+            },
+          ],
         },
         409,
       );

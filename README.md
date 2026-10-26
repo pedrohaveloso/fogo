@@ -91,7 +91,7 @@ O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h
 
 ### Bairros
 
-A tela Bairros mostra o limite de cada bairro sobre o mapa. Dá para arrastar os pontos, criar um ponto novo puxando o meio de uma linha, apagar um ponto com dois cliques ou redesenhar o bairro do zero. O limite fica salvo no banco e vale na hora para a Central, as previsões e a escolha de bairro de equipamentos e ocorrências novos. Linhas que se cruzam e pontos fora de Marília são recusados, e "Restaurar original" volta ao limite gerado a partir do OpenStreetMap.
+A tela Bairros mostra o limite de cada bairro sobre o mapa. Dá para arrastar os pontos, criar um ponto novo puxando o meio de uma linha, apagar um ponto com dois cliques ou redesenhar o bairro do zero. O limite fica salvo no banco e vale na hora para a Central, as previsões e a escolha de bairro de equipamentos e ocorrências novos. Linhas que se cruzam e pontos fora de Marília são recusados, e "Restaurar original" volta ao limite gerado a partir do OpenStreetMap. "Novo bairro" cria um bairro com nome, região e limite desenhado no mapa. Um bairro criado assim pode ser excluído enquanto não tiver equipamentos, agentes nem ocorrências.
 
 ### Cidade preditiva
 

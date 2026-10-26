@@ -1,4 +1,5 @@
 import { isSimplePolygon, type LngLat } from "../shared/geo.ts";
+import type { NeighborhoodShape } from "../shared/types.ts";
 
 export const MIN_SHAPE_POINTS = 3;
 
@@ -39,4 +40,16 @@ export function sameShape(a: readonly LngLat[], b: readonly LngLat[]): boolean {
     a.length === b.length &&
     a.every((point, index) => point[0] === b[index]![0] && point[1] === b[index]![1])
   );
+}
+
+export function mergeShapes(
+  base: readonly NeighborhoodShape[],
+  changes: ReadonlyMap<string, NeighborhoodShape | null>,
+): NeighborhoodShape[] {
+  const known = new Set(base.map((item) => item.id));
+  const added = [...changes.values()].filter((item) => item !== null && !known.has(item.id));
+  return [
+    ...base.map((item) => (changes.has(item.id) ? (changes.get(item.id) ?? null) : item)),
+    ...added,
+  ].filter((item): item is NeighborhoodShape => item !== null);
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { LngLat } from "../shared/geo.ts";
+import type { NeighborhoodShape } from "../shared/types.ts";
 import {
   insertVertex,
   midpoints,
   moveVertex,
+  mergeShapes,
   removeVertex,
   sameShape,
   shapeProblem,
@@ -71,5 +73,37 @@ describe("shape editing", () => {
     expect(sameShape(square, [...square])).toBe(true);
     expect(sameShape(square, moveVertex(square, 0, [0, 1]))).toBe(false);
     expect(sameShape(square, square.slice(1))).toBe(false);
+  });
+});
+
+function shape(id: string, name = id): NeighborhoodShape {
+  return {
+    id,
+    name,
+    regionId: "center",
+    lat: 0,
+    lng: 0,
+    polygon: [],
+    edited: false,
+    custom: false,
+    updatedAt: null,
+  };
+}
+
+describe("mergeShapes", () => {
+  it("replaces saved shapes, drops removed ones and appends new ones", () => {
+    const merged = mergeShapes(
+      [shape("a"), shape("b"), shape("c")],
+      new Map([
+        ["b", shape("b", "Bê")],
+        ["c", null],
+        ["d", shape("d")],
+      ]),
+    );
+    expect(merged.map((item) => `${item.id}:${item.name}`)).toEqual(["a:a", "b:Bê", "d:d"]);
+  });
+
+  it("keeps the list as it is without changes", () => {
+    expect(mergeShapes([shape("a")], new Map())).toEqual([shape("a")]);
   });
 });

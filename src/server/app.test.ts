@@ -118,6 +118,9 @@ describe("inventory API", () => {
       liveMultiplier: number;
       mode: string;
     }>("GET", "/meta");
+      mode: string;
+    }>("GET", "/meta");
+    expect(body.streets.length).toBeGreaterThan(0);
     expect(status).toBe(200);
     expect(body.neighborhoods.length).toBe(city.neighborhoods.length);
     expect(body.streets.length).toBeGreaterThan(0);
@@ -365,6 +368,57 @@ describe("neighborhood shapes API", () => {
     ).toBe(422);
     expect((await call("PUT", "/neighborhoods/nada/shape", { polygon: triangle })).status).toBe(
       404,
+
+  it("adds a neighborhood, accepts equipment in it and deletes it only when empty", async () => {
+    const created = await call<NeighborhoodShape>("POST", "/neighborhoods", {
+      name: "  Jardim Novo Horizonte ",
+      regionId: "south",
+      polygon: triangle,
+    });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({
+      id: "jardim-novo-horizonte",
+      name: "Jardim Novo Horizonte",
+      regionId: "south",
+      custom: true,
+      edited: false,
+      polygon: triangle,
+    });
+
+    const meta = await call<{ neighborhoods: NeighborhoodShape[] }>("GET", "/meta");
+    expect(meta.body.neighborhoods.some((item) => item.id === "jardim-novo-horizonte")).toBe(true);
+
+    const duplicate = await call<{ issues: { path: string }[] }>("POST", "/neighborhoods", {
+      name: "jardim novo HORIZONTE",
+      regionId: "south",
+      polygon: triangle,
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.issues[0]!.path).toBe("name");
+
+    const equipment = await call<Equipment>("POST", "/equipment", {
+      ...validEquipment,
+      serialNumber: "CAM-NOVO-1",
+      neighborhoodId: "jardim-novo-horizonte",
+    });
+    expect(equipment.status).toBe(201);
+    expect((await call("DELETE", "/neighborhoods/jardim-novo-horizonte")).status).toBe(409);
+
+    await call("DELETE", `/equipment/${equipment.body.id}`);
+    expect((await call("DELETE", "/neighborhoods/jardim-novo-horizonte")).status).toBe(204);
+    expect(city.neighborhoods.some((item) => item.id === "jardim-novo-horizonte")).toBe(false);
+    expect((await call("DELETE", "/neighborhoods/centro")).status).toBe(404);
+  });
+
+  it("rejects a new neighborhood without name or with an unknown region", async () => {
+    const missing = await call<{ issues: { path: string }[] }>("POST", "/neighborhoods", {
+      name: " ",
+      regionId: "lua",
+      polygon: triangle,
+    });
+    expect(missing.status).toBe(422);
+    expect(missing.body.issues.map((issue) => issue.path).sort()).toEqual(["name", "regionId"]);
+  });
     );
     expect((await call("DELETE", "/neighborhoods/nada/shape")).status).toBe(404);
   });

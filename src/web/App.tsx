@@ -141,10 +141,10 @@ export function App() {
         Pular para o conteúdo
       </a>
       <header className="topbar">
-        <Link href="/" className="brand" aria-label="F.O.G.O. Marília, página inicial">
+        <Link href="/" className="brand" aria-label="FOGO Marília, página inicial">
           <BrandMark />
           <span className="brand-text" aria-hidden="true">
-            <span className="brand-name">F.O.G.O.</span>
+            <span className="brand-name">FOGO</span>
             <span className="brand-city">Marília, SP</span>
           </span>
         </Link>

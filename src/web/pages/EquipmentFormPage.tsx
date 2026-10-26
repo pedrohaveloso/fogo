@@ -199,7 +199,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           ? `Equipamento ${saved.serialNumber} cadastrado.`
           : `Equipamento ${saved.serialNumber} atualizado.`,
       );
-      navigate("/equipamentos");
+      navigate("/equipment");
     } catch (error) {
       setErrors(
         error instanceof ApiError && error.issues.length > 0
@@ -215,7 +215,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     try {
       await api.delete(`/equipment/${id}`);
       showToast(`Equipamento ${draft.serialNumber} excluído.`);
-      navigate("/equipamentos");
+      navigate("/equipment");
     } catch (error) {
       setErrors({ form: error instanceof ApiError ? error.message : "Não foi possível excluir." });
     }
@@ -225,7 +225,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     return (
       <main className="page">
         <p className="error-box">{loadError}</p>
-        <Link href="/equipamentos">Voltar para a lista</Link>
+        <Link href="/equipment">Voltar para a lista</Link>
       </main>
     );
   }
@@ -248,7 +248,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     <main className="page">
       <div className="page-head">
         <h1>{id === null ? "Cadastrar equipamento" : `Editar ${draft.serialNumber}`}</h1>
-        <Link href="/equipamentos" className="button">
+        <Link href="/equipment" className="button">
           Voltar para a lista
         </Link>
       </div>
@@ -609,7 +609,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               Excluir equipamento
             </button>
           )}
-          <Link href="/equipamentos" className="button">
+          <Link href="/equipment" className="button">
             Cancelar
           </Link>
           <button type="submit" className="button button-primary" disabled={saving}>

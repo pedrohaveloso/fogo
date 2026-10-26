@@ -2,7 +2,7 @@
 
 Ferramenta Onisciente de Gestão e Operações: um sistema para a prefeitura de Marília (SP) cadastrar os equipamentos e agentes de trânsito e segurança, acompanhar a cidade em tempo real e antecipar problemas. Feito para a Etapa Bônus do DSIN Coder Challenge 2026.
 
-![Central de operações: mapa de Marília com equipamentos, agentes e ocorrências, e o painel com a situação da cidade](docs/imagens/central.jpg)
+![Central de operações: mapa de Marília com equipamentos, agentes e ocorrências, e o painel com a situação da cidade](docs/images/operations.jpg)
 
 O projeto cobre as três partes do desafio:
 
@@ -43,7 +43,7 @@ O mapa de ruas vem do OpenFreeMap e precisa de internet. Sem conexão, o sistema
 5. Em Equipamentos, clique num tipo de "Parados por tipo", filtre por situação e abra a ficha de um item. Cadastre um equipamento novo: o botão "Buscar CEP" preenche o endereço e o clique no mapa ajusta o ponto e o bairro.
 6. Em Cidade preditiva, troque o horizonte em "Próximas horas", clique num bairro marcado como acima do normal e leia o número esperado, a faixa e o motivo. Passe pelas abas Fora do padrão, Equipamentos e Tendências.
 
-![Cidade preditiva: ocorrências esperadas por bairro, com os bairros acima do normal marcados no mapa](docs/imagens/cidade-preditiva.jpg)
+![Cidade preditiva: ocorrências esperadas por bairro, com os bairros acima do normal marcados no mapa](docs/images/predictive-city.jpg)
 
 ## O que tem em cada parte
 
@@ -59,7 +59,7 @@ Os agentes (agentes de trânsito, guardas municipais e policiais militares) têm
 
 As listas de equipamentos e de agentes têm a mesma estrutura: uma linha curta de atalhos (os tipos com algo parado, ou o efetivo por situação), uma barra de filtros e uma tabela de largura total. A manutenção aparece como "amanhã", "em 5 dias" ou "vencida há 12 dias", com cor só quando vence em até 7 dias.
 
-![Lista de equipamentos com a linha de parados por tipo, a barra de filtros e a tabela](docs/imagens/equipamentos.jpg)
+![Lista de equipamentos com a linha de parados por tipo, a barra de filtros e a tabela](docs/images/equipment.jpg)
 
 ### Central de operações
 
@@ -85,7 +85,7 @@ Os alertas seguem a norma ISA-18.2: crítico é o que pede ação agora, como oc
 
 Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o papel dos dispositivos IoT: movimenta agentes e veículos, gera ocorrências segundo o padrão histórico de cada bairro, despacha o agente disponível que chega mais rápido, registra falhas, reparos, manutenções preventivas, furtos, reposições e quedas de comunicação, e acumula as contagens dos sensores. Para a demonstração ter movimento, ocorrências e falhas acontecem 20 vezes mais rápido que na vida real, com as mesmas taxas por equipamento do histórico. Os modelos de previsão descontam essa aceleração.
 
-Dispositivos de verdade entram por tags. Na ficha de um equipamento ou agente, o gestor cria uma tag e grava o ID e o token num GPS ou numa placa como o ESP32, que passa a mandar a posição para `POST /api/tags/{id}/location`. O simulador deixa de mover esse cadastro e de inventar o sinal de vida dele. O passo a passo, o contrato da rota e um exemplo para ESP32 estão em [docs/rastreadores.md](docs/rastreadores.md).
+Dispositivos de verdade entram por tags. Na ficha de um equipamento ou agente, o gestor cria uma tag e grava o ID e o token num GPS ou numa placa como o ESP32, que passa a mandar a posição para `POST /api/tags/{id}/location`. O simulador deixa de mover esse cadastro e de inventar o sinal de vida dele. O passo a passo, o contrato da rota e um exemplo para ESP32 estão em [docs/trackers.md](docs/trackers.md).
 
 O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h na ronda e a 7 km/h a caminho de uma ocorrência. Viaturas e motos patrulham a 30 km/h e vão a um chamado a até 60 e 65 km/h. Táxis e mototáxis rodam a 40 km/h, o veículo de fiscalização a 15 km/h e os patinetes a 15 ou 20 km/h, conforme o limitador. Veículos respeitam a mão de direção e o limite de cada trecho; só viaturas e motos em atendimento passam um pouco do limite. O despacho só considera quem chega em até 20 minutos.
 

@@ -118,7 +118,7 @@ export function TagPanel({ target, initial, moves }: Props) {
           ) : (
             <p className="hint">
               O dispositivo envia a posição para <code>{url}</code> com o token no cabeçalho
-              Authorization. O passo a passo está em docs/rastreadores.md.
+              Authorization. O passo a passo está em docs/trackers.md.
             </p>
           )}
           <div>

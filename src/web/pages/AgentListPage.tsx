@@ -27,7 +27,7 @@ import { agentStatusCounts } from "../summaries.ts";
 import { useNow } from "../useNow.ts";
 
 function setFilters(filters: AgentFilters, page = 1): void {
-  navigate(`/agentes${withPage(agentQuery(filters), page)}`, { replace: true });
+  navigate(`/agents${withPage(agentQuery(filters), page)}`, { replace: true });
 }
 
 export function AgentListPage() {
@@ -64,7 +64,7 @@ export function AgentListPage() {
     <main className="page">
       <div className="page-head">
         <h1>Agentes</h1>
-        <Link href="/agentes/novo" className="button button-primary">
+        <Link href="/agents/new" className="button button-primary">
           Cadastrar agente
         </Link>
       </div>
@@ -195,7 +195,7 @@ export function AgentListPage() {
                 return (
                   <tr key={agent.id}>
                     <td>
-                      <Link href={`/agentes/${agent.id}`} className="row-button">
+                      <Link href={`/agents/${agent.id}`} className="row-button">
                         <Glyph d={AGENT_ROLE_GLYPHS[agent.role]} size={18} />
                         {agent.name}
                       </Link>

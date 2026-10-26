@@ -9,8 +9,8 @@ describe("parseViews", () => {
   });
 
   it("keeps valid entries and drops the rest", () => {
-    const raw = JSON.stringify([{ name: "Câmeras", query: "?tipo=camera" }, { name: 3 }, null]);
-    expect(parseViews(raw)).toEqual([{ name: "Câmeras", query: "?tipo=camera" }]);
+    const raw = JSON.stringify([{ name: "Câmeras", query: "?type=camera" }, { name: 3 }, null]);
+    expect(parseViews(raw)).toEqual([{ name: "Câmeras", query: "?type=camera" }]);
   });
 
   it("never returns more than the limit", () => {
@@ -24,7 +24,7 @@ describe("parseViews", () => {
 
 describe("addView", () => {
   it("rejects an empty name", () => {
-    expect(addView([], "   ", "?tipo=camera")).toBeNull();
+    expect(addView([], "   ", "?type=camera")).toBeNull();
   });
 
   it("trims and truncates the name", () => {
@@ -33,9 +33,9 @@ describe("addView", () => {
   });
 
   it("replaces a view with the same name regardless of case", () => {
-    const first = addView([], "Parados", "?situacao=malfunction")!;
-    const second = addView(first, "parados", "?situacao=stolen")!;
-    expect(second).toEqual([{ name: "parados", query: "?situacao=stolen" }]);
+    const first = addView([], "Parados", "?status=malfunction")!;
+    const second = addView(first, "parados", "?status=stolen")!;
+    expect(second).toEqual([{ name: "parados", query: "?status=stolen" }]);
   });
 
   it("refuses a new name when the list is full but still allows replacing one", () => {

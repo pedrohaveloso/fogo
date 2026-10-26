@@ -141,7 +141,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
       showToast(
         id === null ? `${saved.name} cadastrado(a).` : `Cadastro de ${saved.name} atualizado.`,
       );
-      navigate("/agentes");
+      navigate("/agents");
     } catch (error) {
       setErrors(
         error instanceof ApiError && error.issues.length > 0
@@ -157,7 +157,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
     try {
       await api.delete(`/agents/${id}`);
       showToast(`${draft.name} removido(a) do cadastro.`);
-      navigate("/agentes");
+      navigate("/agents");
     } catch (error) {
       setErrors({ form: error instanceof ApiError ? error.message : "Não foi possível excluir." });
     }
@@ -167,7 +167,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
     return (
       <main className="page">
         <p className="error-box">{loadError}</p>
-        <Link href="/agentes">Voltar para a lista</Link>
+        <Link href="/agents">Voltar para a lista</Link>
       </main>
     );
   }
@@ -194,7 +194,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
     <main className="page">
       <div className="page-head">
         <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
-        <Link href="/agentes" className="button">
+        <Link href="/agents" className="button">
           Voltar para a lista
         </Link>
       </div>
@@ -389,7 +389,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
               Excluir agente
             </button>
           )}
-          <Link href="/agentes" className="button">
+          <Link href="/agents" className="button">
             Cancelar
           </Link>
           <button type="submit" className="button button-primary" disabled={saving}>

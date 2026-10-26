@@ -698,22 +698,22 @@ function ModelQuality() {
 
 const TABS = [
   {
-    key: "proximas-horas",
+    key: "next-hours",
     label: "Próximas horas",
     question: "Onde e quando a cidade vai precisar de reforço?",
   },
   {
-    key: "fora-do-padrao",
+    key: "anomalies",
     label: "Fora do padrão",
     question: "O que está fugindo do normal agora?",
   },
   {
-    key: "equipamentos",
+    key: "equipment",
     label: "Equipamentos",
     question: "Quais equipamentos devem falhar nos próximos 7 dias?",
   },
   {
-    key: "tendencias",
+    key: "trends",
     label: "Tendências",
     question: "Para onde vão a disponibilidade, as ocorrências e o uso dos equipamentos?",
   },
@@ -728,7 +728,7 @@ function isTabKey(value: string | null): value is TabKey {
 export function PredictionsPage() {
   const [hours, setHours] = useState(6);
   const { params } = useLocation();
-  const requested = params.get("aba");
+  const requested = params.get("tab");
   const tab = isTabKey(requested) ? requested : TABS[0].key;
   const current = TABS.find((item) => item.key === tab)!;
   return (
@@ -739,7 +739,7 @@ export function PredictionsPage() {
       <TabList
         items={TABS}
         selected={tab}
-        onSelect={(key) => navigate(`/previsoes?aba=${key}`, { replace: true })}
+        onSelect={(key) => navigate(`/predictions?tab=${key}`, { replace: true })}
         label="Perguntas da cidade preditiva"
         idPrefix="predictions"
         className="page-tabs"
@@ -751,7 +751,7 @@ export function PredictionsPage() {
         aria-labelledby={tabId("predictions", tab)}
       >
         <p className="tab-question">{current.question}</p>
-        {tab === "proximas-horas" && (
+        {tab === "next-hours" && (
           <>
             <div className="horizon-bar">
               <span id="horizon-label" className="label">
@@ -779,9 +779,9 @@ export function PredictionsPage() {
             <ModelQuality />
           </>
         )}
-        {tab === "fora-do-padrao" && <AnomalySection />}
-        {tab === "equipamentos" && <FailureSection />}
-        {tab === "tendencias" && <TrendSection />}
+        {tab === "anomalies" && <AnomalySection />}
+        {tab === "equipment" && <FailureSection />}
+        {tab === "trends" && <TrendSection />}
       </div>
     </main>
   );

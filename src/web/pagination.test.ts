@@ -38,16 +38,16 @@ describe("paginate", () => {
 
 describe("page in the address", () => {
   it("reads only whole pages above one", () => {
-    expect(pageFromQuery(new URLSearchParams("pagina=3"))).toBe(3);
+    expect(pageFromQuery(new URLSearchParams("page=3"))).toBe(3);
     expect(pageFromQuery(new URLSearchParams())).toBe(1);
-    expect(pageFromQuery(new URLSearchParams("pagina=abc"))).toBe(1);
-    expect(pageFromQuery(new URLSearchParams("pagina=2.5"))).toBe(1);
-    expect(pageFromQuery(new URLSearchParams("pagina=-2"))).toBe(1);
+    expect(pageFromQuery(new URLSearchParams("page=abc"))).toBe(1);
+    expect(pageFromQuery(new URLSearchParams("page=2.5"))).toBe(1);
+    expect(pageFromQuery(new URLSearchParams("page=-2"))).toBe(1);
   });
 
   it("writes the page next to other parameters and drops page one", () => {
-    expect(withPage("?tipo=camera", 2)).toBe("?tipo=camera&pagina=2");
-    expect(withPage("?tipo=camera&pagina=4", 1)).toBe("?tipo=camera");
+    expect(withPage("?type=camera", 2)).toBe("?type=camera&page=2");
+    expect(withPage("?type=camera&page=4", 1)).toBe("?type=camera");
     expect(withPage("", 1)).toBe("");
   });
 

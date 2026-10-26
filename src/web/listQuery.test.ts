@@ -34,14 +34,14 @@ describe("equipment list query", () => {
     };
     const sort = { key: "seen" as const, direction: -1 as const };
     const query = equipmentQuery(filters, sort);
-    expect(query).toContain("tipo=camera");
-    expect(query).toContain("ordem=seen-desc");
+    expect(query).toContain("type=camera");
+    expect(query).toContain("sort=seen-desc");
     expect(equipmentFromQuery(new URLSearchParams(query))).toEqual({ filters, sort });
   });
 
   it("ignores values it does not know", () => {
     const parsed = equipmentFromQuery(
-      new URLSearchParams("tipo=foguete&situacao=operational,quebrado&ordem=x&manutencao=y"),
+      new URLSearchParams("type=foguete&status=operational,quebrado&sort=x&maintenance=y"),
     );
     expect(parsed.filters.type).toBe("");
     expect(parsed.filters.statuses).toEqual(["operational"]);
@@ -61,22 +61,22 @@ describe("agent list query", () => {
     };
     expect(agentFromQuery(new URLSearchParams(agentQuery(filters)))).toEqual(filters);
     expect(agentQuery(EMPTY_AGENT_FILTERS)).toBe("");
-    expect(agentFromQuery(new URLSearchParams("funcao=bombeiro")).role).toBe("");
+    expect(agentFromQuery(new URLSearchParams("role=bombeiro")).role).toBe("");
   });
 });
 
 describe("map view in the address", () => {
   it("adds and removes the map flag without touching the filters", () => {
-    const withMap = withMapView("?tipo=camera", true);
-    expect(withMap).toBe("?tipo=camera&vista=mapa");
+    const withMap = withMapView("?type=camera", true);
+    expect(withMap).toBe("?type=camera&view=map");
     expect(showsMapView(new URLSearchParams(withMap))).toBe(true);
-    expect(withoutMapView(withMap)).toBe("?tipo=camera");
+    expect(withoutMapView(withMap)).toBe("?type=camera");
   });
 
   it("keeps the address clean when the map is off", () => {
     expect(withMapView("", false)).toBe("");
-    expect(withMapView("", true)).toBe("?vista=mapa");
-    expect(withoutMapView("?vista=mapa")).toBe("");
-    expect(showsMapView(new URLSearchParams("?vista=lista"))).toBe(false);
+    expect(withMapView("", true)).toBe("?view=map");
+    expect(withoutMapView("?view=map")).toBe("");
+    expect(showsMapView(new URLSearchParams("?view=list"))).toBe(false);
   });
 });

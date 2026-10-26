@@ -31,32 +31,32 @@ const NAV = [
     match: (path: string) => path === "/",
   },
   {
-    href: "/equipamentos",
+    href: "/equipment",
     label: "Equipamentos",
     short: "Equipamentos",
     glyph: TYPE_GLYPHS.camera,
-    match: (path: string) => path.startsWith("/equipamentos"),
+    match: (path: string) => path.startsWith("/equipment"),
   },
   {
-    href: "/agentes",
+    href: "/agents",
     label: "Agentes",
     short: "Agentes",
     glyph: AGENT_GLYPH,
-    match: (path: string) => path.startsWith("/agentes"),
+    match: (path: string) => path.startsWith("/agents"),
   },
   {
-    href: "/bairros",
+    href: "/neighborhoods",
     label: "Bairros",
     short: "Bairros",
     glyph: AREA_GLYPH,
-    match: (path: string) => path.startsWith("/bairros"),
+    match: (path: string) => path.startsWith("/neighborhoods"),
   },
   {
-    href: "/previsoes",
+    href: "/predictions",
     label: "Cidade preditiva",
     short: "Preditiva",
     glyph: TREND_GLYPH,
-    match: (path: string) => path.startsWith("/previsoes"),
+    match: (path: string) => path.startsWith("/predictions"),
   },
 ];
 
@@ -64,30 +64,30 @@ function Route({ pathname }: { pathname: string }) {
   if (pathname === "/") {
     return <OperationsPage />;
   }
-  if (pathname === "/equipamentos") {
+  if (pathname === "/equipment") {
     return <EquipmentListPage />;
   }
-  if (pathname === "/equipamentos/novo") {
+  if (pathname === "/equipment/new") {
     return <EquipmentFormPage id={null} />;
   }
-  const equipment = /^\/equipamentos\/(\d+)$/.exec(pathname);
+  const equipment = /^\/equipment\/(\d+)$/.exec(pathname);
   if (equipment) {
     return <EquipmentFormPage id={Number(equipment[1])} />;
   }
-  if (pathname === "/agentes") {
+  if (pathname === "/agents") {
     return <AgentListPage />;
   }
-  if (pathname === "/agentes/novo") {
+  if (pathname === "/agents/new") {
     return <AgentFormPage id={null} />;
   }
-  const agent = /^\/agentes\/(\d+)$/.exec(pathname);
+  const agent = /^\/agents\/(\d+)$/.exec(pathname);
   if (agent) {
     return <AgentFormPage id={Number(agent[1])} />;
   }
-  if (pathname === "/bairros") {
+  if (pathname === "/neighborhoods") {
     return <NeighborhoodsPage />;
   }
-  if (pathname === "/previsoes") {
+  if (pathname === "/predictions") {
     return <PredictionsPage />;
   }
   return (
@@ -156,7 +156,7 @@ export function App() {
 
   return (
     <div className="app">
-      <a href="#conteudo" className="skip-link" onClick={skipToContent}>
+      <a href="#content" className="skip-link" onClick={skipToContent}>
         Pular para o conteúdo
       </a>
       <header className="topbar">

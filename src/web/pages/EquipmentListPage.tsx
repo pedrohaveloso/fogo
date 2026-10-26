@@ -60,7 +60,7 @@ function dueClass(days: number): string {
 }
 
 function go(query: string, map: boolean, page = 1): void {
-  navigate(`/equipamentos${withPage(withMapView(query, map), page)}`, { replace: true });
+  navigate(`/equipment${withPage(withMapView(query, map), page)}`, { replace: true });
 }
 
 export function EquipmentListPage() {
@@ -136,7 +136,7 @@ export function EquipmentListPage() {
     <main className="page">
       <div className="page-head">
         <h1>Equipamentos</h1>
-        <Link href="/equipamentos/novo" className="button button-primary">
+        <Link href="/equipment/new" className="button button-primary">
           Cadastrar equipamento
         </Link>
       </div>
@@ -266,7 +266,7 @@ export function EquipmentListPage() {
                       data-selected={showMap && item.id === selectedId}
                     >
                       <td>
-                        <Link href={`/equipamentos/${item.id}`} className="row-button">
+                        <Link href={`/equipment/${item.id}`} className="row-button">
                           <Glyph d={TYPE_GLYPHS[item.type]} size={18} />
                           {item.serialNumber}
                         </Link>

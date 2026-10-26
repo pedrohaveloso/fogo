@@ -241,7 +241,7 @@ function EquipmentPanel({
           </ol>
         </section>
       )}
-      <Link href={`/equipamentos/${item.id}`} className="button">
+      <Link href={`/equipment/${item.id}`} className="button">
         Editar cadastro
       </Link>
     </>
@@ -324,7 +324,7 @@ function AgentPanel({
           </ol>
         </section>
       )}
-      <Link href={`/agentes/${agent.id}`} className="button">
+      <Link href={`/agents/${agent.id}`} className="button">
         Editar cadastro
       </Link>
     </>

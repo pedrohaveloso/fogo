@@ -45,14 +45,14 @@ export function equipmentQuery(filters: EquipmentFilters, sort: Sort): string {
       ? ""
       : `${sort.key}${sort.direction === -1 ? "-desc" : ""}`;
   return build([
-    ["busca", filters.search],
-    ["tipo", filters.type],
-    ["situacao", filters.statuses.join(",")],
-    ["regiao", filters.regionId],
-    ["bairro", filters.neighborhoodId],
-    ["orgao", filters.agency],
-    ["manutencao", filters.maintenance],
-    ["ordem", sortValue],
+    ["search", filters.search],
+    ["type", filters.type],
+    ["status", filters.statuses.join(",")],
+    ["region", filters.regionId],
+    ["neighborhood", filters.neighborhoodId],
+    ["agency", filters.agency],
+    ["maintenance", filters.maintenance],
+    ["sort", sortValue],
   ]);
 }
 
@@ -60,23 +60,23 @@ export function equipmentFromQuery(params: URLSearchParams): {
   filters: EquipmentFilters;
   sort: Sort;
 } {
-  const statuses = (params.get("situacao") ?? "")
+  const statuses = (params.get("status") ?? "")
     .split(",")
     .filter((value): value is EquipmentStatus =>
       (EQUIPMENT_STATUSES as readonly string[]).includes(value),
     );
-  const [sortKey, descending] = (params.get("ordem") ?? "").split("-");
+  const [sortKey, descending] = (params.get("sort") ?? "").split("-");
   const key = oneOf(sortKey ?? null, SORT_KEYS);
   return {
     filters: {
       ...EMPTY_FILTERS,
-      search: params.get("busca") ?? "",
-      type: oneOf<EquipmentType>(params.get("tipo"), EQUIPMENT_TYPE_KEYS),
+      search: params.get("search") ?? "",
+      type: oneOf<EquipmentType>(params.get("type"), EQUIPMENT_TYPE_KEYS),
       statuses,
-      regionId: params.get("regiao") ?? "",
-      neighborhoodId: params.get("bairro") ?? "",
-      agency: oneOf<Agency>(params.get("orgao"), AGENCIES),
-      maintenance: oneOf(params.get("manutencao"), MAINTENANCE_FILTERS),
+      regionId: params.get("region") ?? "",
+      neighborhoodId: params.get("neighborhood") ?? "",
+      agency: oneOf<Agency>(params.get("agency"), AGENCIES),
+      maintenance: oneOf(params.get("maintenance"), MAINTENANCE_FILTERS),
     },
     sort: key ? { key, direction: descending === "desc" ? -1 : 1 } : DEFAULT_SORT,
   };
@@ -84,20 +84,20 @@ export function equipmentFromQuery(params: URLSearchParams): {
 
 export function agentQuery(filters: AgentFilters): string {
   return build([
-    ["busca", filters.search],
-    ["funcao", filters.role],
-    ["situacao", filters.status],
-    ["regiao", filters.regionId],
+    ["search", filters.search],
+    ["role", filters.role],
+    ["status", filters.status],
+    ["region", filters.regionId],
   ]);
 }
 
 export function agentFromQuery(params: URLSearchParams): AgentFilters {
   return {
     ...EMPTY_AGENT_FILTERS,
-    search: params.get("busca") ?? "",
-    role: oneOf<AgentRole>(params.get("funcao"), AGENT_ROLE_KEYS),
-    status: oneOf<AgentStatus>(params.get("situacao"), AGENT_STATUSES),
-    regionId: params.get("regiao") ?? "",
+    search: params.get("search") ?? "",
+    role: oneOf<AgentRole>(params.get("role"), AGENT_ROLE_KEYS),
+    status: oneOf<AgentStatus>(params.get("status"), AGENT_STATUSES),
+    regionId: params.get("region") ?? "",
   };
 }
 
@@ -106,17 +106,17 @@ export function withMapView(query: string, map: boolean): string {
     return query;
   }
   const params = new URLSearchParams(query);
-  params.set("vista", "mapa");
+  params.set("view", "map");
   return `?${params.toString()}`;
 }
 
 export function showsMapView(params: URLSearchParams): boolean {
-  return params.get("vista") === "mapa";
+  return params.get("view") === "map";
 }
 
 export function withoutMapView(query: string): string {
   const params = new URLSearchParams(query);
-  params.delete("vista");
+  params.delete("view");
   const rest = params.toString();
   return rest ? `?${rest}` : "";
 }

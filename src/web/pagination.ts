@@ -1,6 +1,8 @@
 export const PAGE_SIZE = 50;
 
-const PAGE_PARAM = "pagina";
+export type PageSize = number | "all";
+
+const PAGE_PARAM = "page";
 
 export type Page<T> = {
   items: T[];

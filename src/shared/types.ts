@@ -239,21 +239,22 @@ export type CityDataset = {
   pois: PointOfInterest[];
 };
 
-export type Landmark = { name: string; kind: string; lat: number; lng: number };
+export const RUN_MODES = ["simulation", "production"] as const;
+export type RunMode = (typeof RUN_MODES)[number];
 
-export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
+export type Landmark = { name: string; kind: string; lat: number; lng: number };
 
 export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
 
 export type Meta = {
   city: CityDataset["city"];
   regions: Region[];
-  streets: StreetPlace[];
   neighborhoods: Neighborhood[];
   landmarks: Landmark[];
   streets: StreetPlace[];
   serverTime: string;
   liveMultiplier: number;
+  mode: RunMode;
 };
 
 export type AddressLookup = {

@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     ports:
       - "3210:3210"
+    environment:
+      FOGO_MODE: ${FOGO_MODE:-simulation}
+      FOGO_DB: /app/storage/fogo-${FOGO_MODE:-simulation}.db
     volumes:
       - fogo-data:/app/storage
 

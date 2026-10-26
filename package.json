@@ -6,9 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.ts",
+    "dev:production": "node scripts/dev.ts --production",
     "build": "vite build",
     "start": "node src/server/main.ts",
-    "start:fresh": "node src/server/main.ts --reset",
+    "start:simulation": "node src/server/main.ts --simulation",
+    "start:fresh": "node src/server/main.ts --simulation --reset",
+    "demo": "pnpm build && pnpm start:simulation",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.server.json && tsc -p tsconfig.web.json",
     "lint": "oxlint --deny-warnings",

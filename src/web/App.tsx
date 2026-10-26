@@ -9,7 +9,7 @@ import {
   TREND_GLYPH,
   TYPE_GLYPHS,
 } from "./icons.tsx";
-import { liveStatus, useLive } from "./live.ts";
+import { liveStatus, useLive, useMeta } from "./live.ts";
 import { AgentFormPage } from "./pages/AgentFormPage.tsx";
 import { AgentListPage } from "./pages/AgentListPage.tsx";
 import { EquipmentFormPage } from "./pages/EquipmentFormPage.tsx";
@@ -135,6 +135,7 @@ function LiveStatus() {
 
 export function App() {
   const { pathname } = useLocation();
+  const meta = useMeta();
   const now = useNow(15_000);
 
   const firstRoute = useRef(true);
@@ -183,6 +184,14 @@ export function App() {
           ))}
         </nav>
         <div className="topbar-status">
+          {meta?.mode === "simulation" && (
+            <span
+              className="plate"
+              title="Os dados são gerados pelo simulador. Ocorrências e falhas acontecem mais rápido que na vida real."
+            >
+              Simulação
+            </span>
+          )}
           <LiveStatus />
           <time className="clock" dateTime={new Date(now).toISOString()}>
             {formatTime(new Date(now).toISOString())}

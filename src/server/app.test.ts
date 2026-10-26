@@ -79,6 +79,7 @@ beforeAll(() => {
     hub,
     shapes,
     predictions,
+    mode: "simulation",
     liveMultiplier: 60,
     now: () => NOW,
     fetchImpl,
@@ -99,6 +100,7 @@ describe("health check", () => {
       hub: createLiveHub(db, city, createPredictionService(db, city, 60)),
       shapes: createNeighborhoodShapes(closed, city),
       predictions: createPredictionService(db, city, 60),
+      mode: "simulation",
       liveMultiplier: 60,
       now: () => NOW,
       fetchImpl,
@@ -118,13 +120,11 @@ describe("inventory API", () => {
       liveMultiplier: number;
       mode: string;
     }>("GET", "/meta");
-      mode: string;
-    }>("GET", "/meta");
-    expect(body.streets.length).toBeGreaterThan(0);
     expect(status).toBe(200);
     expect(body.neighborhoods.length).toBe(city.neighborhoods.length);
     expect(body.streets.length).toBeGreaterThan(0);
     expect(body.liveMultiplier).toBe(60);
+    expect(body.mode).toBe("simulation");
   });
 
   it("creates, reads, filters, updates and deletes equipment", async () => {
@@ -368,6 +368,9 @@ describe("neighborhood shapes API", () => {
     ).toBe(422);
     expect((await call("PUT", "/neighborhoods/nada/shape", { polygon: triangle })).status).toBe(
       404,
+    );
+    expect((await call("DELETE", "/neighborhoods/nada/shape")).status).toBe(404);
+  });
 
   it("adds a neighborhood, accepts equipment in it and deletes it only when empty", async () => {
     const created = await call<NeighborhoodShape>("POST", "/neighborhoods", {
@@ -418,9 +421,6 @@ describe("neighborhood shapes API", () => {
     });
     expect(missing.status).toBe(422);
     expect(missing.body.issues.map((issue) => issue.path).sort()).toEqual(["name", "regionId"]);
-  });
-    );
-    expect((await call("DELETE", "/neighborhoods/nada/shape")).status).toBe(404);
   });
 });
 
@@ -522,5 +522,38 @@ describe("tags API", () => {
     expect((await call("POST", "/tags", { equipmentId: 999_999 })).status).toBe(404);
     expect((await call("POST", "/tags", {})).status).toBe(422);
     expect((await call("POST", "/tags", { agentId: 1, equipmentId: 2 })).status).toBe(422);
+  });
+});
+
+describe("production mode with an empty database", () => {
+  it("serves the panel, the metadata and every prediction without seeded data", async () => {
+    const empty = openDatabase(":memory:");
+    const predictions = createPredictionService(empty, city, 1);
+    const shapes = createNeighborhoodShapes(empty, structuredClone(city));
+    shapes.load(NOW);
+    const production = createApp({
+      db: empty,
+      city,
+      hub: createLiveHub(empty, city, predictions),
+      shapes,
+      predictions,
+      mode: "production",
+      liveMultiplier: 1,
+      now: () => NOW,
+      fetchImpl,
+    });
+    const get = async (path: string) => {
+      const response = await production.request(`/api${path}`);
+      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+    };
+
+    const meta = await get("/meta");
+    expect(meta.body).toMatchObject({ mode: "production", liveMultiplier: 1 });
+    const snapshot = await get("/operations/snapshot");
+    expect(snapshot.status).toBe(200);
+    expect(snapshot.body).toMatchObject({ equipment: [], agents: [], occurrences: [] });
+    const paths = ["risk", "staffing", "anomalies", "failures", "trends", "backtest"];
+    const answers = await Promise.all(paths.map((path) => get(`/predictions/${path}`)));
+    expect(answers.map((answer) => answer.status)).toEqual(paths.map(() => 200));
   });
 });

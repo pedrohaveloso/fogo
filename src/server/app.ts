@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { CityDataset } from "../shared/types.ts";
+import type { CityDataset, RunMode } from "../shared/types.ts";
 import type { Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import {
@@ -24,6 +24,7 @@ export type AppDeps = {
   hub: LiveHub;
   shapes: NeighborhoodShapes;
   predictions: PredictionService;
+  mode: RunMode;
   liveMultiplier: number;
   now: () => number;
   fetchImpl: typeof fetch;

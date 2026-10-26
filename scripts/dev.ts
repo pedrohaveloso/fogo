@@ -3,7 +3,12 @@ import { spawn } from "node:child_process";
 const children = [
   spawn(
     process.execPath,
-    ["--watch-path=src/server", "--watch-path=src/shared", "src/server/main.ts"],
+    [
+      "--watch-path=src/server",
+      "--watch-path=src/shared",
+      "src/server/main.ts",
+      ...(process.argv.includes("--production") ? [] : ["--simulation"]),
+    ],
     {
       stdio: "inherit",
     },

@@ -1,6 +1,6 @@
 # Rastreadores
 
-Um dispositivo físico, como um GPS veicular, uma placa ESP32 com módulo GPS ou um celular, pode informar ao FOGO onde está um equipamento ou um agente. Sem rastreador, quem move os cadastros é o simulador. Com rastreador, a posição passa a vir do dispositivo e o simulador deixa aquele cadastro em paz.
+Um dispositivo físico, como um GPS veicular, uma placa ESP32 com módulo GPS ou um celular, pode informar ao FOGO onde está um equipamento ou um agente. No modo simulação, quem move os cadastros sem rastreador é o simulador. Com rastreador, a posição passa a vir do dispositivo e o simulador deixa aquele cadastro em paz.
 
 ## Como funciona
 
@@ -178,4 +178,4 @@ Com bateria, mande também `body["battery"]` com a carga lida do divisor de tens
 
 ## Simulador e rastreadores juntos
 
-O simulador continua cuidando de quem não tem tag. Um cadastro com tag não é movido por ele, e equipamentos com tag não recebem o sinal de vida simulado, então o alerta "sem comunicação" passa a refletir o dispositivo de verdade. Para rodar só com dispositivos reais, desligue o simulador com `FOGO_SIMULATION=off`.
+O simulador continua cuidando de quem não tem tag. Um cadastro com tag não é movido por ele, e equipamentos com tag não recebem o sinal de vida simulado, então o alerta "sem comunicação" passa a refletir o dispositivo de verdade. Para rodar só com dispositivos reais, use o modo produção (`pnpm start`), que não liga o simulador. O [docs/production.md](production.md) explica os dois modos.

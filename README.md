@@ -12,25 +12,29 @@ O projeto cobre as três partes do desafio:
 
 ## Como rodar
 
-Com Docker:
+O FOGO tem dois modos. A simulação gera dados e movimento para apresentar o sistema. A produção começa com o banco vazio e depende de cadastros e dispositivos reais. O [docs/production.md](docs/production.md) explica a diferença e o plano para a operação real.
+
+Com Docker, a simulação sobe com:
 
 ```sh
 docker compose up --build
 ```
 
+Para a produção, use `FOGO_MODE=production docker compose up --build`.
+
 Sem Docker, com Node.js 24 ou mais recente e pnpm 10:
 
 ```sh
 pnpm install
-pnpm build
-pnpm start
+pnpm demo                  # simulação: compila a interface e sobe o servidor
+pnpm build && pnpm start   # produção
 ```
 
 Depois abra http://localhost:3210.
 
-Na primeira execução o servidor cria o banco SQLite em `data/fogo.db` e gera 120 dias de histórico. Isso leva cerca de um segundo. Para começar do zero, use `pnpm start:fresh`. A rota `/api/health` responde quando o servidor e o banco estão de pé, e é ela que o `HEALTHCHECK` do contêiner usa.
+Na simulação, a primeira execução cria o banco SQLite em `data/fogo.db` e gera 120 dias de histórico. Isso leva cerca de um segundo. Para começar do zero, use `pnpm start:fresh`. A produção usa `data/fogo-production.db`, e o servidor não abre um banco do outro modo. A rota `/api/health` responde quando o servidor e o banco estão de pé, e é ela que o `HEALTHCHECK` do contêiner usa.
 
-Para desenvolver com recarga automática, rode `pnpm dev` e abra http://localhost:5173.
+Para desenvolver com recarga automática, rode `pnpm dev` (simulação) ou `pnpm dev:production` e abra http://localhost:5173.
 
 O mapa de ruas vem do OpenFreeMap e precisa de internet. Sem conexão, o sistema continua funcionando e mostra só os bairros e os marcadores sobre fundo liso.
 
@@ -140,13 +144,13 @@ Equipamentos, agentes, histórico de ocorrências e telemetria são simulados. O
 
 ## Configuração
 
-| Variável               | Padrão         | Uso                                                     |
-| ---------------------- | -------------- | ------------------------------------------------------- |
-| `PORT`                 | `3210`         | Porta HTTP                                              |
-| `FOGO_DB`              | `data/fogo.db` | Caminho do banco SQLite                                 |
-| `FOGO_LIVE_MULTIPLIER` | `20`           | Aceleração de ocorrências e falhas na simulação ao vivo |
-| `FOGO_SIMULATION`      | ligada         | Use `off` para desligar o simulador                     |
-| `FOGO_SEED`            | `20261027`     | Semente do gerador de dados                             |
+| Variável               | Padrão          | Uso                                                                 |
+| ---------------------- | --------------- | ------------------------------------------------------------------- |
+| `PORT`                 | `3210`          | Porta HTTP                                                          |
+| `FOGO_MODE`            | `production`    | `simulation` ou `production`                                        |
+| `FOGO_DB`              | depende do modo | `data/fogo.db` na simulação e `data/fogo-production.db` na produção |
+| `FOGO_LIVE_MULTIPLIER` | `20`            | Aceleração de ocorrências e falhas, só na simulação                 |
+| `FOGO_SEED`            | `20261027`      | Semente do gerador de dados                                         |
 
 ## Código e testes
 
@@ -158,7 +162,7 @@ src/server/   API, banco, simulador, gerador de dados (seed/) e modelos de previ
 src/web/      interface: páginas em pages/, componentes em components/, mapa em map/
 scripts/      geração da base geográfica, malha viária e limites de bairro, e servidor de desenvolvimento
 data/         base geográfica e malha viária de Marília (o banco também fica aqui)
-docs/         capturas de tela e a pesquisa que orientou a interface
+docs/         capturas de tela, rastreadores, modos de execução e a pesquisa que orientou a interface
 ```
 
 ```sh
@@ -170,7 +174,7 @@ São cerca de 200 testes com Vitest: regras de alerta e de nível, modelos de pr
 
 ## Limitações
 
-- Equipamentos, agentes, ocorrências e telemetria são simulados, com exceção dos cadastros que têm tag, e os modelos foram avaliados nessa base. Com dados reais, os limiares e a qualidade precisariam ser medidos de novo.
+- Na simulação, equipamentos, agentes, ocorrências e telemetria são inventados, com exceção dos cadastros que têm tag, e os modelos foram avaliados nessa base. A produção ainda não tem despacho, app do agente nem telemetria dos equipamentos fixos; o plano está em [docs/production.md](docs/production.md). Com dados reais, os limiares e a qualidade precisariam ser medidos de novo.
 - Não há autenticação nem perfis de acesso. A única rota protegida é a de localização das tags, que exige o token do dispositivo.
 - Tudo roda num único processo com SQLite, suficiente para uma cidade do porte de Marília, mas sem escala horizontal.
 - O mapa de fundo depende de internet; sem ela aparecem só os bairros e os marcadores.

@@ -60,6 +60,7 @@ export function inventoryRoutes(deps: AppDeps): Hono {
       streets: streetPlacesOf(city),
       serverTime: new Date(now()).toISOString(),
       liveMultiplier: deps.liveMultiplier,
+      mode: deps.mode,
     }),
   );
 

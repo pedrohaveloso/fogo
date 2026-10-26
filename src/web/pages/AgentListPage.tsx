@@ -25,10 +25,9 @@ import { pageFromQuery, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
 import { usePageSize } from "../usePageSize.ts";
-import { usePageSize } from "../usePageSize.ts";
 import { useNow } from "../useNow.ts";
 
-  navigate(`/agents${withPage(agentQuery(filters), page)}`, { replace: true });
+function setFilters(filters: AgentFilters, page = 1): void {
   navigate(`/agents${withPage(agentQuery(filters), page)}`, { replace: true });
 }
 
@@ -38,7 +37,6 @@ export function AgentListPage() {
   const now = useNow(30_000);
   const { params } = useLocation();
   const query = params.toString();
-  const [pageSize, setPageSize] = usePageSize("agents");
   const filters = useMemo(() => agentFromQuery(new URLSearchParams(query)), [query]);
   const [pageSize, setPageSize] = usePageSize("agents");
   const set = <K extends keyof AgentFilters>(key: K, value: AgentFilters[K]) =>
@@ -56,7 +54,7 @@ export function AgentListPage() {
 
   if (!meta || !snapshot) {
     return <LoadingNotice label="Carregando agentes..." />;
-  const page = paginate(rows, pageFromQuery(params), pageSize);
+  }
 
   const page = paginate(rows, pageFromQuery(params), pageSize);
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
@@ -66,7 +64,7 @@ export function AgentListPage() {
 
   return (
     <main className="page">
-        <Link href="/agents/new" className="button button-primary">
+      <div className="page-head">
         <h1>Agentes</h1>
         <Link href="/agents/new" className="button button-primary">
           Cadastrar agente
@@ -174,25 +172,31 @@ export function AgentListPage() {
                 <th scope="col">Situação</th>
                 <th scope="col">Base</th>
                 <th scope="col">Turno</th>
+                <th scope="col">Veículo</th>
+                <th scope="col">Última posição</th>
                 <th scope="col">
                   <span className="visually-hidden">Ações</span>
                 </th>
-                <th scope="col">Veículo</th>
-                <th scope="col">Última posição</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="empty">
-                    Nenhum agente corresponde aos filtros.{" "}
-                    <button
-                      type="button"
-                      className="button button-small"
-                      onClick={() => setFilters(EMPTY_AGENT_FILTERS)}
-                    >
-                      Limpar filtros
-                    </button>
+                  <td colSpan={7} className="empty">
+                    {snapshot.agents.length === 0 ? (
+                      "Nenhum agente cadastrado ainda. Use Cadastrar agente para começar."
+                    ) : (
+                      <>
+                        Nenhum agente corresponde aos filtros.{" "}
+                        <button
+                          type="button"
+                          className="button button-small"
+                          onClick={() => setFilters(EMPTY_AGENT_FILTERS)}
+                        >
+                          Limpar filtros
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               )}
@@ -200,7 +204,7 @@ export function AgentListPage() {
                 const vehicle =
                   agent.vehicleId === null ? undefined : vehicles.get(agent.vehicleId);
                 return (
-                      <Link href={`/agents/${agent.id}`} className="row-button">
+                  <tr key={agent.id}>
                     <td>
                       <Link href={`/agents/${agent.id}`} className="row-button">
                         <Glyph d={AGENT_ROLE_GLYPHS[agent.role]} size={18} />
@@ -223,6 +227,8 @@ export function AgentListPage() {
                       {vehicle
                         ? `${EQUIPMENT_TYPES[vehicle.type].label} ${String(vehicle.attributes["plate"] ?? "")}`
                         : "A pé"}
+                    </td>
+                    <td>{formatRelative(agent.lastSeenAt, now)}</td>
                     <td className="cell-actions">
                       <Link
                         href={`/agents/${agent.id}`}
@@ -233,22 +239,11 @@ export function AgentListPage() {
                         <Glyph d={EDIT_GLYPH} size={16} />
                       </Link>
                     </td>
-                    </td>
-                    <td>{formatRelative(agent.lastSeenAt, now)}</td>
                   </tr>
                 );
               })}
             </tbody>
-        <Pagination
-          page={page}
-          size={pageSize}
-          label="agentes"
-          onChange={(next) => setFilters(filters, next)}
-          onSizeChange={(next) => {
-            setPageSize(next);
-            setFilters(filters);
-          }}
-        />
+          </table>
         </div>
         <Pagination
           page={page}

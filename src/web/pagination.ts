@@ -5,8 +5,6 @@ export type PageSize = number | "all";
 
 const PAGE_PARAM = "page";
 
-const PAGE_PARAM = "page";
-
 export type Page<T> = {
   items: T[];
   page: number;
@@ -30,6 +28,8 @@ export function withPage(query: string, page: number): string {
   }
   const rest = params.toString();
   return rest ? `?${rest}` : "";
+}
+
 export function parsePageSize(raw: string | null): PageSize {
   if (raw === "all") {
     return "all";
@@ -49,11 +49,9 @@ export function paginate<T>(
 ): Page<T> {
   const perPage = rowsPerPage(rows.length, size);
   const pageCount = Math.max(1, Math.ceil(rows.length / perPage));
-export function paginate<T>(rows: readonly T[], requested: number, size = PAGE_SIZE): Page<T> {
+  const page = Math.min(Math.max(1, requested), pageCount);
   const start = (page - 1) * perPage;
   const items = rows.slice(start, start + perPage);
-  const start = (page - 1) * size;
-  const items = rows.slice(start, start + size);
   return {
     items,
     page,
@@ -62,8 +60,8 @@ export function paginate<T>(rows: readonly T[], requested: number, size = PAGE_S
     last: start + items.length,
     total: rows.length,
   };
+}
+
 export function pageOfIndex(index: number, size: PageSize = PAGE_SIZE): number {
   return size === "all" ? 1 : Math.floor(index / size) + 1;
-export function pageOfIndex(index: number, size = PAGE_SIZE): number {
-  return Math.floor(index / size) + 1;
 }

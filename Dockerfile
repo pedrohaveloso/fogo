@@ -8,7 +8,7 @@ RUN pnpm build && find src -name "*.test.ts" -delete && rm src/server/test-fixtu
 
 FROM node:24.18.0-slim
 WORKDIR /app
-ENV NODE_ENV=production PORT=3210 FOGO_DB=/app/storage/fogo.db
+ENV NODE_ENV=production PORT=3210 FOGO_MODE=production FOGO_DB=/app/storage/fogo-production.db
 RUN corepack enable && mkdir -p /app/storage && chown node:node /app/storage
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --prod

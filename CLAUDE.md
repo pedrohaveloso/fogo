@@ -7,7 +7,8 @@ Inventário, central de operações e previsões para a prefeitura de Marília (
 ```
 pnpm check          formatação, lint, tipos e testes; rode antes de dar algo por terminado
 pnpm exec vitest run src/server/operations.test.ts    um arquivo de teste
-pnpm dev            API em 3210 e Vite em 5173, com recarga
+pnpm dev            simulação: API em 3210 e Vite em 5173, com recarga
+pnpm dev:production o mesmo em modo produção, com data/fogo-production.db
 pnpm start:fresh    recria data/fogo.db a partir da semente
 pnpm geo, pnpm roads, pnpm boundaries    refazem data/marilia*.json nessa ordem
 ```
@@ -29,7 +30,9 @@ scripts      geração da base geográfica, servidor de dev e o verificador de c
 - A interface usa a sinalização viária: zebrado vermelho é crítico, tracejado amarelo é atenção, cinza é normal. Cor só aparece em problema. Reaproveite `src/web/colors.ts` e os tokens de `styles.css`.
 - As previsões aprendem só com o banco e nunca leem a semente. O simulador acelera ocorrências e falhas (`FOGO_LIVE_MULTIPLIER`, 20 por padrão) e os modelos descontam isso.
 - Os limites dos bairros são aproximados a partir da malha viária do OpenStreetMap, não são os legais. Crédito do OSM no mapa e no `DATA.md`. Eles vão para a tabela `neighborhood_shapes` na primeira carga, a tela Bairros edita, e `src/server/neighborhoods.ts` aplica o que está no banco sobre `city` ao subir o servidor.
-- Dispositivos reais mandam posição por tag (`POST /api/tags/{id}/location`, token no cabeçalho). O simulador ignora quem tem tag. O contrato está em `docs/rastreadores.md`.
+- Dois modos (`FOGO_MODE`, `src/server/config.ts`): simulação gera semente e liga o simulador; produção começa vazia, sem simulador e sem aceleração. Um banco não abre no modo errado. O plano para a operação real está em `docs/production.md`.
+- Rotas da interface, parâmetros de URL e nomes de arquivo ficam em inglês; textos para o usuário em português.
+- Dispositivos reais mandam posição por tag (`POST /api/tags/{id}/location`, token no cabeçalho). O simulador ignora quem tem tag. O contrato está em `docs/trackers.md`.
 
 ## Navegador
 

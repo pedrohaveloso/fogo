@@ -24,6 +24,7 @@ import { agentFromQuery, agentQuery } from "../listQuery.ts";
 import { pageFromQuery, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
+import { usePageSize } from "../usePageSize.ts";
 import { useNow } from "../useNow.ts";
 
 function setFilters(filters: AgentFilters, page = 1): void {
@@ -37,6 +38,7 @@ export function AgentListPage() {
   const { params } = useLocation();
   const query = params.toString();
   const filters = useMemo(() => agentFromQuery(new URLSearchParams(query)), [query]);
+  const [pageSize, setPageSize] = usePageSize("agents");
   const set = <K extends keyof AgentFilters>(key: K, value: AgentFilters[K]) =>
     setFilters({ ...filters, [key]: value });
 
@@ -54,7 +56,7 @@ export function AgentListPage() {
     return <LoadingNotice label="Carregando agentes..." />;
   }
 
-  const page = paginate(rows, pageFromQuery(params));
+  const page = paginate(rows, pageFromQuery(params), pageSize);
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
   const vehicles = new Map(snapshot.equipment.map((item) => [item.id, item]));
   const counts = agentStatusCounts(snapshot.agents);
@@ -224,7 +226,16 @@ export function AgentListPage() {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} label="agentes" onChange={(next) => setFilters(filters, next)} />
+        <Pagination
+          page={page}
+          size={pageSize}
+          label="agentes"
+          onChange={(next) => setFilters(filters, next)}
+          onSizeChange={(next) => {
+            setPageSize(next);
+            setFilters(filters);
+          }}
+        />
       </div>
     </main>
   );

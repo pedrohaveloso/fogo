@@ -34,6 +34,7 @@ import {
 import { pageFromQuery, pageOfIndex, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
+import { usePageSize } from "../usePageSize.ts";
 import { useNow } from "../useNow.ts";
 
 const MAP_LAYERS: MapLayers = {
@@ -75,6 +76,7 @@ export function EquipmentListPage() {
   const show = (nextFilters: EquipmentFilters, nextSort: Sort) =>
     go(equipmentQuery(nextFilters, nextSort), showMap);
   const setFilters = (next: EquipmentFilters) => show(next, sort);
+  const [pageSize, setPageSize] = usePageSize("equipment");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focus, setFocus] = useState<{ lng: number; lat: number; key: number } | null>(null);
 
@@ -116,7 +118,7 @@ export function EquipmentListPage() {
       });
   }, [snapshot, meta, filters, now, sort, names]);
 
-  const page = paginate(rows, pageFromQuery(params));
+  const page = paginate(rows, pageFromQuery(params), pageSize);
 
   const selectedVisible = page.items.some((item) => item.id === selectedId);
 
@@ -199,8 +201,8 @@ export function EquipmentListPage() {
                   if (selection?.kind === "equipment") {
                     setSelectedId(selection.id);
                     const index = rows.findIndex((item) => item.id === selection.id);
-                    if (index >= 0 && pageOfIndex(index) !== page.page) {
-                      go(currentQuery, showMap, pageOfIndex(index));
+                    if (index >= 0 && pageOfIndex(index, pageSize) !== page.page) {
+                      go(currentQuery, showMap, pageOfIndex(index, pageSize));
                     }
                   }
                 }}
@@ -319,8 +321,13 @@ export function EquipmentListPage() {
         </div>
         <Pagination
           page={page}
+          size={pageSize}
           label="equipamentos"
           onChange={(next) => go(currentQuery, showMap, next)}
+          onSizeChange={(next) => {
+            setPageSize(next);
+            go(currentQuery, showMap);
+          }}
         />
       </div>
     </main>

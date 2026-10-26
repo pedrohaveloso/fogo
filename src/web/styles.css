@@ -3129,15 +3129,21 @@ dialog::backdrop {
   font-size: var(--text-sm);
 }
 
+.pagination-range,
+.pagination-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
 .pagination-range {
   margin-right: auto;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .pagination-current {
   color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
 }
 
 .shape-layout {

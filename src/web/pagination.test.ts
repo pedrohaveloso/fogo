@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_SIZE, pageFromQuery, pageOfIndex, paginate, withPage } from "./pagination.ts";
+import {
+  PAGE_SIZE,
+  pageFromQuery,
+  pageOfIndex,
+  paginate,
+  parsePageSize,
+  withPage,
+} from "./pagination.ts";
 
 const rows = Array.from({ length: 123 }, (_, index) => index);
 
@@ -55,5 +62,29 @@ describe("page in the address", () => {
     expect(pageOfIndex(0)).toBe(1);
     expect(pageOfIndex(49)).toBe(1);
     expect(pageOfIndex(50)).toBe(2);
+  });
+});
+
+describe("page size", () => {
+  it("accepts the listed sizes and all, and falls back to fifty", () => {
+    expect(parsePageSize("10")).toBe(10);
+    expect(parsePageSize("100")).toBe(100);
+    expect(parsePageSize("all")).toBe("all");
+    expect(parsePageSize(null)).toBe(PAGE_SIZE);
+    expect(parsePageSize("7")).toBe(PAGE_SIZE);
+    expect(parsePageSize("abc")).toBe(PAGE_SIZE);
+  });
+
+  it("cuts pages of the chosen size", () => {
+    expect(paginate(rows, 3, 25)).toMatchObject({ pageCount: 5, first: 51, last: 75 });
+    expect(pageOfIndex(60, 25)).toBe(3);
+  });
+
+  it("shows every row on one page when all is chosen", () => {
+    const all = paginate(rows, 4, "all");
+    expect(all.items).toEqual(rows);
+    expect(all).toMatchObject({ page: 1, pageCount: 1, first: 1, last: 123, total: 123 });
+    expect(paginate([], 1, "all")).toMatchObject({ pageCount: 1, first: 0, last: 0 });
+    expect(pageOfIndex(120, "all")).toBe(1);
   });
 });

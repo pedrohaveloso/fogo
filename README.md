@@ -9,7 +9,7 @@ docker compose up --build                            # simulação, com Marília
 FOGO_MODE=production docker compose up --build       # produção, sem nenhum dado
 ```
 
-Abra http://localhost:3210. A simulação já vem com inventário, histórico e movimento. A produção começa vazia: entre com o usuário `root` e a senha `root` (ou a de `FOGO_ROOT_PASSWORD`), troque a senha e cadastre a cidade, as zonas, os bairros, os órgãos, os equipamentos, os agentes e os outros usuários. No Windows, o mesmo comando funciona no PowerShell com `$env:FOGO_MODE="production"; docker compose up --build`.
+Abra http://localhost:3210 e entre com o usuário `root` e a senha `root`. A simulação já vem com inventário, histórico e movimento. A produção começa vazia: entre com `root` e a senha `root` (ou a de `FOGO_ROOT_PASSWORD`), troque a senha e cadastre a cidade, as zonas, os bairros, os órgãos, os equipamentos, os agentes e os outros usuários. No Windows, o mesmo comando funciona no PowerShell com `$env:FOGO_MODE="production"; docker compose up --build`.
 
 ![Central de operações: mapa de Marília com equipamentos, agentes e ocorrências, e o painel com a situação da cidade](docs/images/operations.jpg)
 
@@ -100,7 +100,7 @@ A tela Bairros mostra o limite de cada bairro da cidade selecionada sobre o mapa
 
 ### Cidades, usuários e acesso
 
-Na produção, o FOGO pede login. O servidor cria o usuário `root` quando o banco está vazio, com a senha de `FOGO_ROOT_PASSWORD` ou, sem ela, `root`, que se troca em Minha senha. Há dois perfis. Administradores cadastram cidades e usuários e veem todas as cidades. Usuários veem só as cidades que um administrador atribuiu a eles e usam o resto do sistema, inclusive zonas, bairros e órgãos. A sessão fica num cookie `HttpOnly`, as senhas são guardadas com scrypt e o login trava por 15 minutos depois de 10 tentativas erradas. Na simulação não há login: quem abre o sistema age como administrador.
+O FOGO pede login nos dois modos. O servidor cria o usuário `root` quando o banco não tem usuários. Na produção, a senha é a de `FOGO_ROOT_PASSWORD` ou, sem ela, `root`, e se troca em Minha senha. Na simulação, a senha é sempre `root`, e a tela de entrada lembra disso. Há dois perfis. Administradores cadastram cidades e usuários e veem todas as cidades. Usuários veem só as cidades que um administrador atribuiu a eles e usam o resto do sistema, inclusive zonas, bairros e órgãos. A sessão fica num cookie `HttpOnly`, as senhas são guardadas com scrypt e o login trava por 15 minutos depois de 10 tentativas erradas.
 
 Uma cidade nova nasce em Cidades: o administrador escolhe a UF e o município na lista do IBGE, e o servidor busca o limite do município no OpenStreetMap para conferência. Se o limite não vier, ele é desenhado à mão. Depois disso a cidade começa vazia, e tudo o que a simulação cria sozinha (zonas, bairros, órgãos, equipamentos e agentes) é cadastrado pelas telas. O seletor no topo troca a cidade de todo o sistema e fica lembrado por usuário.
 

@@ -35,7 +35,7 @@ O banco de produção começa vazio. Na primeira subida, o servidor cria o usuá
 
 ## O que já funciona em produção
 
-- Login com sessão em cookie `HttpOnly`, senha guardada com scrypt e dois perfis: administrador (cidades, usuários e todo o resto) e usuário (só as cidades atribuídas, sem cadastro de cidades nem de usuários). A rota `/api/health` e a de localização das tags ficam fora do login.
+- Login (o mesmo da simulação) com sessão em cookie `HttpOnly`, senha guardada com scrypt e dois perfis: administrador (cidades, usuários e todo o resto) e usuário (só as cidades atribuídas, sem cadastro de cidades nem de usuários). A rota `/api/health` e a de localização das tags ficam fora do login.
 - Várias cidades no mesmo servidor, com zonas, bairros e órgãos próprios.
 - Cadastro de equipamentos, agentes, bairros, zonas e órgãos pela interface e pela API.
 - Posição de equipamentos e agentes enviada por rastreador (`POST /api/tags/{id}/location`, descrita em [trackers.md](trackers.md)). A mesma chamada atualiza o último sinal e a bateria.

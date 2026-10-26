@@ -120,3 +120,64 @@ export function boundsOf(points: readonly LngLat[], share = 1): [LngLat, LngLat]
     [east, north],
   ];
 }
+
+function orientation(a: LngLat, b: LngLat, c: LngLat): number {
+  const value = cross(a, b, c);
+  return value === 0 ? 0 : Math.sign(value);
+}
+
+function onSegment(a: LngLat, b: LngLat, point: LngLat): boolean {
+  return (
+    Math.min(a[0], b[0]) <= point[0] &&
+    point[0] <= Math.max(a[0], b[0]) &&
+    Math.min(a[1], b[1]) <= point[1] &&
+    point[1] <= Math.max(a[1], b[1])
+  );
+}
+
+export function segmentsIntersect(a: LngLat, b: LngLat, c: LngLat, d: LngLat): boolean {
+  const o1 = orientation(a, b, c);
+  const o2 = orientation(a, b, d);
+  const o3 = orientation(c, d, a);
+  const o4 = orientation(c, d, b);
+  if (o1 !== o2 && o3 !== o4) {
+    return true;
+  }
+  return (
+    (o1 === 0 && onSegment(a, b, c)) ||
+    (o2 === 0 && onSegment(a, b, d)) ||
+    (o3 === 0 && onSegment(c, d, a)) ||
+    (o4 === 0 && onSegment(c, d, b))
+  );
+}
+
+export function isSimplePolygon(polygon: readonly LngLat[]): boolean {
+  const count = polygon.length;
+  if (count < 3) {
+    return false;
+  }
+  for (let i = 0; i < count; i += 1) {
+    const a = polygon[i]!;
+    const b = polygon[(i + 1) % count]!;
+    for (let j = i + 1; j < count; j += 1) {
+      const adjacent = j === i + 1 || (i === 0 && j === count - 1);
+      if (adjacent) {
+        continue;
+      }
+      if (segmentsIntersect(a, b, polygon[j]!, polygon[(j + 1) % count]!)) {
+        return false;
+      }
+    }
+  }
+  return Math.abs(polygonArea(polygon)) > 0;
+}
+
+export function polygonArea(polygon: readonly LngLat[]): number {
+  let sum = 0;
+  for (let i = 0; i < polygon.length; i += 1) {
+    const [x1, y1] = polygon[i]!;
+    const [x2, y2] = polygon[(i + 1) % polygon.length]!;
+    sum += x1 * y2 - x2 * y1;
+  }
+  return sum / 2;
+}

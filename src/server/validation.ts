@@ -12,6 +12,7 @@ import {
   type AttributeSpec,
   type EquipmentType,
 } from "../shared/catalog.ts";
+import { isSimplePolygon, type LngLat } from "../shared/geo.ts";
 import type { AgentInput, AttributeValue, EquipmentInput } from "../shared/types.ts";
 import { neighborhoodsById } from "./city.ts";
 
@@ -265,4 +266,46 @@ export function parseOccurrenceInput(raw: unknown): OccurrenceInput {
 export function parseId(raw: string): number | null {
   const id = Number(raw);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+const MAX_SHAPE_POINTS = 1000;
+
+const shapePoint = z.tuple([
+  z
+    .number({ error: "Cada ponto precisa de longitude e latitude" })
+    .min(AREA_BOUNDS.west, { error: "O desenho passou dos limites de Marília" })
+    .max(AREA_BOUNDS.east, { error: "O desenho passou dos limites de Marília" }),
+  z
+    .number({ error: "Cada ponto precisa de longitude e latitude" })
+    .min(AREA_BOUNDS.south, { error: "O desenho passou dos limites de Marília" })
+    .max(AREA_BOUNDS.north, { error: "O desenho passou dos limites de Marília" }),
+]);
+
+const shapeSchema = z.object({
+  polygon: z
+    .array(shapePoint, { error: "Envie a lista de pontos do bairro" })
+    .transform((points) => {
+      const first = points[0];
+      const last = points.at(-1);
+      const closed =
+        points.length > 1 && first && last && first[0] === last[0] && first[1] === last[1];
+      return (closed ? points.slice(0, -1) : points).map(
+        ([lng, lat]) => [Number(lng.toFixed(6)), Number(lat.toFixed(6))] as LngLat,
+      );
+    })
+    .refine((points) => points.length >= 3, { error: "O bairro precisa de ao menos 3 pontos" })
+    .refine((points) => points.length <= MAX_SHAPE_POINTS, {
+      error: `O bairro pode ter no máximo ${MAX_SHAPE_POINTS} pontos`,
+    })
+    .refine((points) => points.length < 3 || isSimplePolygon(points), {
+      error: "As linhas do bairro não podem se cruzar",
+    }),
+});
+
+export function parseNeighborhoodShape(raw: unknown): LngLat[] {
+  const result = shapeSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data.polygon;
 }

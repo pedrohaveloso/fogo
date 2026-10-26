@@ -7,6 +7,7 @@ describe("pageTitle", () => {
     expect(pageTitle("/equipamentos/novo")).toBe("Cadastrar equipamento: F.O.G.O. Marília");
     expect(pageTitle("/equipamentos/12")).toBe("Editar equipamento: F.O.G.O. Marília");
     expect(pageTitle("/agentes/30")).toBe("Editar agente: F.O.G.O. Marília");
+    expect(pageTitle("/bairros")).toBe("Bairros: F.O.G.O. Marília");
     expect(pageTitle("/previsoes")).toBe("Cidade preditiva: F.O.G.O. Marília");
   });
 

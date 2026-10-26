@@ -5,6 +5,7 @@ import {
   containingArea,
   convexHull,
   distanceKm,
+  isSimplePolygon,
   moveTowards,
   pointInPolygon,
   type LngLat,
@@ -105,5 +106,54 @@ describe("boundsOf", () => {
       [1, 1],
       [8, 8],
     ]);
+  });
+});
+
+describe("isSimplePolygon", () => {
+  it("accepts a square and a concave shape", () => {
+    expect(isSimplePolygon(square)).toBe(true);
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [1, 1],
+        [0, 2],
+      ]),
+    ).toBe(true);
+  });
+
+  it("rejects a bow tie whose edges cross", () => {
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [1, 1],
+        [1, 0],
+        [0, 1],
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects fewer than three points and shapes without area", () => {
+    expect(isSimplePolygon(square.slice(0, 2))).toBe(false);
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [1, 1],
+        [2, 2],
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects a vertex that touches another edge", () => {
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [1, 0],
+        [0, 2],
+      ]),
+    ).toBe(false);
   });
 });

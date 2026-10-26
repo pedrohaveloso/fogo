@@ -31,6 +31,7 @@ function tick(change: Partial<StreamTick>): StreamTick {
     occurrences: [],
     removedEquipment: [],
     removedAgents: [],
+    metaChanged: false,
     ...change,
   };
 }

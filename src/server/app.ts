@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import type { CityDataset } from "../shared/types.ts";
 import type { Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
+import type { NeighborhoodShapes } from "./neighborhoods.ts";
 import type { PredictionService } from "./predictions/service.ts";
 import { BadgeTakenError } from "./repositories/agents.ts";
 import { SerialNumberTakenError } from "./repositories/equipment.ts";
 import { inventoryRoutes } from "./routes/inventory.ts";
+import { neighborhoodRoutes } from "./routes/neighborhoods.ts";
 import { operationsRoutes } from "./routes/operations.ts";
 import { predictionRoutes } from "./routes/predictions.ts";
 import { ValidationError } from "./validation.ts";
@@ -14,6 +16,7 @@ export type AppDeps = {
   db: Database;
   city: CityDataset;
   hub: LiveHub;
+  shapes: NeighborhoodShapes;
   predictions: PredictionService;
   liveMultiplier: number;
   now: () => number;
@@ -60,6 +63,7 @@ export function createApp(deps: AppDeps): Hono {
   });
   app.route("/api", inventoryRoutes(deps));
   app.route("/api", operationsRoutes(deps));
+  app.route("/api", neighborhoodRoutes(deps));
   app.route("/api/predictions", predictionRoutes(deps));
   app.notFound((c) => c.json({ error: "Recurso não encontrado" }, 404));
 

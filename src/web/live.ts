@@ -115,6 +115,9 @@ function connect(): void {
       return;
     }
     const tick = JSON.parse((event as MessageEvent<string>).data) as StreamTick;
+    if (tick.metaChanged) {
+      reloadMeta();
+    }
     emit({ snapshot: applyTick(state.snapshot, tick), connected: true, receivedAt: Date.now() });
   });
 }
@@ -158,20 +161,25 @@ let meta: Meta | null = null;
 let metaPromise: Promise<void> | null = null;
 const metaListeners = new Set<() => void>();
 
+function loadMeta(): Promise<void> {
+  return api.get<Meta>("/meta").then((value) => {
+    meta = value;
+    for (const item of metaListeners) {
+      item();
+    }
+  });
+}
+
 function subscribeMeta(listener: () => void): () => void {
   metaListeners.add(listener);
-  metaPromise ??= api
-    .get<Meta>("/meta")
-    .then((value) => {
-      meta = value;
-      for (const item of metaListeners) {
-        item();
-      }
-    })
-    .catch(() => {
-      metaPromise = null;
-    });
+  metaPromise ??= loadMeta().catch(() => {
+    metaPromise = null;
+  });
   return () => metaListeners.delete(listener);
+}
+
+export function reloadMeta(): void {
+  loadMeta().catch(() => {});
 }
 
 export function retryConnection(): void {

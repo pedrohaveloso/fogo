@@ -6,6 +6,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/agentes$/, "Agentes"],
   [/^\/agentes\/novo$/, "Cadastrar agente"],
   [/^\/agentes\/\d+$/, "Editar agente"],
+  [/^\/bairros$/, "Bairros"],
   [/^\/previsoes$/, "Cidade preditiva"],
 ];
 

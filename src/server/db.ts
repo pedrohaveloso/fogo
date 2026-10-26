@@ -111,6 +111,15 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS neighborhood_shapes (
+  neighborhood_id TEXT PRIMARY KEY,
+  polygon TEXT NOT NULL,
+  lat REAL NOT NULL,
+  lng REAL NOT NULL,
+  edited INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS alert_acks (
   alert_id TEXT PRIMARY KEY,
   acknowledged_at INTEGER NOT NULL

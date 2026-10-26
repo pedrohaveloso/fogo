@@ -7,6 +7,7 @@ import {
 import { DAY, localDate, localParts } from "../../shared/time.ts";
 import type { CityDataset } from "../../shared/types.ts";
 import { setSetting, transaction, type Database } from "../db.ts";
+import { storeDefaultShapes } from "../neighborhoods.ts";
 import { createDemandModel } from "../patterns.ts";
 import { createRandom } from "../random.ts";
 import { createAgent } from "../repositories/agents.ts";
@@ -210,6 +211,7 @@ export function seedDatabase(db: Database, city: CityDataset, options: SeedOptio
     }
 
     setSetting(db, "seeded_at", String(now));
+    storeDefaultShapes(db, city, now);
     setSetting(db, "seed", String(seed));
 
     return { equipment: inventory.length, agents: agents.length, occurrences, readings };

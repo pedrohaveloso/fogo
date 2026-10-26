@@ -17,6 +17,7 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const handle = useMap(container, { center: meta.city.center, zoom: 11.8 });
   const select = useEffectEvent((id: string) => onSelect(id));
+  const initialNeighborhoods = useEffectEvent(() => meta.neighborhoods);
 
   useEffect(() => {
     if (!handle) {
@@ -25,7 +26,7 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
     const { map } = handle;
     map.addSource("risk", {
       type: "geojson",
-      data: neighborhoodFeatures(meta.neighborhoods),
+      data: neighborhoodFeatures(initialNeighborhoods()),
       promoteId: "id",
       attribution: NEIGHBORHOOD_ATTRIBUTION,
     });
@@ -88,6 +89,10 @@ export function RiskMap({ meta, risks, selected, onSelect }: Props) {
     map.on("mouseleave", "risk-fill", () => {
       map.getCanvas().style.cursor = "";
     });
+  }, [handle]);
+
+  useEffect(() => {
+    handle?.map.getSource<GeoJSONSource>("risk")?.setData(neighborhoodFeatures(meta.neighborhoods));
   }, [handle, meta.neighborhoods]);
 
   useEffect(() => {

@@ -87,6 +87,10 @@ Os dados chegam por Server-Sent Events a cada 2 segundos. Um simulador faz o pap
 
 O deslocamento não é acelerado e segue as ruas. Agentes a pé andam a 4,5 km/h na ronda e a 7 km/h a caminho de uma ocorrência. Viaturas e motos patrulham a 30 km/h e vão a um chamado a até 60 e 65 km/h. Táxis e mototáxis rodam a 40 km/h, o veículo de fiscalização a 15 km/h e os patinetes a 15 ou 20 km/h, conforme o limitador. Veículos respeitam a mão de direção e o limite de cada trecho; só viaturas e motos em atendimento passam um pouco do limite. O despacho só considera quem chega em até 20 minutos.
 
+### Bairros
+
+A tela Bairros mostra o limite de cada bairro sobre o mapa. Dá para arrastar os pontos, criar um ponto novo puxando o meio de uma linha, apagar um ponto com dois cliques ou redesenhar o bairro do zero. O limite fica salvo no banco e vale na hora para a Central, as previsões e a escolha de bairro de equipamentos e ocorrências novos. Linhas que se cruzam e pontos fora de Marília são recusados, e "Restaurar original" volta ao limite gerado a partir do OpenStreetMap.
+
 ### Cidade preditiva
 
 A página tem uma aba por pergunta, e cada bloco diz o que está sendo previsto, como usar o resultado e, recolhido, com quais dados. Os modelos aprendem com os dados do banco; nenhum deles consulta o gerador de dados.
@@ -125,7 +129,7 @@ O servidor é um único processo Node.js que roda direto dos arquivos `.ts`. Ele
 
 Os bairros, ruas e pontos de referência de Marília vêm do OpenStreetMap (licença ODbL), e os CEPs foram conferidos no ViaCEP. A base fica em `data/marilia.json` e `data/marilia-roads.json` e é refeita em três passos, nesta ordem, todos com internet. `pnpm geo` busca bairros, ruas, CEPs e pontos de referência e leva uns quatro minutos por causa do intervalo entre consultas ao ViaCEP. `pnpm roads` baixa a malha viária, com mão de direção e limite de velocidade de cada trecho, usada no deslocamento dos agentes. `pnpm boundaries` desenha os limites dos bairros.
 
-Não existe base aberta com os limites oficiais dos bairros de Marília, então os limites do F.O.G.O. são aproximados e não valem como divisa legal. Cada rua fica com o bairro mais próximo pela malha viária, e a área em volta das ruas é dividida a partir daí, sem atravessar rios, córregos e a ferrovia. Os seis bairros e distritos que têm polígono no OpenStreetMap (Jardim Vitória, Jardim Vista Alegre, Lácio, Padre Nóbrega, Jardim Julieta e Oswaldo Fanceli) usam esse polígono, sem tomar a área dos bairros que ficam dentro deles.
+Não existe base aberta com os limites oficiais dos bairros de Marília, então os limites do F.O.G.O. são aproximados e não valem como divisa legal. Cada rua fica com o bairro mais próximo pela malha viária, e a área em volta das ruas é dividida a partir daí, sem atravessar rios, córregos e a ferrovia. Os seis bairros e distritos que têm polígono no OpenStreetMap (Jardim Vitória, Jardim Vista Alegre, Lácio, Padre Nóbrega, Jardim Julieta e Oswaldo Fanceli) usam esse polígono, sem tomar a área dos bairros que ficam dentro deles. Esses limites são gravados no banco na primeira carga e podem ser corrigidos na tela Bairros.
 
 As licenças e os créditos de cada fonte estão em [DATA.md](DATA.md).
 
@@ -167,7 +171,7 @@ São cerca de 200 testes com Vitest: regras de alerta e de nível, modelos de pr
 - Não há autenticação nem perfis de acesso.
 - Tudo roda num único processo com SQLite, suficiente para uma cidade do porte de Marília, mas sem escala horizontal.
 - O mapa de fundo depende de internet; sem ela aparecem só os bairros e os marcadores.
-- Os limites de bairro são aproximados (ver Dados).
+- Os limites de bairro são aproximados (ver Dados). Mudar o limite de um bairro não muda o bairro gravado em equipamentos, agentes e ocorrências que já existiam.
 
 ## Uso de IA
 

@@ -72,6 +72,7 @@ export function createLiveHub(db: Database, city: CityDataset, predictions: Pred
       occurrences: change.occurrences ?? [],
       removedEquipment: change.removedEquipment ?? [],
       removedAgents: change.removedAgents ?? [],
+      metaChanged: change.metaChanged ?? false,
     };
     for (const listener of listeners) {
       listener({ type: "tick", data: tick });

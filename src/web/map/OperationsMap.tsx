@@ -121,6 +121,7 @@ export function OperationsMap(props: Props) {
     ),
   });
   const onSelect = useEffectEvent((selection: Selection | null) => props.onSelect(selection));
+  const initialMeta = useEffectEvent(() => props.meta);
   const markers = useRef(new Map<number, Marker>());
 
   useEffect(() => {
@@ -128,9 +129,10 @@ export function OperationsMap(props: Props) {
       return;
     }
     const { map, online } = handle;
+    const meta = initialMeta();
     map.addSource("neighborhoods", {
       type: "geojson",
-      data: neighborhoodFeatures(props.meta.neighborhoods),
+      data: neighborhoodFeatures(meta.neighborhoods),
       promoteId: "id",
       attribution: NEIGHBORHOOD_ATTRIBUTION,
     });
@@ -215,7 +217,7 @@ export function OperationsMap(props: Props) {
       type: "geojson",
       data: {
         type: "FeatureCollection",
-        features: props.meta.landmarks.map((item) =>
+        features: meta.landmarks.map((item) =>
           point(item.lng, item.lat, { name: item.name, kind: item.kind }),
         ),
       },
@@ -478,7 +480,13 @@ export function OperationsMap(props: Props) {
         map.getCanvas().style.cursor = "";
       });
     }
-  }, [handle, props.meta.neighborhoods, props.meta.landmarks]);
+  }, [handle]);
+
+  useEffect(() => {
+    handle?.map
+      .getSource<GeoJSONSource>("neighborhoods")
+      ?.setData(neighborhoodFeatures(props.meta.neighborhoods));
+  }, [handle, props.meta.neighborhoods]);
 
   useEffect(() => {
     const source = handle?.map.getSource<GeoJSONSource>("equipment");

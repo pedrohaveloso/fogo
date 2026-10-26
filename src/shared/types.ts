@@ -181,6 +181,7 @@ export type StreamTick = {
   occurrences: Occurrence[];
   removedEquipment: number[];
   removedAgents: number[];
+  metaChanged: boolean;
 };
 
 export type Region = { id: string; name: string; polygon: LngLat[] };
@@ -193,6 +194,8 @@ export type Neighborhood = {
   lng: number;
   polygon: LngLat[];
 };
+
+export type NeighborhoodShape = Neighborhood & { edited: boolean; updatedAt: string | null };
 
 export type Street = {
   name: string;

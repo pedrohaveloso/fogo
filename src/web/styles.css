@@ -2832,7 +2832,7 @@ dialog::backdrop {
     right: 0;
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0;
     height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -2845,7 +2845,7 @@ dialog::backdrop {
     justify-content: center;
     gap: 3px;
     padding: 6px 2px;
-    font-size: 0.82rem;
+    font-size: 0.74rem;
   }
 
   .nav a[aria-current="page"]::after {
@@ -3138,6 +3138,114 @@ dialog::backdrop {
 .pagination-current {
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
+}
+
+.shape-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.shape-list {
+  position: sticky;
+  top: calc(var(--header-h) + 16px);
+  display: grid;
+  gap: 10px;
+  max-height: calc(100dvh - var(--header-h) - 48px);
+  padding: 12px;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.shape-list ul {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.shape-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shape-list button:hover {
+  background: var(--raised);
+}
+
+.shape-list button[aria-pressed="true"] {
+  background: var(--pressed);
+  box-shadow: inset 3px 0 0 var(--selected);
+  font-weight: 700;
+}
+
+.shape-workspace {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.shape-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 16px;
+}
+
+.shape-toolbar .error-box {
+  flex: 1 1 100%;
+}
+
+.shape-title {
+  display: grid;
+  gap: 2px;
+}
+
+.shape-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shape-canvas {
+  height: min(68dvh, 720px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.shape-map {
+  position: relative;
+  height: 100%;
+  background: var(--map-ground);
+}
+
+@media (max-width: 900px) {
+  .shape-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shape-list {
+    position: static;
+    max-height: 260px;
+  }
+
+  .shape-canvas {
+    height: 60dvh;
+  }
 }
 
 @media (max-width: 720px) {

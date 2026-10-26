@@ -1,9 +1,16 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { Agent, Equipment, Occurrence, OperationsSnapshot } from "../shared/types.ts";
+import type {
+  Agent,
+  Equipment,
+  NeighborhoodShape,
+  Occurrence,
+  OperationsSnapshot,
+} from "../shared/types.ts";
 import { createApp } from "./app.ts";
 import { city } from "./city.ts";
 import { openDatabase, type Database } from "./db.ts";
 import { createLiveHub } from "./live.ts";
+import { createNeighborhoodShapes } from "./neighborhoods.ts";
 import { createPredictionService } from "./predictions/service.ts";
 import { seedDatabase } from "./seed/index.ts";
 import { NOW } from "./test-fixtures.ts";
@@ -62,7 +69,18 @@ beforeAll(() => {
   seedDatabase(db, city, { now: NOW, seed: 11, historyDays: 30, readingDays: 2 });
   const predictions = createPredictionService(db, city, 60);
   const hub = createLiveHub(db, city, predictions);
-  app = createApp({ db, city, hub, predictions, liveMultiplier: 60, now: () => NOW, fetchImpl });
+  const shapes = createNeighborhoodShapes(db, city);
+  shapes.load(NOW);
+  app = createApp({
+    db,
+    city,
+    hub,
+    shapes,
+    predictions,
+    liveMultiplier: 60,
+    now: () => NOW,
+    fetchImpl,
+  });
 });
 
 describe("health check", () => {
@@ -77,6 +95,7 @@ describe("health check", () => {
       db: closed,
       city,
       hub: createLiveHub(db, city, createPredictionService(db, city, 60)),
+      shapes: createNeighborhoodShapes(closed, city),
       predictions: createPredictionService(db, city, 60),
       liveMultiplier: 60,
       now: () => NOW,
@@ -280,5 +299,68 @@ describe("predictions API", () => {
       ),
     );
     expect(statuses).toEqual([200, 200, 200, 200]);
+  });
+});
+
+describe("neighborhood shapes API", () => {
+  const triangle = [
+    [-49.95, -22.21],
+    [-49.94, -22.21],
+    [-49.945, -22.2],
+  ];
+
+  it("lists every neighborhood with its stored shape", async () => {
+    const { status, body } = await call<NeighborhoodShape[]>("GET", "/neighborhoods");
+    expect(status).toBe(200);
+    expect(body).toHaveLength(city.neighborhoods.length);
+    expect(body.every((item) => !item.edited && item.polygon.length >= 3)).toBe(true);
+  });
+
+  it("saves a drawn shape, serves it in the metadata and restores the original", async () => {
+    const original = city.neighborhoods.find((item) => item.id === "centro")!.polygon;
+    const saved = await call<NeighborhoodShape>("PUT", "/neighborhoods/centro/shape", {
+      polygon: [...triangle, triangle[0]],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body).toMatchObject({ id: "centro", edited: true, polygon: triangle });
+    expect(saved.body.lng).toBeCloseTo(-49.945, 3);
+
+    const meta = await call<{ neighborhoods: NeighborhoodShape[] }>("GET", "/meta");
+    expect(meta.body.neighborhoods.find((item) => item.id === "centro")!.polygon).toEqual(triangle);
+
+    const restored = await call<NeighborhoodShape>("DELETE", "/neighborhoods/centro/shape");
+    expect(restored.body.edited).toBe(false);
+    expect(restored.body.polygon).toEqual(original);
+  });
+
+  it("rejects crossing lines, too few points and points outside the city", async () => {
+    const crossing = await call<{ issues: { message: string }[] }>(
+      "PUT",
+      "/neighborhoods/centro/shape",
+      {
+        polygon: [
+          [-49.95, -22.21],
+          [-49.94, -22.2],
+          [-49.94, -22.21],
+          [-49.95, -22.2],
+        ],
+      },
+    );
+    expect(crossing.status).toBe(422);
+    expect(crossing.body.issues[0]!.message).toBe("As linhas do bairro não podem se cruzar");
+    expect(
+      (await call("PUT", "/neighborhoods/centro/shape", { polygon: triangle.slice(0, 2) })).status,
+    ).toBe(422);
+    expect(
+      (
+        await call("PUT", "/neighborhoods/centro/shape", {
+          polygon: [...triangle.slice(0, 2), [-46.6, -23.5]],
+        })
+      ).status,
+    ).toBe(422);
+    expect((await call("PUT", "/neighborhoods/nada/shape", { polygon: triangle })).status).toBe(
+      404,
+    );
+    expect((await call("DELETE", "/neighborhoods/nada/shape")).status).toBe(404);
   });
 });

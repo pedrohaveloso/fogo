@@ -5,6 +5,7 @@ import { createApp } from "./app.ts";
 import { city, roads } from "./city.ts";
 import { getSetting, openDatabase } from "./db.ts";
 import { createLiveHub } from "./live.ts";
+import { createNeighborhoodShapes } from "./neighborhoods.ts";
 import { createDemandModel } from "./patterns.ts";
 import { createPredictionService } from "./predictions/service.ts";
 import { isDatabaseEmpty, seedDatabase } from "./seed/index.ts";
@@ -37,6 +38,9 @@ if (isDatabaseEmpty(db)) {
   );
 }
 
+const shapes = createNeighborhoodShapes(db, city);
+shapes.load(Date.now());
+
 const seededAt = Number(getSetting(db, "seeded_at") ?? Date.now());
 const predictions = createPredictionService(db, city, liveMultiplier);
 const hub = createLiveHub(db, city, predictions);
@@ -44,6 +48,7 @@ const app = createApp({
   db,
   city,
   hub,
+  shapes,
   predictions,
   liveMultiplier,
   now: Date.now,

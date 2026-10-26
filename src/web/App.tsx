@@ -1,11 +1,20 @@
 import { useEffect, useRef, type MouseEvent } from "react";
 import { formatClock, formatTime } from "./format.ts";
-import { AGENT_GLYPH, BrandMark, Glyph, MAP_GLYPH, TREND_GLYPH, TYPE_GLYPHS } from "./icons.tsx";
+import {
+  AGENT_GLYPH,
+  AREA_GLYPH,
+  BrandMark,
+  Glyph,
+  MAP_GLYPH,
+  TREND_GLYPH,
+  TYPE_GLYPHS,
+} from "./icons.tsx";
 import { liveStatus, useLive } from "./live.ts";
 import { AgentFormPage } from "./pages/AgentFormPage.tsx";
 import { AgentListPage } from "./pages/AgentListPage.tsx";
 import { EquipmentFormPage } from "./pages/EquipmentFormPage.tsx";
 import { EquipmentListPage } from "./pages/EquipmentListPage.tsx";
+import { NeighborhoodsPage } from "./pages/NeighborhoodsPage.tsx";
 import { OperationsPage } from "./pages/OperationsPage.tsx";
 import { PredictionsPage } from "./pages/PredictionsPage.tsx";
 import { pageTitle } from "./pageTitle.ts";
@@ -34,6 +43,13 @@ const NAV = [
     short: "Agentes",
     glyph: AGENT_GLYPH,
     match: (path: string) => path.startsWith("/agentes"),
+  },
+  {
+    href: "/bairros",
+    label: "Bairros",
+    short: "Bairros",
+    glyph: AREA_GLYPH,
+    match: (path: string) => path.startsWith("/bairros"),
   },
   {
     href: "/previsoes",
@@ -67,6 +83,9 @@ function Route({ pathname }: { pathname: string }) {
   const agent = /^\/agentes\/(\d+)$/.exec(pathname);
   if (agent) {
     return <AgentFormPage id={Number(agent[1])} />;
+  }
+  if (pathname === "/bairros") {
+    return <NeighborhoodsPage />;
   }
   if (pathname === "/previsoes") {
     return <PredictionsPage />;

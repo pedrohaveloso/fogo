@@ -5,10 +5,10 @@ description: Passo a passo para acrescentar um tipo de equipamento ao FOGO (cat�
 
 # Novo tipo de equipamento
 
-1. Acrescente o tipo em `EQUIPMENT_TYPES` de `src/shared/catalog.ts`, com rótulo, órgão e os campos próprios. O formulário e a validação do servidor derivam daqui.
+1. Acrescente o tipo em `EQUIPMENT_TYPES` de `src/shared/catalog.ts`, com rótulo, intervalo de manutenção, telemetria e os campos próprios. O formulário e a validação do servidor derivam daqui.
 2. Rode `pnpm typecheck`. Os registros por tipo são `Record<EquipmentType, ...>`, então o compilador aponta cada lugar que falta preencher. Hoje são:
    - `TYPE_GLYPHS` em `src/web/icons.tsx` (ícone do marcador e da lista);
-   - `PLAN` em `src/server/seed/inventory.ts` (quantidade e onde posicionar);
+   - `PLAN` e `TYPE_AGENCY` em `src/server/seed/inventory.ts` (quantidade, onde posicionar e o órgão da semente; em produção o órgão vem do cadastro de cada cidade);
    - marcas e modelos e `SERIAL_PREFIX` em `src/server/seed/texts.ts`;
    - `FAILURE_RATE_PER_DAY` em `src/server/patterns.ts`.
 3. Se o tipo se move (veículo, patinete), confira o tratamento de deslocamento em `src/server/simulator.ts` e a velocidade documentada no README.

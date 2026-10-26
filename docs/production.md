@@ -4,26 +4,40 @@ O FOGO roda em dois modos. O modo simulação serve para apresentar o sistema: g
 
 ## Como rodar
 
-| Comando                    | Modo                              | Banco padrão              |
-| -------------------------- | --------------------------------- | ------------------------- |
-| `pnpm dev`                 | simulação                         | `data/fogo.db`            |
-| `pnpm dev:production`      | produção                          | `data/fogo-production.db` |
-| `pnpm demo`                | simulação                         | `data/fogo.db`            |
-| `pnpm build && pnpm start` | produção                          | `data/fogo-production.db` |
-| `pnpm start:simulation`    | simulação                         | `data/fogo.db`            |
-| `pnpm start:fresh`         | simulação, apagando o banco antes | `data/fogo.db`            |
+| Comando                                          | Modo                              | Banco             |
+| ------------------------------------------------ | --------------------------------- | ----------------- |
+| `docker compose up --build`                      | simulação                         | `fogo_simulation` |
+| `FOGO_MODE=production docker compose up --build` | produção                          | `fogo_production` |
+| `pnpm dev`                                       | simulação                         | `fogo_simulation` |
+| `pnpm dev:production`                            | produção                          | `fogo_production` |
+| `pnpm build && pnpm start`                       | produção                          | `fogo_production` |
+| `pnpm start:simulation`                          | simulação                         | `fogo_simulation` |
+| `pnpm start:fresh`                               | simulação, apagando o banco antes | `fogo_simulation` |
 
-O modo vem da variável `FOGO_MODE` (`simulation` ou `production`). Sem ela, o servidor sobe em produção, porque um engano nesse sentido nunca coloca dados inventados num banco real. A opção `--simulation` da linha de comando tem prioridade sobre a variável.
+Os comandos `pnpm` precisam de um PostgreSQL. O jeito mais simples é `docker compose up -d db`, que sobe o banco na porta 5432 com os dois bancos criados. Para usar outro servidor, aponte `DATABASE_URL` para ele.
 
-O banco guarda o modo em que foi criado, e o servidor se recusa a abrir um banco de simulação em produção ou o contrário. O `--reset` só funciona na simulação.
+O modo vem da variável `FOGO_MODE` (`simulation` ou `production`). Sem ela, o servidor sobe em produção, porque um engano nesse sentido nunca coloca dados inventados num banco real. A opção `--simulation` da linha de comando tem prioridade sobre a variável. No Compose, o padrão é a simulação.
 
-Com Docker, `docker compose up --build` sobe a simulação e `FOGO_MODE=production docker compose up --build` sobe a produção. Cada modo usa um arquivo próprio no volume (`fogo-simulation.db` e `fogo-production.db`). A imagem, rodada direto com `docker run`, começa em produção.
+O banco guarda o modo em que foi criado, e o servidor se recusa a abrir um banco de simulação em produção ou o contrário. O `--reset` só funciona na simulação e apaga todas as tabelas antes de subir.
 
-Na produção, o fator de aceleração é sempre 1 e `FOGO_LIVE_MULTIPLIER` é ignorado. Sem o simulador, o servidor recalcula a situação da cidade a cada 5 segundos e manda para o painel, para que alertas que dependem do tempo, como "sem comunicação" e manutenção vencida, apareçam sem ninguém mexer em nada. A interface mostra a marca "Simulação" no topo só no modo simulação.
+Na produção, o fator de aceleração é sempre 1 e `FOGO_LIVE_MULTIPLIER` é ignorado. Cidades sem simulador, inclusive as cadastradas durante a simulação, recebem a situação recalculada a cada 5 segundos, para que alertas que dependem do tempo, como "sem comunicação" e manutenção vencida, apareçam sem ninguém mexer em nada. A interface mostra a marca "Simulação" no topo só na cidade simulada.
+
+## Primeiro acesso em produção
+
+O banco de produção começa vazio. Na primeira subida, o servidor cria o usuário `root`, com a senha de `FOGO_ROOT_PASSWORD` ou, sem ela, `root`. A ordem de trabalho é esta:
+
+1. Entrar como `root` e trocar a senha em Minha senha.
+2. Em Cidades, cadastrar a cidade: UF, município da lista do IBGE e limite, que vem do OpenStreetMap e pode ser redesenhado.
+3. Em Bairros, cadastrar as zonas pelo botão Zonas e depois desenhar os bairros.
+4. Em Órgãos, cadastrar os órgãos responsáveis pelos equipamentos e agentes.
+5. Cadastrar equipamentos e agentes, e criar as tags dos que mandam posição.
+6. Em Usuários, cadastrar quem vai usar o sistema, com o perfil e as cidades de cada um.
 
 ## O que já funciona em produção
 
-- Cadastro de equipamentos, agentes e bairros pela interface e pela API.
+- Login com sessão em cookie `HttpOnly`, senha guardada com scrypt e dois perfis: administrador (cidades, usuários e todo o resto) e usuário (só as cidades atribuídas, sem cadastro de cidades nem de usuários). A rota `/api/health` e a de localização das tags ficam fora do login.
+- Várias cidades no mesmo servidor, com zonas, bairros e órgãos próprios.
+- Cadastro de equipamentos, agentes, bairros, zonas e órgãos pela interface e pela API.
 - Posição de equipamentos e agentes enviada por rastreador (`POST /api/tags/{id}/location`, descrita em [trackers.md](trackers.md)). A mesma chamada atualiza o último sinal e a bateria.
 - Registro de ocorrência pela API (`POST /api/occurrences`) e encerramento pela ficha da ocorrência na Central.
 - Mudança de situação de um equipamento pelo formulário, que grava o histórico de situações.
@@ -36,13 +50,11 @@ O simulador faz hoje quatro coisas que ninguém faz em produção: cria ocorrên
 
 ### Fase 1: acesso e implantação
 
-Sem login, qualquer pessoa na rede pode alterar o inventário. Isso impede a produção antes de qualquer outra coisa.
+O login e os perfis já existem. Falta o resto da implantação:
 
-- Login com sessão em cookie `HttpOnly`, senha guardada com scrypt do próprio Node e tabela `users` com três perfis: gestor (tudo), operador (ocorrências, despacho e alertas) e consulta (só leitura).
-- Middleware no Hono que exige sessão em toda rota `/api`, menos `/api/health` e as rotas de dispositivo, que continuam usando o token da tag.
 - Registro de quem fez cada mudança (`audit_log` com usuário, ação, alvo e horário).
 - Limite de requisições por tag nas rotas de dispositivo.
-- Guia de implantação: HTTPS num proxy reverso (Caddy ou Nginx), backup diário do SQLite com `VACUUM INTO` ou Litestream, e o que monitorar.
+- Guia de implantação: HTTPS num proxy reverso (Caddy ou Nginx), que precisa repassar `X-Forwarded-Proto` para o cookie de sessão sair com `Secure`, backup diário do PostgreSQL com `pg_dump` e o que monitorar.
 
 ### Fase 2: ocorrências e despacho
 

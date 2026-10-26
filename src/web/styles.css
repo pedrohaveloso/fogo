@@ -820,6 +820,12 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
+td.cell-actions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .cell-sub {
   display: block;
   margin-top: 1px;
@@ -3137,7 +3143,13 @@ dialog::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
-.pagination-range {
+.pagination-range,
+.pagination-current {
+  display: inline-flex;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
   margin-right: auto;
   color: var(--muted);
 }

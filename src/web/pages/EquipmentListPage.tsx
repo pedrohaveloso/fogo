@@ -19,7 +19,7 @@ import {
 } from "../components/OperationsFilters.tsx";
 import { formatDate, formatRelative } from "../format.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
-import { Glyph, TYPE_GLYPHS } from "../icons.tsx";
+import { EDIT_GLYPH, Glyph, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { Pagination } from "../components/Pagination.tsx";
 import { useLive, useMeta } from "../live.ts";
@@ -34,6 +34,7 @@ import {
 import { pageFromQuery, pageOfIndex, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { fleetSummary } from "../summaries.ts";
+import { usePageSize } from "../usePageSize.ts";
 import { usePageSize } from "../usePageSize.ts";
 import { useNow } from "../useNow.ts";
 
@@ -60,7 +61,7 @@ function dueClass(days: number): string {
   return days <= MAINTENANCE_SOON_DAYS ? "cell-warning" : "cell-sub";
 }
 
-function go(query: string, map: boolean, page = 1): void {
+  navigate(`/equipment${withPage(withMapView(query, map), page)}`, { replace: true });
   navigate(`/equipment${withPage(withMapView(query, map), page)}`, { replace: true });
 }
 
@@ -75,6 +76,7 @@ export function EquipmentListPage() {
   const currentQuery = equipmentQuery(filters, sort);
   const show = (nextFilters: EquipmentFilters, nextSort: Sort) =>
     go(equipmentQuery(nextFilters, nextSort), showMap);
+  const [pageSize, setPageSize] = usePageSize("equipment");
   const setFilters = (next: EquipmentFilters) => show(next, sort);
   const [pageSize, setPageSize] = usePageSize("equipment");
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -116,7 +118,7 @@ export function EquipmentListPage() {
             : String(left).localeCompare(String(right), "pt-BR");
         return order * sort.direction;
       });
-  }, [snapshot, meta, filters, now, sort, names]);
+  const page = paginate(rows, pageFromQuery(params), pageSize);
 
   const page = paginate(rows, pageFromQuery(params), pageSize);
 
@@ -136,7 +138,7 @@ export function EquipmentListPage() {
 
   return (
     <main className="page">
-      <div className="page-head">
+        <Link href="/equipment/new" className="button button-primary">
         <h1>Equipamentos</h1>
         <Link href="/equipment/new" className="button button-primary">
           Cadastrar equipamento
@@ -199,8 +201,8 @@ export function EquipmentListPage() {
                 now={now}
                 onSelect={(selection) => {
                   if (selection?.kind === "equipment") {
-                    setSelectedId(selection.id);
-                    const index = rows.findIndex((item) => item.id === selection.id);
+                    if (index >= 0 && pageOfIndex(index, pageSize) !== page.page) {
+                      go(currentQuery, showMap, pageOfIndex(index, pageSize));
                     if (index >= 0 && pageOfIndex(index, pageSize) !== page.page) {
                       go(currentQuery, showMap, pageOfIndex(index, pageSize));
                     }
@@ -245,6 +247,9 @@ export function EquipmentListPage() {
                         </span>
                       </button>
                     </th>
+                  <th scope="col">
+                    <span className="visually-hidden">Ações</span>
+                  </th>
                   ))}
                   <th scope="col">Órgão</th>
                 </tr>
@@ -266,7 +271,7 @@ export function EquipmentListPage() {
                       key={item.id}
                       id={`equipment-row-${item.id}`}
                       data-selected={showMap && item.id === selectedId}
-                    >
+                        <Link href={`/equipment/${item.id}`} className="row-button">
                       <td>
                         <Link href={`/equipment/${item.id}`} className="row-button">
                           <Glyph d={TYPE_GLYPHS[item.type]} size={18} />
@@ -310,6 +315,16 @@ export function EquipmentListPage() {
                         {silentMinutes(item, now) !== null && (
                           <span className="cell-warning">sem comunicação</span>
                         )}
+                      <td className="cell-actions">
+                        <Link
+                          href={`/equipment/${item.id}`}
+                          className="button button-ghost button-icon button-small"
+                          aria-label={`Editar ${item.serialNumber}`}
+                          title="Editar"
+                        >
+                          <Glyph d={EDIT_GLYPH} size={16} />
+                        </Link>
+                      </td>
                       </td>
                       <td style={{ whiteSpace: "nowrap" }}>{AGENCY_SHORT_LABELS[item.agency]}</td>
                     </tr>
@@ -319,8 +334,13 @@ export function EquipmentListPage() {
             </table>
           </div>
         </div>
+          size={pageSize}
         <Pagination
           page={page}
+          onSizeChange={(next) => {
+            setPageSize(next);
+            go(currentQuery, showMap);
+          }}
           size={pageSize}
           label="equipamentos"
           onChange={(next) => go(currentQuery, showMap, next)}

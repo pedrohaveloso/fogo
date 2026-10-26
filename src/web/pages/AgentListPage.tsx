@@ -16,7 +16,7 @@ import {
 import { AgentShield, AgentStatusBadge } from "../components/badges.tsx";
 import { FilterMenu } from "../components/FilterMenu.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
-import { AGENT_ROLE_GLYPHS, Glyph } from "../icons.tsx";
+import { AGENT_ROLE_GLYPHS, EDIT_GLYPH, Glyph } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { Pagination } from "../components/Pagination.tsx";
 import { useLive, useMeta } from "../live.ts";
@@ -25,9 +25,10 @@ import { pageFromQuery, paginate, withPage } from "../pagination.ts";
 import { Link, navigate, useLocation } from "../router.tsx";
 import { agentStatusCounts } from "../summaries.ts";
 import { usePageSize } from "../usePageSize.ts";
+import { usePageSize } from "../usePageSize.ts";
 import { useNow } from "../useNow.ts";
 
-function setFilters(filters: AgentFilters, page = 1): void {
+  navigate(`/agents${withPage(agentQuery(filters), page)}`, { replace: true });
   navigate(`/agents${withPage(agentQuery(filters), page)}`, { replace: true });
 }
 
@@ -37,6 +38,7 @@ export function AgentListPage() {
   const now = useNow(30_000);
   const { params } = useLocation();
   const query = params.toString();
+  const [pageSize, setPageSize] = usePageSize("agents");
   const filters = useMemo(() => agentFromQuery(new URLSearchParams(query)), [query]);
   const [pageSize, setPageSize] = usePageSize("agents");
   const set = <K extends keyof AgentFilters>(key: K, value: AgentFilters[K]) =>
@@ -54,7 +56,7 @@ export function AgentListPage() {
 
   if (!meta || !snapshot) {
     return <LoadingNotice label="Carregando agentes..." />;
-  }
+  const page = paginate(rows, pageFromQuery(params), pageSize);
 
   const page = paginate(rows, pageFromQuery(params), pageSize);
   const names = new Map(meta.neighborhoods.map((item) => [item.id, item.name]));
@@ -64,7 +66,7 @@ export function AgentListPage() {
 
   return (
     <main className="page">
-      <div className="page-head">
+        <Link href="/agents/new" className="button button-primary">
         <h1>Agentes</h1>
         <Link href="/agents/new" className="button button-primary">
           Cadastrar agente
@@ -172,6 +174,9 @@ export function AgentListPage() {
                 <th scope="col">Situação</th>
                 <th scope="col">Base</th>
                 <th scope="col">Turno</th>
+                <th scope="col">
+                  <span className="visually-hidden">Ações</span>
+                </th>
                 <th scope="col">Veículo</th>
                 <th scope="col">Última posição</th>
               </tr>
@@ -195,7 +200,7 @@ export function AgentListPage() {
                 const vehicle =
                   agent.vehicleId === null ? undefined : vehicles.get(agent.vehicleId);
                 return (
-                  <tr key={agent.id}>
+                      <Link href={`/agents/${agent.id}`} className="row-button">
                     <td>
                       <Link href={`/agents/${agent.id}`} className="row-button">
                         <Glyph d={AGENT_ROLE_GLYPHS[agent.role]} size={18} />
@@ -218,13 +223,32 @@ export function AgentListPage() {
                       {vehicle
                         ? `${EQUIPMENT_TYPES[vehicle.type].label} ${String(vehicle.attributes["plate"] ?? "")}`
                         : "A pé"}
+                    <td className="cell-actions">
+                      <Link
+                        href={`/agents/${agent.id}`}
+                        className="button button-ghost button-icon button-small"
+                        aria-label={`Editar ${agent.name}`}
+                        title="Editar"
+                      >
+                        <Glyph d={EDIT_GLYPH} size={16} />
+                      </Link>
+                    </td>
                     </td>
                     <td>{formatRelative(agent.lastSeenAt, now)}</td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+        <Pagination
+          page={page}
+          size={pageSize}
+          label="agentes"
+          onChange={(next) => setFilters(filters, next)}
+          onSizeChange={(next) => {
+            setPageSize(next);
+            setFilters(filters);
+          }}
+        />
         </div>
         <Pagination
           page={page}

@@ -1212,6 +1212,7 @@ button.city-count[aria-pressed="true"] {
 
 .page-filter-bar .filter-result {
   margin-left: auto;
+  padding-right: 12px;
 }
 
 .inventory-stack {

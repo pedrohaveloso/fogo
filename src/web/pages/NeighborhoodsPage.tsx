@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { ZoneDialog } from "../components/ZoneDialog.tsx";
 import type { LngLat } from "../../shared/geo.ts";
 import { fold } from "../../shared/text.ts";
 import type { NeighborhoodShape } from "../../shared/types.ts";
-import { api, ApiError } from "../api.ts";
+import { api, errorMessage } from "../api.ts";
 import { ConfirmDialog } from "../components/form.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { formatInteger } from "../format.ts";
@@ -17,8 +18,9 @@ import {
 } from "../shapeEditing.ts";
 import { showToast } from "../toast.tsx";
 import { useFetch } from "../useFetch.ts";
+import { cityPath } from "../cityScope.ts";
 
-type NewNeighborhood = { name: string; regionId: string };
+type Details = { name: string; regionId: string };
 
 function revealSelected(node: HTMLButtonElement | null): void {
   node?.scrollIntoView({ block: "nearest" });
@@ -26,10 +28,12 @@ function revealSelected(node: HTMLButtonElement | null): void {
 
 export function NeighborhoodsPage() {
   const meta = useMeta();
-  const shapes = useFetch<NeighborhoodShape[]>("/neighborhoods");
+  const shapes = useFetch<NeighborhoodShape[]>(cityPath("/neighborhoods"));
   const [saved, setSaved] = useState<Map<string, NeighborhoodShape | null>>(new Map());
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState<NewNeighborhood | null>(null);
+  const [creating, setCreating] = useState<Details | null>(null);
+  const [details, setDetails] = useState<Details>({ name: "", regionId: "" });
+  const [zonesOpen, setZonesOpen] = useState(false);
   const [draft, setDraft] = useState<LngLat[]>([]);
   const [drawing, setDrawing] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState<number | null>(null);
@@ -44,10 +48,14 @@ export function NeighborhoodsPage() {
     [shapes.data, saved],
   );
   const selected = list.find((item) => item.id === selectedId) ?? null;
+  const detailsChanged =
+    selected !== null &&
+    (details.name.trim() !== selected.name || details.regionId !== selected.regionId);
+  const shapeChanged = selected !== null && (drawing || !sameShape(draft, selected.polygon));
   const dirty =
     creating !== null
       ? draft.length > 0 || creating.name.trim() !== ""
-      : selected !== null && (drawing || !sameShape(draft, selected.polygon));
+      : detailsChanged || shapeChanged;
   const problem = selected || creating ? shapeProblem(draft) : null;
   const query = fold(search);
   const visible = list.filter((item) => fold(item.name).includes(query));
@@ -71,9 +79,11 @@ export function NeighborhoodsPage() {
       showToast("Salve ou descarte as mudanças antes de trocar de bairro.");
       return;
     }
+    const target = list.find((item) => item.id === id);
     setCreating(null);
     setSelectedId(id);
-    startEditing(list.find((item) => item.id === id)?.polygon ?? []);
+    setDetails({ name: target?.name ?? "", regionId: target?.regionId ?? "" });
+    startEditing(target?.polygon ?? []);
   };
 
   const startCreating = () => {
@@ -89,6 +99,7 @@ export function NeighborhoodsPage() {
 
   const store = (shape: NeighborhoodShape, message: string) => {
     setSaved((previous) => new Map(previous).set(shape.id, shape));
+    setDetails({ name: shape.name, regionId: shape.regionId });
     startEditing(shape.polygon);
     reloadMeta();
     showToast(message);
@@ -99,11 +110,7 @@ export function NeighborhoodsPage() {
     try {
       await work();
     } catch (reason) {
-      setError(
-        reason instanceof ApiError
-          ? (reason.issues[0]?.message ?? reason.message)
-          : "Não foi possível salvar o bairro.",
-      );
+      setError(errorMessage(reason, "Não foi possível salvar o bairro."));
     } finally {
       setBusy(false);
     }
@@ -111,15 +118,21 @@ export function NeighborhoodsPage() {
 
   const save = () =>
     run(async () => {
-      const shape = await api.put<NeighborhoodShape>(`/neighborhoods/${selectedId}/shape`, {
-        polygon: draft,
-      });
-      store(shape, `Limite de ${shape.name} salvo.`);
+      let shape = selected!;
+      if (detailsChanged) {
+        shape = await api.put<NeighborhoodShape>(cityPath(`/neighborhoods/${selectedId}`), details);
+      }
+      if (shapeChanged) {
+        shape = await api.put<NeighborhoodShape>(cityPath(`/neighborhoods/${selectedId}/shape`), {
+          polygon: draft,
+        });
+      }
+      store(shape, `${shape.name} salvo.`);
     });
 
   const create = () =>
     run(async () => {
-      const shape = await api.post<NeighborhoodShape>("/neighborhoods", {
+      const shape = await api.post<NeighborhoodShape>(cityPath("/neighborhoods"), {
         ...creating,
         polygon: draft,
       });
@@ -130,7 +143,9 @@ export function NeighborhoodsPage() {
 
   const restore = () =>
     run(async () => {
-      const shape = await api.delete<NeighborhoodShape>(`/neighborhoods/${selectedId}/shape`);
+      const shape = await api.delete<NeighborhoodShape>(
+        cityPath(`/neighborhoods/${selectedId}/shape`),
+      );
       store(shape, `${shape.name} voltou ao limite gerado a partir do OpenStreetMap.`);
     });
 
@@ -141,7 +156,7 @@ export function NeighborhoodsPage() {
       return;
     }
     void run(async () => {
-      await api.delete(`/neighborhoods/${target.id}`);
+      await api.delete(cityPath(`/neighborhoods/${target.id}`));
       setSaved((previous) => new Map(previous).set(target.id, null));
       setSelectedId(null);
       startEditing([]);
@@ -155,6 +170,7 @@ export function NeighborhoodsPage() {
       setCreating(null);
       startEditing([]);
     } else {
+      setDetails({ name: selected?.name ?? "", regionId: selected?.regionId ?? "" });
       startEditing(selected?.polygon ?? []);
     }
   };
@@ -172,7 +188,7 @@ export function NeighborhoodsPage() {
     <>
       <button
         type="button"
-        className="button button-small"
+        className="button"
         disabled={draft.length === 0}
         onClick={() => setDraft(draft.slice(0, -1))}
       >
@@ -180,7 +196,7 @@ export function NeighborhoodsPage() {
       </button>
       <button
         type="button"
-        className="button button-small"
+        className="button"
         disabled={draft.length < MIN_SHAPE_POINTS}
         onClick={() => setDrawing(false)}
       >
@@ -191,7 +207,7 @@ export function NeighborhoodsPage() {
     <>
       <button
         type="button"
-        className="button button-small"
+        className="button"
         onClick={() => {
           setDraft([]);
           setDrawing(true);
@@ -202,7 +218,7 @@ export function NeighborhoodsPage() {
       </button>
       <button
         type="button"
-        className="button button-small"
+        className="button"
         disabled={selectedVertex === null}
         onClick={() => selectedVertex !== null && remove(selectedVertex)}
       >
@@ -218,13 +234,49 @@ export function NeighborhoodsPage() {
     </p>
   );
 
+  const fields = (value: Details, onChange: (next: Details) => void, prefix: string) => (
+    <div className="shape-fields">
+      <div className="field">
+        <label htmlFor={`${prefix}-name`}>Nome</label>
+        <input
+          id={`${prefix}-name`}
+          value={value.name}
+          maxLength={80}
+          onChange={(event) => onChange({ ...value, name: event.target.value })}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${prefix}-region`}>Zona</label>
+        <select
+          id={`${prefix}-region`}
+          value={value.regionId}
+          onChange={(event) => onChange({ ...value, regionId: event.target.value })}
+        >
+          <option value="">
+            {meta.regions.length === 0 ? "Cadastre uma zona antes" : "Selecione"}
+          </option>
+          {meta.regions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
   return (
-    <main className="page">
+    <main className="page page-fill">
       <div className="page-head">
         <h1>Bairros</h1>
-        <button type="button" className="button button-primary" onClick={startCreating}>
-          Novo bairro
-        </button>
+        <div className="page-actions">
+          <button type="button" className="button" onClick={() => setZonesOpen(true)}>
+            Zonas
+          </button>
+          <button type="button" className="button button-primary" onClick={startCreating}>
+            Novo bairro
+          </button>
+        </div>
       </div>
       <div className="shape-layout">
         <section className="panel shape-list" aria-labelledby="shape-list-title">
@@ -252,68 +304,40 @@ export function NeighborhoodsPage() {
                   onClick={() => select(item.id)}
                 >
                   <span>{item.name}</span>
-                  {item.custom ? (
-                    <span className="plate">Novo</span>
-                  ) : (
-                    item.edited && <span className="plate">Editado</span>
-                  )}
+                  {item.edited && <span className="plate">Editado</span>}
                 </button>
               </li>
             ))}
-            {visible.length === 0 && <li className="empty">Nenhum bairro com esse nome.</li>}
+            {visible.length === 0 && (
+              <li className="empty">
+                {list.length === 0
+                  ? "Nenhum bairro cadastrado ainda."
+                  : "Nenhum bairro com esse nome."}
+              </li>
+            )}
           </ul>
         </section>
         <section className="shape-workspace" aria-label="Edição do limite">
-          <div className="panel shape-toolbar">
+          <div className="panel shape-toolbar" hidden={!selected && !creating && !error}>
             {creating ? (
               <>
                 <div className="shape-title">
                   <h2>Novo bairro</h2>
                   {status}
                 </div>
-                <div className="shape-fields">
-                  <div className="field">
-                    <label htmlFor="new-neighborhood-name">Nome</label>
-                    <input
-                      id="new-neighborhood-name"
-                      value={creating.name}
-                      maxLength={80}
-                      onChange={(event) => setCreating({ ...creating, name: event.target.value })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="new-neighborhood-region">Região</label>
-                    <select
-                      id="new-neighborhood-region"
-                      value={creating.regionId}
-                      onChange={(event) =>
-                        setCreating({ ...creating, regionId: event.target.value })
-                      }
-                    >
-                      <option value="">Selecione</option>
-                      {meta.regions.map((region) => (
-                        <option key={region.id} value={region.id}>
-                          {region.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                {fields(creating, setCreating, "new-neighborhood")}
                 <div className="shape-actions">
                   {drawingTools}
-                  <button
-                    type="button"
-                    className="button button-small button-ghost"
-                    onClick={discard}
-                  >
+                  <button type="button" className="button button-ghost" onClick={discard}>
                     Cancelar
                   </button>
                   <button
                     type="button"
-                    className="button button-small button-primary"
+                    className="button button-primary"
                     disabled={
                       drawing ||
                       problem !== null ||
+                      draft.length < MIN_SHAPE_POINTS ||
                       creating.name.trim() === "" ||
                       creating.regionId === "" ||
                       busy
@@ -330,31 +354,28 @@ export function NeighborhoodsPage() {
                   <h2>{selected.name}</h2>
                   {status}
                 </div>
+                {fields(details, setDetails, "neighborhood")}
                 <div className="shape-actions">
                   {drawingTools}
                   {dirty && (
-                    <button
-                      type="button"
-                      className="button button-small button-ghost"
-                      onClick={discard}
-                    >
+                    <button type="button" className="button button-ghost" onClick={discard}>
                       Descartar
                     </button>
                   )}
                   {!dirty && selected.edited && (
                     <button
                       type="button"
-                      className="button button-small"
+                      className="button"
                       disabled={busy}
                       onClick={() => void restore()}
                     >
                       Restaurar original
                     </button>
                   )}
-                  {!dirty && selected.custom && (
+                  {!dirty && (
                     <button
                       type="button"
-                      className="button button-small button-danger"
+                      className="button button-danger"
                       disabled={busy}
                       onClick={() => setConfirmDelete(true)}
                     >
@@ -363,19 +384,22 @@ export function NeighborhoodsPage() {
                   )}
                   <button
                     type="button"
-                    className="button button-small button-primary"
-                    disabled={!dirty || drawing || problem !== null || busy}
+                    className="button button-primary"
+                    disabled={
+                      !dirty ||
+                      drawing ||
+                      problem !== null ||
+                      draft.length < MIN_SHAPE_POINTS ||
+                      details.name.trim() === "" ||
+                      busy
+                    }
                     onClick={() => void save()}
                   >
-                    Salvar limite
+                    Salvar bairro
                   </button>
                 </div>
               </>
-            ) : (
-              <p className="hint">
-                Escolha um bairro na lista ou clique nele no mapa. Para criar um, use Novo bairro.
-              </p>
-            )}
+            ) : null}
             {error && (
               <p className="error-box" role="alert">
                 {error}
@@ -397,11 +421,12 @@ export function NeighborhoodsPage() {
               onFinishDrawing={() => setDrawing(false)}
             />
           </div>
-          <p className="hint">
-            {drawing
-              ? "Clique no mapa para marcar cada ponto do limite. Para fechar, clique no primeiro ponto ou em Concluir desenho."
-              : "Arraste um ponto para mudar o limite. Arraste o ponto pequeno no meio de uma linha para criar outro. Clique duas vezes num ponto para apagá-lo."}
-          </p>
+          {(selected || creating) && !drawing && (
+            <p className="hint">
+              Arraste um ponto para mudar o limite. Arraste o ponto pequeno no meio de uma linha
+              para criar outro. Clique duas vezes num ponto para apagá-lo.
+            </p>
+          )}
         </section>
       </div>
       <ConfirmDialog
@@ -411,6 +436,12 @@ export function NeighborhoodsPage() {
         confirmLabel="Excluir bairro"
         onConfirm={destroy}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ZoneDialog
+        open={zonesOpen}
+        regions={meta.regions}
+        neighborhoods={list}
+        onClose={() => setZonesOpen(false)}
       />
     </main>
   );

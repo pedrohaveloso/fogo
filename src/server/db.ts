@@ -1,178 +1,142 @@
-import { DatabaseSync } from "node:sqlite";
+import { readdir, readFile } from "node:fs/promises";
+import { Pool, types, type PoolClient } from "pg";
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS equipment (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  type TEXT NOT NULL,
-  serial_number TEXT NOT NULL UNIQUE,
-  brand TEXT NOT NULL,
-  model TEXT NOT NULL,
-  agency TEXT NOT NULL,
-  status TEXT NOT NULL,
-  cep TEXT NOT NULL,
-  street TEXT NOT NULL,
-  reference TEXT NOT NULL,
-  neighborhood_id TEXT NOT NULL,
-  city TEXT NOT NULL,
-  uf TEXT NOT NULL,
-  lat REAL NOT NULL,
-  lng REAL NOT NULL,
-  current_lat REAL,
-  current_lng REAL,
-  maintenance_need TEXT NOT NULL,
-  maintenance_interval_days INTEGER,
-  last_maintenance_at TEXT,
-  next_maintenance_at TEXT,
-  maintenance_notes TEXT NOT NULL DEFAULT '',
-  attributes TEXT NOT NULL DEFAULT '{}',
-  installed_at TEXT,
-  last_seen_at INTEGER,
-  battery REAL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS equipment_neighborhood ON equipment (neighborhood_id);
+export type Queryable = {
+  query<T>(sql: string, params?: readonly unknown[]): Promise<T[]>;
+  one<T>(sql: string, params?: readonly unknown[]): Promise<T | undefined>;
+  run(sql: string, params?: readonly unknown[]): Promise<number>;
+  exec(sql: string): Promise<void>;
+};
 
-CREATE TABLE IF NOT EXISTS agents (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  badge TEXT NOT NULL UNIQUE,
-  role TEXT NOT NULL,
-  agency TEXT NOT NULL,
-  rank TEXT NOT NULL DEFAULT '',
-  phone TEXT NOT NULL DEFAULT '',
-  shift TEXT NOT NULL,
-  status TEXT NOT NULL,
-  base_name TEXT NOT NULL,
-  base_neighborhood_id TEXT NOT NULL,
-  lat REAL NOT NULL,
-  lng REAL NOT NULL,
-  vehicle_id INTEGER REFERENCES equipment (id) ON DELETE SET NULL,
-  occurrence_id INTEGER,
-  last_seen_at INTEGER,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
+export type Database = Queryable & {
+  transaction<T>(work: (tx: Queryable) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
+};
 
-CREATE TABLE IF NOT EXISTS occurrences (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind TEXT NOT NULL,
-  severity INTEGER NOT NULL,
-  status TEXT NOT NULL,
-  source TEXT NOT NULL,
-  neighborhood_id TEXT NOT NULL,
-  lat REAL NOT NULL,
-  lng REAL NOT NULL,
-  description TEXT NOT NULL,
-  equipment_id INTEGER REFERENCES equipment (id) ON DELETE SET NULL,
-  agent_id INTEGER REFERENCES agents (id) ON DELETE SET NULL,
-  created_at INTEGER NOT NULL,
-  resolved_at INTEGER
-);
-CREATE INDEX IF NOT EXISTS occurrences_created ON occurrences (created_at);
-CREATE INDEX IF NOT EXISTS occurrences_status ON occurrences (status);
+export type Executor = {
+  query(sql: string, params?: unknown[]): Promise<{ rows: unknown[]; count: number }>;
+  exec(sql: string): Promise<void>;
+};
 
-CREATE TABLE IF NOT EXISTS equipment_status_events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  equipment_id INTEGER NOT NULL REFERENCES equipment (id) ON DELETE CASCADE,
-  status TEXT NOT NULL,
-  reason TEXT NOT NULL DEFAULT '',
-  at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS status_events_equipment ON equipment_status_events (equipment_id, at);
-
-CREATE TABLE IF NOT EXISTS maintenance_events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  equipment_id INTEGER NOT NULL REFERENCES equipment (id) ON DELETE CASCADE,
-  kind TEXT NOT NULL,
-  at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS maintenance_events_equipment ON maintenance_events (equipment_id, at);
-
-CREATE TABLE IF NOT EXISTS readings (
-  equipment_id INTEGER NOT NULL REFERENCES equipment (id) ON DELETE CASCADE,
-  hour_start INTEGER NOT NULL,
-  count INTEGER NOT NULL,
-  PRIMARY KEY (equipment_id, hour_start)
-) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS readings_hour ON readings (hour_start);
-
-CREATE TABLE IF NOT EXISTS sim_flow_sites (
-  equipment_id INTEGER PRIMARY KEY REFERENCES equipment (id) ON DELETE CASCADE,
-  base_volume REAL NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS simulation_hours (
-  hour_start INTEGER PRIMARY KEY
-) WITHOUT ROWID;
-
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS neighborhood_shapes (
-  neighborhood_id TEXT PRIMARY KEY,
-  polygon TEXT NOT NULL,
-  lat REAL NOT NULL,
-  lng REAL NOT NULL,
-  edited INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS custom_neighborhoods (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  region_id TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS tags (
-  id TEXT PRIMARY KEY,
-  token_hash TEXT NOT NULL,
-  equipment_id INTEGER UNIQUE REFERENCES equipment (id) ON DELETE CASCADE,
-  agent_id INTEGER UNIQUE REFERENCES agents (id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL,
-  last_report_at INTEGER,
-  CHECK ((equipment_id IS NULL) <> (agent_id IS NULL))
-);
-
-CREATE TABLE IF NOT EXISTS alert_acks (
-  alert_id TEXT PRIMARY KEY,
-  acknowledged_at INTEGER NOT NULL
-);
-`;
-
-export type Database = DatabaseSync;
-
-export function openDatabase(path: string): Database {
-  const db = new DatabaseSync(path);
-  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL;");
-  db.exec(SCHEMA);
-  return db;
+export function queryable(executor: Executor): Queryable {
+  return {
+    query: async <T>(sql: string, params: readonly unknown[] = []) =>
+      (await executor.query(sql, [...params])).rows as T[],
+    one: async <T>(sql: string, params: readonly unknown[] = []) =>
+      (await executor.query(sql, [...params])).rows[0] as T | undefined,
+    run: async (sql: string, params: readonly unknown[] = []) =>
+      (await executor.query(sql, [...params])).count,
+    exec: (sql: string) => executor.exec(sql),
+  };
 }
 
-export function transaction<T>(db: Database, work: () => T): T {
-  db.exec("BEGIN");
-  try {
-    const result = work();
-    db.exec("COMMIT");
-    return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+types.setTypeParser(types.builtins.INT8, Number);
+types.setTypeParser(types.builtins.NUMERIC, Number);
+
+function clientExecutor(client: Pool | PoolClient): Executor {
+  return {
+    query: async (sql, params) => {
+      const result = await client.query(sql, params);
+      return { rows: result.rows, count: result.rowCount ?? 0 };
+    },
+    exec: async (sql) => {
+      await client.query(sql);
+    },
+  };
+}
+
+export function openDatabase(connectionString: string): Database {
+  const pool = new Pool({ connectionString });
+  return {
+    ...queryable(clientExecutor(pool)),
+    async transaction<T>(work: (tx: Queryable) => Promise<T>): Promise<T> {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const result = await work(queryable(clientExecutor(client)));
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    close: () => pool.end(),
+  };
+}
+
+const MIGRATIONS = new URL("./migrations/", import.meta.url);
+
+export async function migrate(db: Database): Promise<string[]> {
+  await db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at BIGINT NOT NULL)",
+  );
+  const applied = new Set(
+    (await db.query<{ version: string }>("SELECT version FROM schema_migrations")).map(
+      (row) => row.version,
+    ),
+  );
+  const files = (await readdir(MIGRATIONS)).filter((name) => name.endsWith(".sql")).sort();
+  const pending = files.filter((name) => !applied.has(name));
+  for (const name of pending) {
+    const sql = await readFile(new URL(name, MIGRATIONS), "utf8");
+    await db.transaction(async (tx) => {
+      await tx.exec(sql);
+      await tx.run("INSERT INTO schema_migrations (version, applied_at) VALUES ($1, $2)", [
+        name,
+        Date.now(),
+      ]);
+    });
   }
+  return pending;
 }
 
-export function getSetting(db: Database, key: string): string | null {
-  const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as
-    | { value: string }
-    | undefined;
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505"
+  );
+}
+
+export async function getSetting(db: Queryable, key: string): Promise<string | null> {
+  const row = await db.one<{ value: string }>("SELECT value FROM settings WHERE key = $1", [key]);
   return row?.value ?? null;
 }
 
-export function setSetting(db: Database, key: string, value: string): void {
-  db.prepare(
-    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-  ).run(key, value);
+export async function setSetting(db: Queryable, key: string, value: string): Promise<void> {
+  await db.run(
+    "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+    [key, value],
+  );
+}
+
+export async function insertMany(
+  db: Queryable,
+  table: string,
+  columns: readonly string[],
+  rows: readonly (readonly unknown[])[],
+): Promise<void> {
+  const perRow = columns.length;
+  const chunk = Math.max(1, Math.floor(60_000 / perRow));
+  for (let start = 0; start < rows.length; start += chunk) {
+    const slice = rows.slice(start, start + chunk);
+    const values = slice
+      .map(
+        (_, row) => `(${columns.map((__, column) => `$${row * perRow + column + 1}`).join(", ")})`,
+      )
+      .join(", ");
+    await db.run(`INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values}`, slice.flat());
+  }
+}
+
+export function named(sql: string, params: Record<string, unknown>): [string, unknown[]] {
+  const order: string[] = [];
+  const text = sql.replaceAll(/(?<!:):([a-z_]+)/g, (_, key: string) => {
+    if (!order.includes(key)) {
+      order.push(key);
+    }
+    return `$${order.indexOf(key) + 1}`;
+  });
+  return [text, order.map((key) => params[key])];
 }

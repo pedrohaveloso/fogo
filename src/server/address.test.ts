@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { lookupAddress, normalizeCep } from "./address.ts";
-import { city } from "./city.ts";
+import { mariliaCity } from "./test-database.ts";
+
+const city = mariliaCity();
 
 const localStreet = city.streets[0]!;
 
@@ -42,7 +44,11 @@ describe("lookupAddress", () => {
       }),
     );
     const result = await lookupAddress(city, "17519999", fetchImpl);
-    expect(result).toMatchObject({ neighborhoodId: "fragata", source: "viacep", city: "Marília" });
+    expect(result).toMatchObject({
+      neighborhoodId: "fragata",
+      source: "viacep",
+      cityName: "Marília",
+    });
     expect(result?.lat).not.toBeNull();
   });
 
@@ -87,5 +93,19 @@ describe("lookupAddress", () => {
       neighborhoodName: "Bairro Novo",
       lat: null,
     });
+  });
+
+  it("does not match neighborhoods of a CEP from another city", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        cep: "17012-000",
+        logradouro: "Rua Nova",
+        bairro: "Fragata",
+        localidade: "Bauru",
+        uf: "SP",
+      }),
+    );
+    const result = await lookupAddress(city, "17012000", fetchImpl);
+    expect(result).toMatchObject({ neighborhoodId: null, cityName: "Bauru", lat: null });
   });
 });

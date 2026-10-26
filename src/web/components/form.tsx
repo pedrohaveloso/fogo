@@ -20,6 +20,7 @@ type FieldProps = {
   label: string;
   error: string | undefined;
   hint?: string;
+  status?: { message: string; problem: boolean } | null;
   children: (props: {
     id: string;
     "aria-invalid": boolean;
@@ -27,11 +28,12 @@ type FieldProps = {
   }) => ReactNode;
 };
 
-export function Field({ path, label, error, hint, children }: FieldProps) {
+export function Field({ path, label, error, hint, status, children }: FieldProps) {
   const id = fieldId(path);
   const describedBy =
-    [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ") ||
-    undefined;
+    [hint ? `${id}-hint` : null, status ? `${id}-status` : null, error ? `${id}-error` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
   return (
     <div className="field" data-invalid={Boolean(error)}>
       <label htmlFor={id}>{label}</label>
@@ -41,6 +43,14 @@ export function Field({ path, label, error, hint, children }: FieldProps) {
           {hint}
         </span>
       )}
+      <span
+        id={`${id}-status`}
+        className={status?.problem ? "field-error" : "hint"}
+        role="status"
+        hidden={!status}
+      >
+        {status?.message}
+      </span>
       {error && (
         <span id={`${id}-error`} className="field-error">
           {error}

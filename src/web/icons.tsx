@@ -43,6 +43,12 @@ export const TREND_GLYPH = "M3.5 17l5-5 4 3.5 7.5-8.5 M15 7h5v5";
 
 export const CLOSE_GLYPH = "M6.5 6.5l11 11 M17.5 6.5l-11 11";
 
+export const SORT_GLYPH = "M8 9.5l4-4 4 4 M8 14.5l4 4 4-4";
+
+export const SORT_ASC_GLYPH = "M12 19V5 M6.5 10.5L12 5l5.5 5.5";
+
+export const SORT_DESC_GLYPH = "M12 5v14 M6.5 13.5L12 19l5.5-5.5";
+
 export const EDIT_GLYPH = "M4 20h4L18.5 9.5a2.1 2.1 0 0 0 -4 -4L4 16z M13.5 6.5l4 4";
 
 export function BrandMark() {

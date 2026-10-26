@@ -21,7 +21,17 @@
   "ignorePatterns": ["dist", "node_modules", "data"],
   "overrides": [
     {
-      "files": ["src/server/routes/operations.ts", "scripts/build-geo.ts"],
+      "files": [
+        "src/server/routes/operations.ts",
+        "scripts/build-geo.ts",
+        "src/server/db.ts",
+        "src/server/cities.ts",
+        "src/server/main.ts",
+        "src/server/seed/index.ts",
+        "src/server/simulator.ts",
+        "src/server/simulator.test.ts",
+        "src/server/test-setup.ts"
+      ],
       "rules": {
         "no-await-in-loop": "off"
       }

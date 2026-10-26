@@ -86,7 +86,7 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
             height={CELL_H + 3}
             rx={3.5}
             fill="none"
-            stroke="#ffc20e"
+            stroke="#16191d"
             strokeWidth={2}
             pointerEvents="none"
           />

@@ -9,6 +9,8 @@ import { MAP_AREA_LINE, MAP_INK, MAP_SURFACE } from "./palette.ts";
 
 type Props = {
   center: LngLat;
+  zoom?: number;
+  label?: string;
   neighborhoods: readonly Neighborhood[];
   selectedId: string | null;
   polygon: LngLat[];
@@ -22,7 +24,6 @@ type Props = {
 };
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
-const DRAFT_FILL = "#ffc20e";
 const VERTEX_LAYERS = ["shape-vertices", "shape-midpoints"];
 
 function draftFeatures(polygon: LngLat[], drawing: boolean) {
@@ -66,7 +67,7 @@ function featureIndex(event: MapLayerMouseEvent | MapLayerTouchEvent): number | 
 
 export function ShapeEditor(props: Props) {
   const container = useRef<HTMLDivElement>(null);
-  const handle = useMap(container, { center: props.center, zoom: 13 });
+  const handle = useMap(container, { center: props.center, zoom: props.zoom ?? 13 });
   const read = useEffectEvent(() => props);
   const dragging = useRef<{ index: number; polygon: LngLat[] } | null>(null);
 
@@ -154,7 +155,7 @@ export function ShapeEditor(props: Props) {
       type: "fill",
       source: "shape-draft",
       filter: ["==", ["geometry-type"], "Polygon"],
-      paint: { "fill-color": DRAFT_FILL, "fill-opacity": 0.18 },
+      paint: { "fill-color": MAP_INK, "fill-opacity": 0.12 },
     });
     map.addLayer({
       id: "shape-draft-line",
@@ -283,7 +284,9 @@ export function ShapeEditor(props: Props) {
         ref={container}
         className="map"
         role="application"
-        aria-label="Mapa de edição do bairro. Arraste os pontos para mudar o limite."
+        aria-label={
+          props.label ?? "Mapa de edição do bairro. Arraste os pontos para mudar o limite."
+        }
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import type { Meta } from "../shared/types.ts";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
@@ -101,4 +102,8 @@ export function formatSigned(value: number): string {
     return `−${integer.format(-value)}`;
   }
   return "0";
+}
+
+export function agencyName(meta: Pick<Meta, "agencies">, id: number): string {
+  return meta.agencies.find((item) => item.id === id)?.name ?? "Órgão removido";
 }

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { Meta, OperationsSnapshot, StreamTick } from "../shared/types.ts";
 import { api } from "./api.ts";
+import { cityPath, currentCityId } from "./cityScope.ts";
 
 export type LiveState = {
   snapshot: OperationsSnapshot | null;
@@ -97,10 +98,10 @@ function emit(next: Partial<LiveState>): void {
 }
 
 function connect(): void {
-  if (source) {
+  if (source || currentCityId() === null) {
     return;
   }
-  source = new EventSource("/api/operations/stream");
+  source = new EventSource(`/api${cityPath("/operations/stream")}`);
   source.addEventListener("open", () => emit({ connected: true }));
   source.addEventListener("error", () => emit({ connected: false }));
   source.addEventListener("snapshot", (event) => {
@@ -162,7 +163,14 @@ let metaPromise: Promise<void> | null = null;
 const metaListeners = new Set<() => void>();
 
 function loadMeta(): Promise<void> {
-  return api.get<Meta>("/meta").then((value) => {
+  const cityId = currentCityId();
+  if (cityId === null) {
+    return Promise.resolve();
+  }
+  return api.get<Meta>(cityPath("/meta", cityId)).then((value) => {
+    if (cityId !== currentCityId()) {
+      return;
+    }
     meta = value;
     for (const item of metaListeners) {
       item();
@@ -190,6 +198,22 @@ export function retryConnection(): void {
     for (const listener of metaListeners) {
       subscribeMeta(listener);
     }
+  }
+}
+
+export function resetCity(): void {
+  disconnect();
+  state = { snapshot: null, connected: false, receivedAt: 0 };
+  meta = null;
+  metaPromise = null;
+  for (const listener of [...listeners, ...metaListeners]) {
+    listener();
+  }
+  syncConnection();
+  if (metaListeners.size > 0) {
+    metaPromise = loadMeta().catch(() => {
+      metaPromise = null;
+    });
   }
 }
 

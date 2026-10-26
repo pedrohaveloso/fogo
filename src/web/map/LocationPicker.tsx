@@ -1,6 +1,7 @@
 import { Marker } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { cameraMotion, useMap } from "./base.ts";
+import { MAP_INK } from "./palette.ts";
 
 type Props = {
   center: [number, number];
@@ -31,7 +32,7 @@ export function LocationPicker({ center, value, onChange }: Props) {
       return;
     }
     if (!marker.current) {
-      marker.current = new Marker({ color: "#ffc20e", draggable: true })
+      marker.current = new Marker({ color: MAP_INK, draggable: true })
         .setLngLat([value.lng, value.lat])
         .addTo(handle.map);
       marker.current.on("dragend", () => {

@@ -19,6 +19,7 @@ import { LayerPanel } from "../map/LayerPanel.tsx";
 import { OperationsMap, type MapLayers, type Selection } from "../map/OperationsMap.tsx";
 import { useFetch } from "../useFetch.ts";
 import { useNow } from "../useNow.ts";
+import { cityPath } from "../cityScope.ts";
 
 const STACKED_LAYOUT = "(max-width: 1024px)";
 
@@ -38,7 +39,9 @@ export function OperationsPage() {
   const [tab, setTab] = useState<"alerts" | "regions" | "activity">("alerts");
   const [selected, setSelected] = useState<Selection | null>(null);
   const [focus, setFocus] = useState<{ lng: number; lat: number; key: number } | null>(null);
-  const heat = useFetch<[number, number][]>(layers.heat ? "/occurrences/heat?days=30" : null);
+  const heat = useFetch<[number, number][]>(
+    layers.heat ? cityPath("/occurrences/heat?days=30") : null,
+  );
 
   const equipment = useMemo(
     () =>
@@ -185,6 +188,7 @@ export function OperationsPage() {
       </div>
       <aside className="ops-panel" aria-label="Situação da cidade">
         <CityStatus
+          cityName={meta.city.name}
           city={snapshot.city}
           kpis={snapshot.kpis}
           waiting={waiting}

@@ -58,7 +58,7 @@ describe("shape editing", () => {
 
   it("explains why a shape cannot be saved", () => {
     expect(shapeProblem(square)).toBeNull();
-    expect(shapeProblem(square.slice(0, 2))).toBe("Marque ao menos 3 pontos para fechar o bairro.");
+    expect(shapeProblem(square.slice(0, 2))).toBeNull();
     expect(
       shapeProblem([
         [0, 0],
@@ -66,7 +66,7 @@ describe("shape editing", () => {
         [2, 0],
         [0, 2],
       ]),
-    ).toBe("As linhas do bairro estão se cruzando.");
+    ).toBe("As linhas do desenho estão se cruzando.");
   });
 
   it("compares shapes point by point", () => {

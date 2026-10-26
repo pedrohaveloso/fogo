@@ -3,10 +3,11 @@ import { RUN_MODES, type RunMode } from "../shared/types.ts";
 export type Config = {
   mode: RunMode;
   port: number;
-  databasePath: string;
+  databaseUrl: string;
   liveMultiplier: number;
   seed: number;
   reset: boolean;
+  rootPassword: string;
 };
 
 export class ConfigError extends Error {}
@@ -32,10 +33,13 @@ export function readConfig(argv: readonly string[], env: NodeJS.ProcessEnv): Con
   return {
     mode,
     port: Number(env["PORT"] ?? 3210),
-    databasePath: env["FOGO_DB"] ?? (simulation ? "data/fogo.db" : "data/fogo-production.db"),
+    databaseUrl:
+      env["DATABASE_URL"] ||
+      `postgres://fogo:fogo@localhost:5432/${simulation ? "fogo_simulation" : "fogo_production"}`,
     liveMultiplier: simulation ? Number(env["FOGO_LIVE_MULTIPLIER"] ?? 20) : 1,
     seed: Number(env["FOGO_SEED"] ?? 20261027),
     reset,
+    rootPassword: env["FOGO_ROOT_PASSWORD"] || "root",
   };
 }
 
@@ -44,6 +48,15 @@ export function storedModeProblem(stored: string | null, mode: RunMode): string 
     return null;
   }
   return mode === "production"
-    ? "Este banco tem dados simulados. Use outro FOGO_DB para o modo produção."
-    : "Este banco é de produção. Use outro FOGO_DB para o modo simulação.";
+    ? "Este banco tem dados simulados. Use outro DATABASE_URL para o modo produção."
+    : "Este banco é de produção. Use outro DATABASE_URL para o modo simulação.";
+}
+
+export function describeDatabase(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}:${parsed.port || "5432"}${parsed.pathname}`;
+  } catch {
+    return "DATABASE_URL inválida";
+  }
 }

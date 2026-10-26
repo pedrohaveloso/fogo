@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { DAY, HOUR } from "../../shared/time.ts";
 import type { AgentInput } from "../../shared/types.ts";
+import { visibleCityIds } from "../access.ts";
 import { lookupAddress } from "../address.ts";
-import type { AppDeps } from "../app.ts";
+import type { AppDeps, AppEnv } from "../app.ts";
 import { landmarksOf, regionOfNeighborhood, streetPlacesOf } from "../city.ts";
 import {
   createAgent,
@@ -45,40 +46,41 @@ function toOccurrenceSummary(row: OccurrenceRow) {
   };
 }
 
-export function inventoryRoutes(deps: AppDeps): Hono {
-  const { db, city, hub, predictions, now } = deps;
-  const routes = new Hono();
+export function inventoryRoutes(deps: AppDeps): Hono<AppEnv> {
+  const { db, cities, now } = deps;
+  const routes = new Hono<AppEnv>();
 
-  const changed = () => predictions.invalidate();
-
-  routes.get("/meta", (c) =>
-    c.json({
+  routes.get("/meta", (c) => {
+    const { city, liveMultiplier } = c.get("context");
+    return c.json({
       city: city.city,
       regions: city.regions,
       neighborhoods: city.neighborhoods,
+      agencies: city.agencies,
       landmarks: landmarksOf(city),
       streets: streetPlacesOf(city),
       serverTime: new Date(now()).toISOString(),
-      liveMultiplier: deps.liveMultiplier,
+      liveMultiplier,
       mode: deps.mode,
-    }),
-  );
+    });
+  });
 
   routes.get("/address/:cep", async (c) => {
-    const result = await lookupAddress(city, c.req.param("cep"), deps.fetchImpl);
+    const result = await lookupAddress(c.get("context").city, c.req.param("cep"), deps.fetchImpl);
     return result ? c.json(result) : c.json({ error: "CEP não encontrado" }, 404);
   });
 
-  routes.get("/equipment", (c) => {
+  routes.get("/equipment", async (c) => {
+    const { city } = c.get("context");
     const { type, status, neighborhood, region, agency, q } = c.req.query();
     const search = q?.trim().toLowerCase();
-    const items = listEquipment(db).filter(
+    const items = (await listEquipment(db, city.city.id)).filter(
       (item) =>
         (!type || item.type === type) &&
         (!status || item.status === status) &&
         (!neighborhood || item.neighborhoodId === neighborhood) &&
-        (!region || regionOfNeighborhood(item.neighborhoodId) === region) &&
-        (!agency || item.agency === agency) &&
+        (!region || regionOfNeighborhood(city, item.neighborhoodId) === region) &&
+        (!agency || item.agencyId === Number(agency)) &&
         (!search ||
           [item.serialNumber, item.brand, item.model, item.street, item.reference].some((field) =>
             field.toLowerCase().includes(search),
@@ -87,74 +89,105 @@ export function inventoryRoutes(deps: AppDeps): Hono {
     return c.json(items);
   });
 
-  routes.get("/equipment/:id", (c) => {
-    const id = parseId(c.req.param("id"));
-    const item = id === null ? null : getEquipment(db, id);
+  async function equipmentIn(cityId: number, raw: string) {
+    const id = parseId(raw);
+    const item = id === null ? null : await getEquipment(db, id);
+    return item && item.cityId === cityId ? item : null;
+  }
+
+  routes.get("/equipment/:id", async (c) => {
+    const { city } = c.get("context");
+    const item = await equipmentIn(city.city.id, c.req.param("id"));
     if (!item) {
       return c.json({ error: "Equipamento não encontrado" }, 404);
     }
-    const occurrences = db
-      .prepare(
-        "SELECT id, kind, severity, status, description, created_at FROM occurrences WHERE equipment_id = ? ORDER BY created_at DESC LIMIT 10",
-      )
-      .all(item.id) as OccurrenceRow[];
-    const operator = listAgents(db).find((agent) => agent.vehicleId === item.id) ?? null;
+    const [occurrences, agents, history, readings, tag] = await Promise.all([
+      db.query<OccurrenceRow>(
+        "SELECT id, kind, severity, status, description, created_at FROM occurrences WHERE equipment_id = $1 ORDER BY created_at DESC LIMIT 10",
+        [item.id],
+      ),
+      listAgents(db, city.city.id),
+      statusHistory(db, item.id, 20),
+      readingsSince(db, item.id, now() - 48 * HOUR),
+      tagFor(db, { kind: "equipment", id: item.id }),
+    ]);
     return c.json({
       equipment: item,
-      history: statusHistory(db, item.id, 20),
-      readings: readingsSince(db, item.id, now() - 48 * HOUR),
+      history,
+      readings,
       occurrences: occurrences.map(toOccurrenceSummary),
-      operator,
-      tag: tagFor(db, { kind: "equipment", id: item.id }),
+      operator: agents.find((agent) => agent.vehicleId === item.id) ?? null,
+      tag,
     });
   });
 
+  async function cityLookup(user: AppEnv["Variables"]["user"]) {
+    const ids = await visibleCityIds(db, user);
+    return (id: number) => (ids === null || ids.includes(id) ? cities.get(id)?.city : undefined);
+  }
+
   routes.post("/equipment", async (c) => {
-    const input = parseEquipmentInput(await c.req.json());
-    const item = createEquipment(db, input, now());
-    changed();
-    hub.publish({ equipment: [item] }, now());
+    const input = parseEquipmentInput(await c.req.json(), await cityLookup(c.get("user")));
+    const item = await createEquipment(db, input, now());
+    const target = cities.get(item.cityId)!;
+    target.predictions.invalidate();
+    await target.hub.publish({ equipment: [item] }, now());
     return c.json(item, 201);
   });
 
+  async function holderOf(vehicleId: number, agentId: number | null) {
+    const row = await db.one<{ id: number; name: string }>(
+      "SELECT id, name FROM agents WHERE vehicle_id = $1 AND id IS DISTINCT FROM $2",
+      [vehicleId, agentId],
+    );
+    return row ?? null;
+  }
+
   routes.put("/equipment/:id", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (id === null) {
+    const context = c.get("context");
+    const previous = await equipmentIn(context.city.city.id, c.req.param("id"));
+    if (!previous) {
       return c.json({ error: "Equipamento não encontrado" }, 404);
     }
-    const input = parseEquipmentInput(await c.req.json());
-    const item = updateEquipment(db, id, input, now());
-    if (!item) {
-      return c.json({ error: "Equipamento não encontrado" }, 404);
+    const input = parseEquipmentInput(await c.req.json(), await cityLookup(c.get("user")));
+    if (input.cityId !== previous.cityId && (await holderOf(previous.id, null))) {
+      throw new ValidationError([
+        { path: "cityId", message: "Desvincule o agente deste veículo antes de mudar de cidade" },
+      ]);
     }
-    changed();
-    hub.publish({ equipment: [item] }, now());
+    const item = (await updateEquipment(db, previous.id, input, now()))!;
+    const target = cities.get(item.cityId)!;
+    if (target !== context) {
+      context.predictions.invalidate();
+      await context.hub.publish({ removedEquipment: [item.id] }, now());
+    }
+    target.predictions.invalidate();
+    await target.hub.publish({ equipment: [item] }, now());
     return c.json(item);
   });
 
-  routes.delete("/equipment/:id", (c) => {
-    const id = parseId(c.req.param("id"));
-    if (id === null || !deleteEquipment(db, id)) {
+  routes.delete("/equipment/:id", async (c) => {
+    const { hub, predictions, city } = c.get("context");
+    const item = await equipmentIn(city.city.id, c.req.param("id"));
+    if (!item || !(await deleteEquipment(db, item.id))) {
       return c.json({ error: "Equipamento não encontrado" }, 404);
     }
-    changed();
-    hub.publish({ removedEquipment: [id] }, now());
+    predictions.invalidate();
+    await hub.publish({ removedEquipment: [item.id] }, now());
     return c.body(null, 204);
   });
 
-  function checkVehicle(input: AgentInput, agentId: number | null): void {
+  async function checkVehicle(cityId: number, input: AgentInput, agentId: number | null) {
     if (input.vehicleId === null) {
       return;
     }
-    const vehicle = getEquipment(db, input.vehicleId);
-    if (!vehicle || !VEHICLE_TYPES.has(vehicle.type)) {
+    const vehicle = await getEquipment(db, input.vehicleId);
+    if (!vehicle || vehicle.cityId !== cityId || !VEHICLE_TYPES.has(vehicle.type)) {
       throw new ValidationError([
         { path: "vehicleId", message: "Veículo precisa ser uma moto ou viatura cadastrada" },
       ]);
     }
-    const holder = listAgents(db).find(
-      (agent) => agent.vehicleId === input.vehicleId && agent.id !== agentId,
-    );
+    const holder = await holderOf(input.vehicleId, agentId);
     if (holder) {
       throw new ValidationError([
         { path: "vehicleId", message: `Veículo já vinculado a ${holder.name}` },
@@ -162,59 +195,62 @@ export function inventoryRoutes(deps: AppDeps): Hono {
     }
   }
 
-  routes.get("/agents", (c) => c.json(listAgents(db)));
+  async function agentIn(cityId: number, raw: string) {
+    const id = parseId(raw);
+    const agent = id === null ? null : await getAgent(db, id);
+    return agent && agent.cityId === cityId ? agent : null;
+  }
 
-  routes.get("/agents/:id", (c) => {
-    const id = parseId(c.req.param("id"));
-    const agent = id === null ? null : getAgent(db, id);
+  routes.get("/agents", async (c) => c.json(await listAgents(db, c.get("context").city.city.id)));
+
+  routes.get("/agents/:id", async (c) => {
+    const agent = await agentIn(c.get("context").city.city.id, c.req.param("id"));
     if (!agent) {
       return c.json({ error: "Agente não encontrado" }, 404);
     }
-    const handled = db
-      .prepare(
-        "SELECT id, kind, severity, status, description, created_at FROM occurrences WHERE agent_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 10",
-      )
-      .all(agent.id, now() - 7 * DAY) as OccurrenceRow[];
-    return c.json({
-      agent,
-      vehicle: agent.vehicleId === null ? null : getEquipment(db, agent.vehicleId),
-      occurrences: handled.map(toOccurrenceSummary),
-      tag: tagFor(db, { kind: "agent", id: agent.id }),
-    });
+    const [handled, vehicle, tag] = await Promise.all([
+      db.query<OccurrenceRow>(
+        "SELECT id, kind, severity, status, description, created_at FROM occurrences WHERE agent_id = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 10",
+        [agent.id, now() - 7 * DAY],
+      ),
+      agent.vehicleId === null ? null : getEquipment(db, agent.vehicleId),
+      tagFor(db, { kind: "agent", id: agent.id }),
+    ]);
+    return c.json({ agent, vehicle, occurrences: handled.map(toOccurrenceSummary), tag });
   });
 
   routes.post("/agents", async (c) => {
-    const input = parseAgentInput(await c.req.json());
-    checkVehicle(input, null);
-    const agent = createAgent(db, input, now());
-    changed();
-    hub.publish({ agentRecords: [agent] }, now());
+    const { city, hub, predictions } = c.get("context");
+    const input = parseAgentInput(await c.req.json(), city);
+    await checkVehicle(city.city.id, input, null);
+    const agent = await createAgent(db, city.city.id, input, now());
+    predictions.invalidate();
+    await hub.publish({ agentRecords: [agent] }, now());
     return c.json(agent, 201);
   });
 
   routes.put("/agents/:id", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (id === null) {
+    const { city, hub, predictions } = c.get("context");
+    const previous = await agentIn(city.city.id, c.req.param("id"));
+    if (!previous) {
       return c.json({ error: "Agente não encontrado" }, 404);
     }
-    const input = parseAgentInput(await c.req.json());
-    checkVehicle(input, id);
-    const agent = updateAgent(db, id, input, now());
-    if (!agent) {
-      return c.json({ error: "Agente não encontrado" }, 404);
-    }
-    changed();
-    hub.publish({ agentRecords: [agent] }, now());
+    const input = parseAgentInput(await c.req.json(), city);
+    await checkVehicle(city.city.id, input, previous.id);
+    const agent = (await updateAgent(db, previous.id, input, now()))!;
+    predictions.invalidate();
+    await hub.publish({ agentRecords: [agent] }, now());
     return c.json(agent);
   });
 
-  routes.delete("/agents/:id", (c) => {
-    const id = parseId(c.req.param("id"));
-    if (id === null || !deleteAgent(db, id)) {
+  routes.delete("/agents/:id", async (c) => {
+    const { city, hub, predictions } = c.get("context");
+    const agent = await agentIn(city.city.id, c.req.param("id"));
+    if (!agent || !(await deleteAgent(db, agent.id))) {
       return c.json({ error: "Agente não encontrado" }, 404);
     }
-    changed();
-    hub.publish({ removedAgents: [id] }, now());
+    predictions.invalidate();
+    await hub.publish({ removedAgents: [agent.id] }, now());
     return c.body(null, 204);
   });
 

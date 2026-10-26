@@ -5,6 +5,7 @@ import { formatRelative } from "../format.ts";
 import { showToast } from "../toast.tsx";
 import { useNow } from "../useNow.ts";
 import { ConfirmDialog } from "./form.tsx";
+import { cityPath } from "../cityScope.ts";
 
 type Props = {
   target: { equipmentId: number } | { agentId: number };
@@ -44,7 +45,7 @@ export function TagPanel({ target, initial, moves }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const created = await api.post<CreatedTag>("/tags", target);
+      const created = await api.post<CreatedTag>(cityPath("/tags"), target);
       setTag(created.tag);
       setToken(created.token);
     } catch (reason) {
@@ -61,7 +62,7 @@ export function TagPanel({ target, initial, moves }: Props) {
     }
     setBusy(true);
     try {
-      await api.delete(`/tags/${tag.id}`);
+      await api.delete(cityPath(`/tags/${tag.id}`));
       setTag(null);
       setToken(null);
       showToast(`Tag ${tag.id} removida.`);

@@ -4,15 +4,15 @@ import { emptyDraft, fromEquipment, toPayload } from "./equipmentDraft.ts";
 
 describe("equipment draft", () => {
   it("starts with defaults taken from the equipment type", () => {
-    const draft = emptyDraft("truck_scale");
-    expect(draft.agency).toBe("mobility");
+    const draft = emptyDraft("truck_scale", 3);
+    expect(draft).toMatchObject({ cityId: 3, agencyId: "" });
     expect(draft.maintenanceIntervalDays).toBe("90");
     expect(draft.status).toBe("not_installed");
   });
 
   it("converts form strings into the API payload", () => {
     const payload = toPayload({
-      ...emptyDraft("radar"),
+      ...emptyDraft("radar", 1),
       lat: "-22,21",
       lng: "",
       installedAt: "",
@@ -28,7 +28,7 @@ describe("equipment draft", () => {
 
   it("drops attributes that do not belong to the type", () => {
     const payload = toPayload({
-      ...emptyDraft("camera"),
+      ...emptyDraft("camera", 1),
       attributes: { speedLimit: "60", nightVision: false },
     });
     expect(payload.attributes).toEqual({ nightVision: false });
@@ -43,6 +43,8 @@ describe("equipment draft", () => {
     );
     expect(draft.attributes).toEqual({ nightVision: true, resolution: "4k" });
     expect(toPayload(draft)).toMatchObject({
+      cityId: 1,
+      agencyId: 2,
       lat: -22.2139,
       maintenanceIntervalDays: null,
       attributes: { nightVision: true, resolution: "4k" },

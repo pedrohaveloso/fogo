@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type {
   Agent,
+  CityDataset,
   CreatedTag,
   Equipment,
   NeighborhoodShape,
@@ -9,15 +10,13 @@ import type {
   Tag,
 } from "../shared/types.ts";
 import { createApp } from "./app.ts";
-import { city } from "./city.ts";
-import { openDatabase, type Database } from "./db.ts";
-import { createLiveHub } from "./live.ts";
-import { createNeighborhoodShapes } from "./neighborhoods.ts";
-import { createPredictionService } from "./predictions/service.ts";
-import { seedDatabase } from "./seed/index.ts";
+import { createCityRegistry } from "./cities.ts";
+import type { Database } from "./db.ts";
 import { NOW } from "./test-fixtures.ts";
+import { emptyDatabase, seededDatabase } from "./test-database.ts";
 
 let db: Database;
+let city: CityDataset;
 let app: ReturnType<typeof createApp>;
 const fetchImpl = vi.fn<typeof fetch>();
 
@@ -26,7 +25,8 @@ const validEquipment = {
   serialNumber: "CAM-API-1",
   brand: "Visium",
   model: "VS-1",
-  agency: "municipal_guard",
+  cityId: 1,
+  agencyId: 2,
   status: "operational",
   cep: "17500-000",
   street: "Avenida Sampaio Vidal",
@@ -43,6 +43,7 @@ const validAgent = {
   name: "Teste da Silva",
   badge: "AT-API-1",
   role: "traffic_agent",
+  agencyId: 1,
   shift: "afternoon",
   status: "available",
   baseName: "Base Centro",
@@ -51,57 +52,45 @@ const validAgent = {
   lng: -49.9458,
 };
 
-async function call<T>(
+async function api<T>(
   method: string,
   path: string,
   body?: unknown,
 ): Promise<{ status: number; body: T }> {
-  const init: RequestInit = { method };
+  const headers: Record<string, string> = { "Sec-Fetch-Site": "same-origin" };
+  const init: RequestInit = { method, headers };
   if (body !== undefined) {
     init.body = typeof body === "string" ? body : JSON.stringify(body);
-    init.headers = { "Content-Type": "application/json" };
+    headers["Content-Type"] = "application/json";
   }
   const response = await app.request(`/api${path}`, init);
   const text = await response.text();
   return { status: response.status, body: (text ? JSON.parse(text) : null) as T };
 }
 
-beforeAll(() => {
-  db = openDatabase(":memory:");
-  seedDatabase(db, city, { now: NOW, seed: 11, historyDays: 30, readingDays: 2 });
-  const predictions = createPredictionService(db, city, 60);
-  const hub = createLiveHub(db, city, predictions);
-  const shapes = createNeighborhoodShapes(db, city);
-  shapes.load(NOW);
-  app = createApp({
-    db,
-    city,
-    hub,
-    shapes,
-    predictions,
-    mode: "simulation",
-    liveMultiplier: 60,
-    now: () => NOW,
-    fetchImpl,
-  });
+function call<T>(method: string, path: string, body?: unknown) {
+  return api<T>(method, `/cities/${city.city.id}${path}`, body);
+}
+
+beforeAll(async () => {
+  ({ db } = await seededDatabase());
+  const cities = await createCityRegistry(db, { liveMultiplier: 60 });
+  city = cities.get(1)!.city;
+  app = createApp({ db, cities, mode: "simulation", now: () => NOW, fetchImpl });
 });
 
 describe("health check", () => {
   it("answers ok while the database responds", async () => {
-    expect(await call("GET", "/health")).toEqual({ status: 200, body: { status: "ok" } });
+    expect(await api("GET", "/health")).toEqual({ status: 200, body: { status: "ok" } });
   });
 
   it("fails when the database is closed", async () => {
-    const closed = openDatabase(":memory:");
-    closed.close();
+    const closed = await emptyDatabase();
+    await closed.close();
     const broken = createApp({
       db: closed,
-      city,
-      hub: createLiveHub(db, city, createPredictionService(db, city, 60)),
-      shapes: createNeighborhoodShapes(closed, city),
-      predictions: createPredictionService(db, city, 60),
+      cities: await createCityRegistry(db, { liveMultiplier: 60 }),
       mode: "simulation",
-      liveMultiplier: 60,
       now: () => NOW,
       fetchImpl,
     });
@@ -200,7 +189,7 @@ describe("inventory API", () => {
 
     const created = await call<Agent>("POST", "/agents", validAgent);
     expect(created.status).toBe(201);
-    expect(created.body.agency).toBe("mobility");
+    expect(created.body).toMatchObject({ agencyId: 1, cityId: city.city.id });
     expect((await call("POST", "/agents", validAgent)).status).toBe(409);
     expect((await call("DELETE", `/agents/${created.body.id}`)).status).toBe(204);
     expect((await call("GET", `/agents/${created.body.id}`)).status).toBe(404);
@@ -219,10 +208,10 @@ describe("operations API", () => {
     });
     expect(created.status).toBe(201);
     const agent = (await call<Agent[]>("GET", "/agents")).body[0]!;
-    db.prepare("UPDATE agents SET status = 'responding', occurrence_id = ? WHERE id = ?").run(
+    await db.run("UPDATE agents SET status = 'responding', occurrence_id = $1 WHERE id = $2", [
       created.body.id,
       agent.id,
-    );
+    ]);
 
     let snapshot = (await call<OperationsSnapshot>("GET", "/operations/snapshot")).body;
     expect(
@@ -251,7 +240,9 @@ describe("operations API", () => {
 
   it("streams a snapshot as the first server-sent event", async () => {
     const controller = new AbortController();
-    const response = await app.request("/api/operations/stream", { signal: controller.signal });
+    const response = await app.request(`/api/cities/${city.city.id}/operations/stream`, {
+      signal: controller.signal,
+    });
     expect(response.headers.get("content-type")).toContain("text/event-stream");
     const reader = response.body!.getReader();
     const { value } = await reader.read();
@@ -269,8 +260,17 @@ describe("operations API", () => {
     expect((await call("GET", "/address/17519000")).status).toBe(404);
   });
 
+  it("refuses form posts from other sites", async () => {
+    const response = await app.request(`/api/cities/${city.city.id}/agencies`, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", Origin: "https://evil.example" },
+      body: JSON.stringify({ name: "Invasor" }),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("answers unknown routes with JSON", async () => {
-    const { status, body } = await call<{ error: string }>("GET", "/nothing-here");
+    const { status, body } = await api<{ error: string }>("GET", "/nothing-here");
     expect(status).toBe(404);
     expect(body.error).toBe("Recurso não encontrado");
   });
@@ -410,7 +410,7 @@ describe("neighborhood shapes API", () => {
     await call("DELETE", `/equipment/${equipment.body.id}`);
     expect((await call("DELETE", "/neighborhoods/jardim-novo-horizonte")).status).toBe(204);
     expect(city.neighborhoods.some((item) => item.id === "jardim-novo-horizonte")).toBe(false);
-    expect((await call("DELETE", "/neighborhoods/centro")).status).toBe(404);
+    expect((await call("DELETE", "/neighborhoods/nada")).status).toBe(404);
   });
 
   it("rejects a new neighborhood without name or with an unknown region", async () => {
@@ -525,35 +525,265 @@ describe("tags API", () => {
   });
 });
 
-describe("production mode with an empty database", () => {
-  it("serves the panel, the metadata and every prediction without seeded data", async () => {
-    const empty = openDatabase(":memory:");
-    const predictions = createPredictionService(empty, city, 1);
-    const shapes = createNeighborhoodShapes(empty, structuredClone(city));
-    shapes.load(NOW);
+describe("agencies and zones API", () => {
+  it("creates, renames and deletes an agency of the city", async () => {
+    const created = await call<{ id: number; name: string }>("POST", "/agencies", {
+      name: " Defesa Civil ",
+    });
+    expect(created).toMatchObject({ status: 201, body: { name: "Defesa Civil" } });
+    expect((await call("POST", "/agencies", { name: "defesa civil" })).status).toBe(201);
+    expect((await call("POST", "/agencies", { name: "Defesa Civil" })).status).toBe(409);
+    const meta = await call<{ agencies: { name: string }[] }>("GET", "/meta");
+    expect(meta.body.agencies.some((item) => item.name === "Defesa Civil")).toBe(true);
+    const renamed = await call<{ name: string }>("PUT", `/agencies/${created.body.id}`, {
+      name: "Defesa Civil Municipal",
+    });
+    expect(renamed.body.name).toBe("Defesa Civil Municipal");
+    expect((await call("DELETE", `/agencies/${created.body.id}`)).status).toBe(204);
+    expect((await call("DELETE", `/agencies/${created.body.id}`)).status).toBe(404);
+    expect((await call("DELETE", "/agencies/1")).status).toBe(409);
+    expect((await call("POST", "/agencies", { name: "" })).status).toBe(422);
+  });
+
+  it("creates a zone, refuses to delete one with neighborhoods and renames it", async () => {
+    const created = await call<{ id: string }>("POST", "/regions", {
+      name: "Distrito de Padre Nóbrega",
+    });
+    expect(created).toMatchObject({ status: 201, body: { id: "distrito-de-padre-nobrega" } });
+    expect(
+      (await call("PUT", `/regions/${created.body.id}`, { name: "Padre Nóbrega" })).status,
+    ).toBe(200);
+    expect((await call("DELETE", "/regions/north")).status).toBe(409);
+    expect((await call("DELETE", `/regions/${created.body.id}`)).status).toBe(204);
+    expect((await call("PUT", "/regions/lua", { name: "Lua" })).status).toBe(404);
+  });
+
+  it("renames a neighborhood", async () => {
+    const renamed = await call<NeighborhoodShape>("PUT", "/neighborhoods/fragata", {
+      name: "Fragata",
+      regionId: "north",
+    });
+    expect(renamed.body).toMatchObject({ name: "Fragata", regionId: "north" });
+    expect(
+      (await call("PUT", "/neighborhoods/nada", { name: "Nada", regionId: "north" })).status,
+    ).toBe(404);
+  });
+});
+
+describe("cities API in simulation", () => {
+  const boundary = [
+    [-49.7, -22.15],
+    [-49.6, -22.15],
+    [-49.6, -22.25],
+    [-49.7, -22.25],
+  ];
+
+  it("lets the visitor create a city, move equipment to it and delete it when empty", async () => {
+    const created = await api<{ id: number; simulated: boolean }>("POST", "/cities", {
+      ibgeCode: 3516705,
+      name: "Garça",
+      uf: "SP",
+      boundary,
+      center: [-49.68, -22.17],
+    });
+    expect(created).toMatchObject({ status: 201, body: { simulated: false } });
+    const centered = await api<{ center: number[] }>("GET", `/cities/${created.body.id}`);
+    expect(centered.body.center).toEqual([-49.68, -22.17]);
+    expect(
+      (await api("POST", "/cities", { ibgeCode: 3516705, name: "Garça", uf: "SP", boundary }))
+        .status,
+    ).toBe(409);
+    const cityId = created.body.id;
+    const meta = await api<{ liveMultiplier: number; neighborhoods: unknown[] }>(
+      "GET",
+      `/cities/${cityId}/meta`,
+    );
+    expect(meta.body).toMatchObject({ liveMultiplier: 1, neighborhoods: [] });
+
+    const region = await api<{ id: string }>("POST", `/cities/${cityId}/regions`, {
+      name: "Centro",
+    });
+    const neighborhood = await api<{ id: string }>("POST", `/cities/${cityId}/neighborhoods`, {
+      name: "Centro",
+      regionId: region.body.id,
+      polygon: boundary,
+    });
+    const agency = await api<{ id: number }>("POST", `/cities/${cityId}/agencies`, {
+      name: "Prefeitura",
+    });
+    const equipment = await call<Equipment>("POST", "/equipment", {
+      ...validEquipment,
+      serialNumber: "CAM-MOVE-1",
+    });
+    const moved = await call<Equipment>("PUT", `/equipment/${equipment.body.id}`, {
+      ...validEquipment,
+      serialNumber: "CAM-MOVE-1",
+      cityId,
+      agencyId: agency.body.id,
+      neighborhoodId: neighborhood.body.id,
+      lat: -22.2,
+      lng: -49.65,
+    });
+    expect(moved.body).toMatchObject({ cityId, neighborhoodId: neighborhood.body.id });
+    expect((await call("GET", `/equipment/${equipment.body.id}`)).status).toBe(404);
+    expect((await api("GET", `/cities/${cityId}/equipment/${equipment.body.id}`)).status).toBe(200);
+
+    expect((await api("DELETE", `/cities/${cityId}`)).status).toBe(409);
+    await api("DELETE", `/cities/${cityId}/equipment/${equipment.body.id}`);
+    const detail = await api<{ neighborhoods: number }>("GET", `/cities/${cityId}`);
+    expect(detail.body.neighborhoods).toBe(1);
+    expect((await api("DELETE", `/cities/${cityId}`)).status).toBe(204);
+    expect((await api("GET", `/cities/${cityId}/meta`)).status).toBe(404);
+  });
+
+  it("refuses equipment outside the chosen city", async () => {
+    const outside = await call<{ issues: { path: string; message: string }[] }>(
+      "POST",
+      "/equipment",
+      {
+        ...validEquipment,
+        serialNumber: "CAM-FORA-1",
+        lat: -23.5,
+        lng: -46.6,
+      },
+    );
+    expect(outside.status).toBe(422);
+    expect(outside.body.issues[0]).toEqual({
+      path: "lat",
+      message: "Escolha um ponto dentro de Marília, clicando no mapa",
+    });
+  });
+
+  it("remembers the visitor's city and lists every city", async () => {
+    const session = await api<{ mode: string; user: { role: string }; cityId: number }>(
+      "GET",
+      "/session",
+    );
+    expect(session.body).toMatchObject({ mode: "simulation", user: { role: "admin" }, cityId: 1 });
+    expect((await api("PUT", "/session/city", { cityId: 999 })).status).toBe(422);
+    expect((await api("PUT", "/session/city", { cityId: 1 })).status).toBe(204);
+    expect((await api("POST", "/session", { username: "root", password: "root" })).status).toBe(
+      404,
+    );
+  });
+
+  it("looks up municipalities and boundaries from outside services", async () => {
+    fetchImpl.mockResolvedValueOnce(
+      new Response(JSON.stringify([{ id: 3529005, nome: "Marília" }])),
+    );
+    const list = await api<{ ibgeCode: number; name: string }[]>(
+      "GET",
+      "/places/states/sp/municipalities",
+    );
+    expect(list.body).toEqual([{ ibgeCode: 3529005, name: "Marília" }]);
+    expect((await api("GET", "/places/states/sp/municipalities")).body).toEqual(list.body);
+    expect((await api("GET", "/places/states/xx/municipalities")).status).toBe(404);
+
+    fetchImpl.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify([
+          {
+            osm_type: "relation",
+            extratags: { "IBGE:GEOCODIGO": "352900505" },
+            geojson: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [0, 0],
+                  [1, 0],
+                  [1, 1],
+                  [0, 0],
+                ],
+              ],
+            },
+          },
+          {
+            osm_type: "relation",
+            lat: "-22.3",
+            lon: "-50.1",
+            extratags: { "IBGE:GEOCODIGO": "3529005" },
+            geojson: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-50, -22],
+                    [-49.9, -22],
+                    [-49.9, -22.1],
+                    [-50, -22],
+                  ],
+                ],
+                [
+                  [
+                    [-50.2, -22.1],
+                    [-49.8, -22.1],
+                    [-49.8, -22.5],
+                    [-50.2, -22.5],
+                    [-50.2, -22.1],
+                  ],
+                ],
+              ],
+            },
+          },
+        ]),
+      ),
+    );
+    const found = await api<{ boundary: number[][]; center: number[] }>(
+      "GET",
+      "/places/boundary?name=Mar%C3%ADlia&uf=SP&ibgeCode=3529005",
+    );
+    expect(found.body.boundary).toHaveLength(4);
+    expect(found.body.center).toEqual([-50.1, -22.3]);
+
+    fetchImpl.mockResolvedValueOnce(new Response(JSON.stringify([])));
+    expect((await api("GET", "/places/boundary?name=X&uf=SP&ibgeCode=1")).status).toBe(404);
+    fetchImpl.mockRejectedValueOnce(new TypeError("offline"));
+    expect((await api("GET", "/places/states/rj/municipalities")).status).toBe(502);
+    expect((await api("GET", "/places/boundary?uf=SP")).status).toBe(400);
+  });
+});
+
+describe("a city created in an empty database", () => {
+  it("serves the panel, the metadata and every prediction with no data yet", async () => {
+    const empty = await emptyDatabase();
+    const cities = await createCityRegistry(empty, { liveMultiplier: 1 });
     const production = createApp({
       db: empty,
-      city,
-      hub: createLiveHub(empty, city, predictions),
-      shapes,
-      predictions,
-      mode: "production",
-      liveMultiplier: 1,
+      cities,
+      mode: "simulation",
       now: () => NOW,
       fetchImpl,
     });
-    const get = async (path: string) => {
-      const response = await production.request(`/api${path}`);
+    const send = async (method: string, path: string, body?: unknown) => {
+      const response = await production.request(`/api${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     };
 
-    const meta = await get("/meta");
-    expect(meta.body).toMatchObject({ mode: "production", liveMultiplier: 1 });
-    const snapshot = await get("/operations/snapshot");
+    expect((await send("GET", "/session")).body).toMatchObject({ cities: [], cityId: null });
+    const created = await send("POST", "/cities", {
+      ibgeCode: 3500105,
+      name: "Adamantina",
+      uf: "SP",
+      boundary: [
+        [-51.1, -21.6],
+        [-51.0, -21.6],
+        [-51.0, -21.7],
+      ],
+    });
+    const id = created.body["id"] as number;
+    const meta = await send("GET", `/cities/${id}/meta`);
+    expect(meta.body).toMatchObject({ liveMultiplier: 1, regions: [], agencies: [] });
+    const snapshot = await send("GET", `/cities/${id}/operations/snapshot`);
     expect(snapshot.status).toBe(200);
     expect(snapshot.body).toMatchObject({ equipment: [], agents: [], occurrences: [] });
     const paths = ["risk", "staffing", "anomalies", "failures", "trends", "backtest"];
-    const answers = await Promise.all(paths.map((path) => get(`/predictions/${path}`)));
+    const answers = await Promise.all(
+      paths.map((path) => send("GET", `/cities/${id}/predictions/${path}`)),
+    );
     expect(answers.map((answer) => answer.status)).toEqual(paths.map(() => 200));
   });
 });

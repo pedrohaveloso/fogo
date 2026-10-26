@@ -1,8 +1,5 @@
 import {
-  AGENCIES,
-  AGENCY_LABELS,
   UNAVAILABLE_STATUSES,
-  type Agency,
   type EquipmentStatus,
   type EquipmentType,
 } from "../../shared/catalog.ts";
@@ -21,7 +18,7 @@ export type EquipmentFilters = {
   statuses: EquipmentStatus[];
   regionId: string;
   neighborhoodId: string;
-  agency: Agency | "";
+  agency: string;
   maintenance: MaintenanceFilter;
   search: string;
 };
@@ -59,7 +56,7 @@ export function matchesFilters(
       return false;
     }
   }
-  if (filters.agency && item.agency !== filters.agency) {
+  if (filters.agency && item.agencyId !== Number(filters.agency)) {
     return false;
   }
   if (filters.maintenance) {
@@ -176,12 +173,12 @@ export function PlaceFilterFields({
         <select
           id={`${idPrefix}-agency`}
           value={filters.agency}
-          onChange={(event) => onChange({ ...filters, agency: event.target.value as Agency | "" })}
+          onChange={(event) => onChange({ ...filters, agency: event.target.value })}
         >
           <option value="">Todos os órgãos</option>
-          {AGENCIES.map((agency) => (
-            <option key={agency} value={agency}>
-              {AGENCY_LABELS[agency]}
+          {meta.agencies.map((agency) => (
+            <option key={agency.id} value={agency.id}>
+              {agency.name}
             </option>
           ))}
         </select>

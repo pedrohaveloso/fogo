@@ -11,6 +11,12 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized: () => void = () => {};
+
+export function setUnauthorizedHandler(handler: () => void): void {
+  onUnauthorized = handler;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
@@ -21,6 +27,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     });
   } catch {
     throw new ApiError(0, "Sem conexão com o servidor do FOGO", []);
+  }
+  if (response.status === 401 && path !== "/session") {
+    onUnauthorized();
   }
   if (response.status === 204) {
     return undefined as T;
@@ -36,6 +45,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     );
   }
   return payload as T;
+}
+
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? (error.issues[0]?.message ?? error.message) : fallback;
 }
 
 export const api = {

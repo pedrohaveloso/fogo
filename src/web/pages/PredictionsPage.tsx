@@ -34,6 +34,7 @@ import { RiskMap } from "../map/RiskMap.tsx";
 import { navigate, useLocation } from "../router.tsx";
 import { useFetch } from "../useFetch.ts";
 import { useNow } from "../useNow.ts";
+import { cityPath } from "../cityScope.ts";
 
 const HORIZONS = [2, 4, 6, 8, 12, 24];
 const REGION_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181"];
@@ -106,7 +107,7 @@ function rangeText(range: [number, number], joiner = "a"): string {
 function RiskSection({ hours }: { hours: number }) {
   const meta = useMeta();
   const { data, error, reload } = useFetch<RiskForecast>(
-    `/predictions/risk?hours=${hours}`,
+    cityPath(`/predictions/risk?hours=${hours}`),
     60_000,
   );
   const [selected, setSelected] = useState<string | null>(null);
@@ -219,7 +220,10 @@ function RiskSection({ hours }: { hours: number }) {
 }
 
 function WeeklySection() {
-  const { data, error, reload } = useFetch<RiskForecast>("/predictions/risk?hours=6", 300_000);
+  const { data, error, reload } = useFetch<RiskForecast>(
+    cityPath("/predictions/risk?hours=6"),
+    300_000,
+  );
   const now = useNow(60_000);
   if (!data) {
     return <Loading error={error} onRetry={reload} />;
@@ -237,7 +241,7 @@ function WeeklySection() {
         title="Ocorrências esperadas por dia da semana e hora"
       />
       <Explain
-        what="O número médio de ocorrências esperado em cada hora de cada dia da semana, somando toda a cidade. O contorno amarelo marca o horário atual."
+        what="O número médio de ocorrências esperado em cada hora de cada dia da semana, somando toda a cidade. O contorno escuro marca o horário atual."
         data="As ocorrências das últimas 12 semanas, com peso maior para as semanas mais recentes e suavização entre horas vizinhas."
         use="Ajuste as escalas de turno aos picos (por exemplo, reforço no fim da tarde dos dias úteis e nas madrugadas de sexta e sábado) e programe manutenções nos horários de menor movimento."
       />
@@ -248,7 +252,7 @@ function WeeklySection() {
 function StaffingSection({ hours }: { hours: number }) {
   const meta = useMeta();
   const { data, error, reload } = useFetch<StaffingPlan>(
-    `/predictions/staffing?hours=${hours}`,
+    cityPath(`/predictions/staffing?hours=${hours}`),
     30_000,
   );
   if (!data || !meta) {
@@ -335,7 +339,7 @@ function StaffingSection({ hours }: { hours: number }) {
 
 function AnomalySection() {
   const meta = useMeta();
-  const { data, error, reload } = useFetch<Anomaly[]>("/predictions/anomalies", 15_000);
+  const { data, error, reload } = useFetch<Anomaly[]>(cityPath("/predictions/anomalies"), 15_000);
   const [showAll, setShowAll] = useState(false);
   if (!data || !meta) {
     return <Loading error={error} onRetry={reload} />;
@@ -413,7 +417,10 @@ function AnomalySection() {
 
 function FailureSection() {
   const meta = useMeta();
-  const { data, error, reload } = useFetch<FailureRiskReport>("/predictions/failures", 120_000);
+  const { data, error, reload } = useFetch<FailureRiskReport>(
+    cityPath("/predictions/failures"),
+    120_000,
+  );
   if (!data || !meta) {
     return <Loading error={error} onRetry={reload} />;
   }
@@ -541,7 +548,7 @@ function TrendChart({
 }
 
 function TrendSection() {
-  const { data, error, reload } = useFetch<TrendReport>("/predictions/trends", 120_000);
+  const { data, error, reload } = useFetch<TrendReport>(cityPath("/predictions/trends"), 120_000);
   const [availabilityKey, setAvailabilityKey] = useState("all");
   if (!data) {
     return <Loading error={error} onRetry={reload} />;
@@ -638,7 +645,7 @@ function TrendSection() {
 }
 
 function ModelQuality() {
-  const { data, error, reload } = useFetch<BacktestResult>("/predictions/backtest");
+  const { data, error, reload } = useFetch<BacktestResult>(cityPath("/predictions/backtest"));
   if (!data) {
     return <Loading error={error} onRetry={reload} />;
   }
@@ -700,22 +707,18 @@ const TABS = [
   {
     key: "next-hours",
     label: "Próximas horas",
-    question: "Onde e quando a cidade vai precisar de reforço?",
   },
   {
     key: "anomalies",
     label: "Fora do padrão",
-    question: "O que está fugindo do normal agora?",
   },
   {
     key: "equipment",
     label: "Equipamentos",
-    question: "Quais equipamentos devem falhar nos próximos 7 dias?",
   },
   {
     key: "trends",
     label: "Tendências",
-    question: "Para onde vão a disponibilidade, as ocorrências e o uso dos equipamentos?",
   },
 ] as const;
 
@@ -730,7 +733,6 @@ export function PredictionsPage() {
   const { params } = useLocation();
   const requested = params.get("tab");
   const tab = isTabKey(requested) ? requested : TABS[0].key;
-  const current = TABS.find((item) => item.key === tab)!;
   return (
     <main className="page">
       <div className="page-head">
@@ -750,7 +752,6 @@ export function PredictionsPage() {
         role="tabpanel"
         aria-labelledby={tabId("predictions", tab)}
       >
-        <p className="tab-question">{current.question}</p>
         {tab === "next-hours" && (
           <>
             <div className="horizon-bar">

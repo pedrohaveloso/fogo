@@ -174,7 +174,7 @@ export function computeAreaHealth(input: OperationsInput): {
   const agentNeighborhood = new Map<number, string>();
   for (const agent of agents) {
     if (ACTIVE_AGENT_STATUSES.includes(agent.status)) {
-      agentNeighborhood.set(agent.id, nearestNeighborhood([agent.lng, agent.lat]).id);
+      agentNeighborhood.set(agent.id, nearestNeighborhood(city, [agent.lng, agent.lat])?.id ?? "");
     }
   }
   const countAgents = (ids: ReadonlySet<string>) =>

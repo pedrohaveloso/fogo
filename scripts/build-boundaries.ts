@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { distanceKm, pointInPolygon, roundPolygon, type LngLat } from "../src/shared/geo.ts";
-import type { CityDataset } from "../src/shared/types.ts";
+import type { CitySource } from "../src/server/seed/marilia.ts";
 import type { RoadData } from "../src/server/roads.ts";
 import {
   cellCenter,
@@ -45,7 +45,7 @@ function polygonsOf(element: OsmElement): LngLat[][] {
 }
 
 async function main(): Promise<void> {
-  const city = JSON.parse(await readFile(CITY, "utf8")) as CityDataset;
+  const city = JSON.parse(await readFile(CITY, "utf8")) as CitySource;
   const roads = JSON.parse(await readFile(ROADS, "utf8")) as RoadData;
 
   const barriers = await overpass(

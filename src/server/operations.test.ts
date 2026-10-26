@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { Alert, Anomaly, AreaHealth, HealthLevel } from "../shared/types.ts";
-import { city } from "./city.ts";
 import {
   computeCityHealth,
   computeSummary,
@@ -8,6 +7,9 @@ import {
   type OperationsInput,
 } from "./operations.ts";
 import { NOW, makeAgent, makeEquipment, makeOccurrence } from "./test-fixtures.ts";
+import { mariliaCity } from "./test-database.ts";
+
+const city = mariliaCity();
 
 function input(overrides: Partial<OperationsInput> = {}): OperationsInput {
   return {

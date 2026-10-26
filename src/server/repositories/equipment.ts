@@ -1,12 +1,6 @@
-import type { SQLInputValue } from "node:sqlite";
-import type {
-  Agency,
-  EquipmentStatus,
-  EquipmentType,
-  MaintenanceNeed,
-} from "../../shared/catalog.ts";
+import type { EquipmentStatus, EquipmentType, MaintenanceNeed } from "../../shared/catalog.ts";
 import type { AttributeValue, Equipment, EquipmentInput } from "../../shared/types.ts";
-import type { Database } from "../db.ts";
+import { isUniqueViolation, type Queryable } from "../db.ts";
 
 type EquipmentRow = {
   id: number;
@@ -14,14 +8,13 @@ type EquipmentRow = {
   serial_number: string;
   brand: string;
   model: string;
-  agency: string;
+  agency_id: number;
   status: string;
   cep: string;
   street: string;
   reference: string;
   neighborhood_id: string;
-  city: string;
-  uf: string;
+  city_id: number;
   lat: number;
   lng: number;
   current_lat: number | null;
@@ -31,7 +24,7 @@ type EquipmentRow = {
   last_maintenance_at: string | null;
   next_maintenance_at: string | null;
   maintenance_notes: string;
-  attributes: string;
+  attributes: Record<string, AttributeValue>;
   installed_at: string | null;
   last_seen_at: number | null;
   battery: number | null;
@@ -46,14 +39,13 @@ function toEquipment(row: EquipmentRow): Equipment {
     serialNumber: row.serial_number,
     brand: row.brand,
     model: row.model,
-    agency: row.agency as Agency,
+    agencyId: row.agency_id,
     status: row.status as EquipmentStatus,
     cep: row.cep,
     street: row.street,
     reference: row.reference,
     neighborhoodId: row.neighborhood_id,
-    city: row.city,
-    uf: row.uf,
+    cityId: row.city_id,
     lat: row.lat,
     lng: row.lng,
     currentLat: row.current_lat,
@@ -63,7 +55,7 @@ function toEquipment(row: EquipmentRow): Equipment {
     lastMaintenanceAt: row.last_maintenance_at,
     nextMaintenanceAt: row.next_maintenance_at,
     maintenanceNotes: row.maintenance_notes,
-    attributes: JSON.parse(row.attributes) as Record<string, AttributeValue>,
+    attributes: row.attributes,
     installedAt: row.installed_at,
     lastSeenAt: row.last_seen_at === null ? null : new Date(row.last_seen_at).toISOString(),
     battery: row.battery,
@@ -72,20 +64,19 @@ function toEquipment(row: EquipmentRow): Equipment {
   };
 }
 
-function inputParams(input: EquipmentInput): Record<string, SQLInputValue> {
+function inputParams(input: EquipmentInput): Record<string, unknown> {
   return {
     type: input.type,
     serial_number: input.serialNumber,
     brand: input.brand,
     model: input.model,
-    agency: input.agency,
+    agency_id: input.agencyId,
     status: input.status,
     cep: input.cep,
     street: input.street,
     reference: input.reference,
     neighborhood_id: input.neighborhoodId,
-    city: input.city,
-    uf: input.uf,
+    city_id: input.cityId,
     lat: input.lat,
     lng: input.lng,
     maintenance_need: input.maintenanceNeed,
@@ -103,14 +94,13 @@ const COLUMNS = [
   "serial_number",
   "brand",
   "model",
-  "agency",
+  "agency_id",
   "status",
   "cep",
   "street",
   "reference",
   "neighborhood_id",
-  "city",
-  "uf",
+  "city_id",
   "lat",
   "lng",
   "maintenance_need",
@@ -124,35 +114,41 @@ const COLUMNS = [
 
 export class SerialNumberTakenError extends Error {}
 
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("UNIQUE constraint failed");
+function values(input: EquipmentInput): unknown[] {
+  const params = inputParams(input);
+  return COLUMNS.map((column) => params[column]);
 }
 
-export function listEquipment(db: Database): Equipment[] {
-  const rows = db.prepare("SELECT * FROM equipment ORDER BY id").all() as EquipmentRow[];
+export async function listEquipment(db: Queryable, cityId: number): Promise<Equipment[]> {
+  const rows = await db.query<EquipmentRow>(
+    "SELECT * FROM equipment WHERE city_id = $1 ORDER BY id",
+    [cityId],
+  );
   return rows.map(toEquipment);
 }
 
-export function getEquipment(db: Database, id: number): Equipment | null {
-  const row = db.prepare("SELECT * FROM equipment WHERE id = ?").get(id) as
-    | EquipmentRow
-    | undefined;
+export async function getEquipment(db: Queryable, id: number): Promise<Equipment | null> {
+  const row = await db.one<EquipmentRow>("SELECT * FROM equipment WHERE id = $1", [id]);
   return row ? toEquipment(row) : null;
 }
 
-export function createEquipment(db: Database, input: EquipmentInput, now: number): Equipment {
-  const params = inputParams(input);
+export async function createEquipment(
+  db: Queryable,
+  input: EquipmentInput,
+  now: number,
+): Promise<Equipment> {
   const isMobileStart = input.status === "operational";
+  const count = COLUMNS.length;
   try {
-    const result = db
-      .prepare(
-        `INSERT INTO equipment (${COLUMNS.join(", ")}, current_lat, current_lng, last_seen_at, created_at, updated_at)
-         VALUES (${COLUMNS.map((column) => `:${column}`).join(", ")}, :lat, :lng, :last_seen_at, :now, :now)`,
-      )
-      .run({ ...params, last_seen_at: isMobileStart ? now : null, now });
-    const id = Number(result.lastInsertRowid);
-    recordStatusEvent(db, id, input.status, "Cadastro", now);
-    return getEquipment(db, id)!;
+    const row = await db.one<{ id: number }>(
+      `INSERT INTO equipment (${COLUMNS.join(", ")}, current_lat, current_lng, last_seen_at, created_at, updated_at)
+       VALUES (${COLUMNS.map((_, index) => `$${index + 1}`).join(", ")},
+       $${COLUMNS.indexOf("lat") + 1}, $${COLUMNS.indexOf("lng") + 1}, $${count + 1}, $${count + 2}, $${count + 2})
+       RETURNING id`,
+      [...values(input), isMobileStart ? now : null, now],
+    );
+    await recordStatusEvent(db, row!.id, input.status, "Cadastro", now);
+    return (await getEquipment(db, row!.id))!;
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new SerialNumberTakenError(input.serialNumber);
@@ -161,24 +157,26 @@ export function createEquipment(db: Database, input: EquipmentInput, now: number
   }
 }
 
-export function updateEquipment(
-  db: Database,
+export async function updateEquipment(
+  db: Queryable,
   id: number,
   input: EquipmentInput,
   now: number,
-): Equipment | null {
-  const previous = getEquipment(db, id);
+): Promise<Equipment | null> {
+  const previous = await getEquipment(db, id);
   if (!previous) {
     return null;
   }
   const locationChanged = previous.lat !== input.lat || previous.lng !== input.lng;
+  const count = COLUMNS.length;
   try {
-    db.prepare(
-      `UPDATE equipment SET ${COLUMNS.map((column) => `${column} = :${column}`).join(", ")},
-       current_lat = CASE WHEN :location_changed THEN :lat ELSE current_lat END,
-       current_lng = CASE WHEN :location_changed THEN :lng ELSE current_lng END,
-       updated_at = :now WHERE id = :id`,
-    ).run({ ...inputParams(input), location_changed: locationChanged ? 1 : 0, now, id });
+    await db.run(
+      `UPDATE equipment SET ${COLUMNS.map((column, index) => `${column} = $${index + 1}`).join(", ")},
+       current_lat = CASE WHEN $${count + 1}::boolean THEN $${COLUMNS.indexOf("lat") + 1}::double precision ELSE current_lat END,
+       current_lng = CASE WHEN $${count + 1}::boolean THEN $${COLUMNS.indexOf("lng") + 1}::double precision ELSE current_lng END,
+       updated_at = $${count + 2} WHERE id = $${count + 3}`,
+      [...values(input), locationChanged, now, id],
+    );
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new SerialNumberTakenError(input.serialNumber);
@@ -186,69 +184,72 @@ export function updateEquipment(
     throw error;
   }
   if (previous.status !== input.status) {
-    recordStatusEvent(db, id, input.status, "Alteração manual", now);
+    await recordStatusEvent(db, id, input.status, "Alteração manual", now);
   }
   return getEquipment(db, id);
 }
 
-export function deleteEquipment(db: Database, id: number): boolean {
-  return Number(db.prepare("DELETE FROM equipment WHERE id = ?").run(id).changes) > 0;
+export async function deleteEquipment(db: Queryable, id: number): Promise<boolean> {
+  return (await db.run("DELETE FROM equipment WHERE id = $1", [id])) > 0;
 }
 
-export function setEquipmentStatus(
-  db: Database,
+export async function setEquipmentStatus(
+  db: Queryable,
   id: number,
   status: EquipmentStatus,
   reason: string,
   now: number,
   maintenanceNeed?: MaintenanceNeed,
-): void {
-  db.prepare(
-    `UPDATE equipment SET status = :status, updated_at = :now,
-     maintenance_need = COALESCE(:need, maintenance_need) WHERE id = :id`,
-  ).run({ status, now, id, need: maintenanceNeed ?? null });
-  recordStatusEvent(db, id, status, reason, now);
+): Promise<void> {
+  await db.run(
+    `UPDATE equipment SET status = $1, updated_at = $2,
+     maintenance_need = COALESCE($3, maintenance_need) WHERE id = $4`,
+    [status, now, maintenanceNeed ?? null, id],
+  );
+  await recordStatusEvent(db, id, status, reason, now);
 }
 
-export function recordStatusEvent(
-  db: Database,
+export async function recordStatusEvent(
+  db: Queryable,
   id: number,
   status: EquipmentStatus,
   reason: string,
   at: number,
-): void {
-  db.prepare(
-    "INSERT INTO equipment_status_events (equipment_id, status, reason, at) VALUES (?, ?, ?, ?)",
-  ).run(id, status, reason, at);
+): Promise<void> {
+  await db.run(
+    "INSERT INTO equipment_status_events (equipment_id, status, reason, at) VALUES ($1, $2, $3, $4)",
+    [id, status, reason, at],
+  );
 }
 
-export function completeMaintenance(
-  db: Database,
+export async function completeMaintenance(
+  db: Queryable,
   id: number,
   date: string,
   nextDate: string | null,
   now: number,
-): void {
-  db.prepare(
-    `UPDATE equipment SET last_maintenance_at = :date, next_maintenance_at = :next,
-     maintenance_need = CASE WHEN :next IS NULL THEN 'none' ELSE 'scheduled' END, updated_at = :now
-     WHERE id = :id`,
-  ).run({ date, next: nextDate, now, id });
-  db.prepare(
-    "INSERT INTO maintenance_events (equipment_id, kind, at) VALUES (?, 'preventive', ?)",
-  ).run(id, now);
+): Promise<void> {
+  await db.run(
+    `UPDATE equipment SET last_maintenance_at = $1, next_maintenance_at = $2,
+     maintenance_need = CASE WHEN $2::text IS NULL THEN 'none' ELSE 'scheduled' END, updated_at = $3
+     WHERE id = $4`,
+    [date, nextDate, now, id],
+  );
+  await db.run(
+    "INSERT INTO maintenance_events (equipment_id, kind, at) VALUES ($1, 'preventive', $2)",
+    [id, now],
+  );
 }
 
-export function statusHistory(
-  db: Database,
+export async function statusHistory(
+  db: Queryable,
   id: number,
   limit: number,
-): { status: EquipmentStatus; reason: string; at: string }[] {
-  const rows = db
-    .prepare(
-      "SELECT status, reason, at FROM equipment_status_events WHERE equipment_id = ? ORDER BY at DESC LIMIT ?",
-    )
-    .all(id, limit) as { status: string; reason: string; at: number }[];
+): Promise<{ status: EquipmentStatus; reason: string; at: string }[]> {
+  const rows = await db.query<{ status: string; reason: string; at: number }>(
+    "SELECT status, reason, at FROM equipment_status_events WHERE equipment_id = $1 ORDER BY at DESC, id DESC LIMIT $2",
+    [id, limit],
+  );
   return rows.map((row) => ({
     status: row.status as EquipmentStatus,
     reason: row.reason,
@@ -256,16 +257,15 @@ export function statusHistory(
   }));
 }
 
-export function readingsSince(
-  db: Database,
+export async function readingsSince(
+  db: Queryable,
   id: number,
   since: number,
-): { hourStart: string; count: number }[] {
-  const rows = db
-    .prepare(
-      "SELECT hour_start, count FROM readings WHERE equipment_id = ? AND hour_start >= ? ORDER BY hour_start",
-    )
-    .all(id, since) as { hour_start: number; count: number }[];
+): Promise<{ hourStart: string; count: number }[]> {
+  const rows = await db.query<{ hour_start: number; count: number }>(
+    "SELECT hour_start, count FROM readings WHERE equipment_id = $1 AND hour_start >= $2 ORDER BY hour_start",
+    [id, since],
+  );
   return rows.map((row) => ({
     hourStart: new Date(row.hour_start).toISOString(),
     count: row.count,

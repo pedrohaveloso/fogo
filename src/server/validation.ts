@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  AGENCIES,
   AGENT_ROLE_KEYS,
   AGENT_STATUSES,
   EQUIPMENT_STATUSES,
@@ -12,12 +11,20 @@ import {
   type AttributeSpec,
   type EquipmentType,
 } from "../shared/catalog.ts";
-import { isSimplePolygon, type LngLat } from "../shared/geo.ts";
-import type { AgentInput, AttributeValue, EquipmentInput, TagTarget } from "../shared/types.ts";
-import { city, findNeighborhood } from "./city.ts";
+import { boundsOf, isSimplePolygon, pointInPolygon, type LngLat } from "../shared/geo.ts";
+import { isStateCode } from "../shared/states.ts";
+import {
+  USER_ROLES,
+  type AgentInput,
+  type AttributeValue,
+  type CityDataset,
+  type EquipmentInput,
+  type TagTarget,
+} from "../shared/types.ts";
+import { findNeighborhood } from "./city.ts";
 import type { LocationReport } from "./repositories/tags.ts";
 
-export const AREA_BOUNDS = { south: -22.45, north: -22.05, west: -50.15, east: -49.75 };
+const SHAPE_MARGIN_DEGREES = 0.05;
 
 export type ValidationIssue = { path: string; message: string };
 
@@ -50,23 +57,50 @@ const optionalText = (label: string, max: number) =>
 const date = (label: string) =>
   z.iso.date({ error: `${label} deve estar no formato AAAA-MM-DD` }).nullable();
 
-const OUTSIDE_AREA = "Escolha um ponto dentro de Marília, clicando no mapa";
-
 const latitude = z
   .number({ error: "Clique no mapa ou digite a latitude" })
-  .min(AREA_BOUNDS.south, { error: OUTSIDE_AREA })
-  .max(AREA_BOUNDS.north, { error: OUTSIDE_AREA });
+  .min(-90, { error: "Latitude fora do intervalo de -90 a 90" })
+  .max(90, { error: "Latitude fora do intervalo de -90 a 90" });
 
 const longitude = z
   .number({ error: "Clique no mapa ou digite a longitude" })
-  .min(AREA_BOUNDS.west, { error: OUTSIDE_AREA })
-  .max(AREA_BOUNDS.east, { error: OUTSIDE_AREA });
+  .min(-180, { error: "Longitude fora do intervalo de -180 a 180" })
+  .max(180, { error: "Longitude fora do intervalo de -180 a 180" });
 
-const neighborhoodId = z
-  .string({ error: "Selecione o bairro" })
-  .refine((value) => findNeighborhood(value) !== undefined, {
-    error: (issue) => (issue.input === "" ? "Selecione o bairro" : "Selecione um bairro da lista"),
-  });
+const neighborhoodIdIn = (city: CityDataset | undefined) =>
+  z
+    .string({ error: "Selecione o bairro" })
+    .refine((value) => city === undefined || findNeighborhood(city, value) !== undefined, {
+      error: (issue) =>
+        issue.input === "" ? "Selecione o bairro" : "Selecione um bairro da lista",
+    });
+
+const agencyIdIn = (city: CityDataset | undefined) =>
+  z
+    .number({ error: "Selecione o órgão responsável" })
+    .int({ error: "Selecione o órgão responsável" })
+    .refine((value) => city === undefined || city.agencies.some((item) => item.id === value), {
+      error: "Selecione um órgão da lista",
+    });
+
+function insideCity(city: CityDataset | undefined) {
+  return (value: { lat: number; lng: number }, ctx: z.RefinementCtx) => {
+    if (city && !pointInPolygon([value.lng, value.lat], city.city.boundary)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lat"],
+        message: `Escolha um ponto dentro de ${city.city.name}, clicando no mapa`,
+      });
+    }
+  };
+}
+
+type CityLookup = (id: number) => CityDataset | undefined;
+
+function cityFromInput(raw: unknown, cityOf: CityLookup): CityDataset | undefined {
+  const id = typeof raw === "object" && raw !== null ? (raw as { cityId?: unknown }).cityId : null;
+  return typeof id === "number" ? cityOf(id) : undefined;
+}
 
 const cep = z
   .string({ error: "Digite o CEP" })
@@ -127,137 +161,148 @@ export function parseAttributes(type: EquipmentType, raw: unknown): Record<strin
   );
 }
 
-const equipmentSchema = z
-  .object({
-    type: z.enum(EQUIPMENT_TYPE_KEYS as [EquipmentType, ...EquipmentType[]], {
-      error: "Tipo de equipamento inválido",
-    }),
-    serialNumber: text("Número de série", 3, 40, "Digite o número de série"),
-    brand: text("Marca", 1, 60, "Digite a marca"),
-    model: text("Modelo", 1, 60, "Digite o modelo"),
-    agency: z.enum(AGENCIES, { error: "Órgão responsável inválido" }),
-    status: z.enum(EQUIPMENT_STATUSES, { error: "Situação inválida" }),
-    cep,
-    street: text("Rua", 2, 120, "Digite a rua"),
-    reference: text("Referência", 1, 120, "Digite a referência, como número 181 ou S/N"),
-    neighborhoodId,
-    city: text("Cidade", 2, 60, "Digite a cidade").default("Marília"),
-    uf: z
-      .string()
-      .trim()
-      .regex(/^[A-Za-z]{2}$/, { error: "UF deve ter 2 letras" })
-      .transform((value) => value.toUpperCase())
-      .default("SP"),
-    lat: latitude,
-    lng: longitude,
-    maintenanceNeed: z.enum(MAINTENANCE_NEEDS, { error: "Necessidade de manutenção inválida" }),
-    maintenanceIntervalDays: z
-      .number()
-      .int({ error: "Intervalo deve ser um número inteiro de dias" })
-      .min(1, { error: "Intervalo mínimo de 1 dia" })
-      .max(1095, { error: "Intervalo máximo de 1095 dias" })
-      .nullable()
-      .default(null),
-    lastMaintenanceAt: date("Última manutenção").default(null),
-    nextMaintenanceAt: date("Próxima manutenção").default(null),
-    maintenanceNotes: optionalText("Observações", 500),
-    attributes: z.record(z.string(), z.unknown()).default({}),
-    installedAt: date("Data de instalação").default(null),
-  })
-  .superRefine((value, ctx) => {
-    if (value.maintenanceNeed === "scheduled" && value.nextMaintenanceAt === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["nextMaintenanceAt"],
-        message: "Informe a data da próxima manutenção",
-      });
-    }
-    if (value.status !== "not_installed" && value.installedAt === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["installedAt"],
-        message: "Informe a data de instalação",
-      });
-    }
-    if (value.status === "not_installed" && value.installedAt !== null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["installedAt"],
-        message: "Equipamento ainda não instalado não pode ter data de instalação",
-      });
-    }
-    if (
-      value.lastMaintenanceAt &&
-      value.nextMaintenanceAt &&
-      value.nextMaintenanceAt < value.lastMaintenanceAt
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["nextMaintenanceAt"],
-        message: "A próxima manutenção não pode ser anterior à última",
-      });
-    }
-  });
+const equipmentSchema = (city: CityDataset | undefined) =>
+  z
+    .object({
+      cityId: z
+        .number({ error: "Selecione a cidade" })
+        .refine(() => city !== undefined, { error: "Selecione uma cidade da lista" }),
+      type: z.enum(EQUIPMENT_TYPE_KEYS as [EquipmentType, ...EquipmentType[]], {
+        error: "Tipo de equipamento inválido",
+      }),
+      serialNumber: text("Número de série", 3, 40, "Digite o número de série"),
+      brand: text("Marca", 1, 60, "Digite a marca"),
+      model: text("Modelo", 1, 60, "Digite o modelo"),
+      agencyId: agencyIdIn(city),
+      status: z.enum(EQUIPMENT_STATUSES, { error: "Situação inválida" }),
+      cep,
+      street: text("Rua", 2, 120, "Digite a rua"),
+      reference: text("Referência", 1, 120, "Digite a referência, como número 181 ou S/N"),
+      neighborhoodId: neighborhoodIdIn(city),
+      lat: latitude,
+      lng: longitude,
+      maintenanceNeed: z.enum(MAINTENANCE_NEEDS, { error: "Necessidade de manutenção inválida" }),
+      maintenanceIntervalDays: z
+        .number()
+        .int({ error: "Intervalo deve ser um número inteiro de dias" })
+        .min(1, { error: "Intervalo mínimo de 1 dia" })
+        .max(1095, { error: "Intervalo máximo de 1095 dias" })
+        .nullable()
+        .default(null),
+      lastMaintenanceAt: date("Última manutenção").default(null),
+      nextMaintenanceAt: date("Próxima manutenção").default(null),
+      maintenanceNotes: optionalText("Observações", 500),
+      attributes: z.record(z.string(), z.unknown()).default({}),
+      installedAt: date("Data de instalação").default(null),
+    })
+    .superRefine(insideCity(city))
+    .superRefine((value, ctx) => {
+      if (value.maintenanceNeed === "scheduled" && value.nextMaintenanceAt === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["nextMaintenanceAt"],
+          message: "Informe a data da próxima manutenção",
+        });
+      }
+      if (value.status !== "not_installed" && value.installedAt === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["installedAt"],
+          message: "Informe a data de instalação",
+        });
+      }
+      if (value.status === "not_installed" && value.installedAt !== null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["installedAt"],
+          message: "Equipamento ainda não instalado não pode ter data de instalação",
+        });
+      }
+      if (
+        value.lastMaintenanceAt &&
+        value.nextMaintenanceAt &&
+        value.nextMaintenanceAt < value.lastMaintenanceAt
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["nextMaintenanceAt"],
+          message: "A próxima manutenção não pode ser anterior à última",
+        });
+      }
+    });
 
 function issuesFrom(error: z.ZodError): ValidationIssue[] {
   return error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
 }
 
-export function parseEquipmentInput(raw: unknown): EquipmentInput {
-  const result = equipmentSchema.safeParse(raw);
+export function parseEquipmentInput(raw: unknown, cityOf: CityLookup): EquipmentInput {
+  const result = equipmentSchema(cityFromInput(raw, cityOf)).safeParse(raw);
   if (!result.success) {
     throw new ValidationError(issuesFrom(result.error));
   }
   return { ...result.data, attributes: parseAttributes(result.data.type, result.data.attributes) };
 }
 
-const agentSchema = z.object({
-  name: text("Nome", 3, 80, "Digite o nome do agente"),
-  badge: text("Matrícula", 2, 20, "Digite a matrícula"),
-  role: z.enum(AGENT_ROLE_KEYS as [(typeof AGENT_ROLE_KEYS)[number], ...typeof AGENT_ROLE_KEYS], {
-    error: "Função inválida",
-  }),
-  rank: optionalText("Graduação", 40),
-  phone: optionalText("Telefone", 20),
-  shift: z.enum(SHIFT_KEYS as [(typeof SHIFT_KEYS)[number], ...typeof SHIFT_KEYS], {
-    error: "Turno inválido",
-  }),
-  status: z.enum(AGENT_STATUSES, { error: "Situação inválida" }),
-  baseName: text("Base", 2, 80, "Digite o nome da base"),
-  baseNeighborhoodId: neighborhoodId,
-  lat: latitude,
-  lng: longitude,
-  vehicleId: z.number().int().positive().nullable().default(null),
-});
+const agentSchema = (city: CityDataset) =>
+  z
+    .object({
+      name: text("Nome", 3, 80, "Digite o nome do agente"),
+      badge: text("Matrícula", 2, 20, "Digite a matrícula"),
+      role: z.enum(
+        AGENT_ROLE_KEYS as [(typeof AGENT_ROLE_KEYS)[number], ...typeof AGENT_ROLE_KEYS],
+        {
+          error: "Função inválida",
+        },
+      ),
+      agencyId: agencyIdIn(city),
+      rank: optionalText("Graduação", 40),
+      phone: optionalText("Telefone", 20),
+      shift: z.enum(SHIFT_KEYS as [(typeof SHIFT_KEYS)[number], ...typeof SHIFT_KEYS], {
+        error: "Turno inválido",
+      }),
+      status: z.enum(AGENT_STATUSES, { error: "Situação inválida" }),
+      baseName: text("Base", 2, 80, "Digite o nome da base"),
+      baseNeighborhoodId: neighborhoodIdIn(city),
+      lat: latitude,
+      lng: longitude,
+      vehicleId: z.number().int().positive().nullable().default(null),
+    })
+    .superRefine(insideCity(city));
 
-export function parseAgentInput(raw: unknown): AgentInput {
-  const result = agentSchema.safeParse(raw);
+export function parseAgentInput(raw: unknown, city: CityDataset): AgentInput {
+  const result = agentSchema(city).safeParse(raw);
   if (!result.success) {
     throw new ValidationError(issuesFrom(result.error));
   }
   return result.data;
 }
 
-const occurrenceSchema = z.object({
-  kind: z.enum(
-    OCCURRENCE_KIND_KEYS as [(typeof OCCURRENCE_KIND_KEYS)[number], ...typeof OCCURRENCE_KIND_KEYS],
-    {
-      error: "Tipo de ocorrência inválido",
-    },
-  ),
-  severity: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)], {
-    error: "Gravidade inválida",
-  }),
-  neighborhoodId,
-  lat: latitude,
-  lng: longitude,
-  description: text("Descrição", 3, 200, "Descreva a ocorrência"),
-});
+const occurrenceSchema = (city: CityDataset) =>
+  z
+    .object({
+      kind: z.enum(
+        OCCURRENCE_KIND_KEYS as [
+          (typeof OCCURRENCE_KIND_KEYS)[number],
+          ...typeof OCCURRENCE_KIND_KEYS,
+        ],
+        {
+          error: "Tipo de ocorrência inválido",
+        },
+      ),
+      severity: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)], {
+        error: "Gravidade inválida",
+      }),
+      neighborhoodId: neighborhoodIdIn(city),
+      lat: latitude,
+      lng: longitude,
+      description: text("Descrição", 3, 200, "Descreva a ocorrência"),
+    })
+    .superRefine(insideCity(city));
 
-export type OccurrenceInput = z.infer<typeof occurrenceSchema>;
+export type OccurrenceInput = z.infer<ReturnType<typeof occurrenceSchema>>;
 
-export function parseOccurrenceInput(raw: unknown): OccurrenceInput {
-  const result = occurrenceSchema.safeParse(raw);
+export function parseOccurrenceInput(raw: unknown, city: CityDataset): OccurrenceInput {
+  const result = occurrenceSchema(city).safeParse(raw);
   if (!result.success) {
     throw new ValidationError(issuesFrom(result.error));
   }
@@ -271,20 +316,25 @@ export function parseId(raw: string): number | null {
 
 const MAX_SHAPE_POINTS = 1000;
 
-const shapePoint = z.tuple([
-  z
-    .number({ error: "Cada ponto precisa de longitude e latitude" })
-    .min(AREA_BOUNDS.west, { error: "O desenho passou dos limites de Marília" })
-    .max(AREA_BOUNDS.east, { error: "O desenho passou dos limites de Marília" }),
-  z
-    .number({ error: "Cada ponto precisa de longitude e latitude" })
-    .min(AREA_BOUNDS.south, { error: "O desenho passou dos limites de Marília" })
-    .max(AREA_BOUNDS.north, { error: "O desenho passou dos limites de Marília" }),
-]);
-
-const shapeSchema = z.object({
-  polygon: z
-    .array(shapePoint, { error: "Envie a lista de pontos do bairro" })
+function polygonSchema(
+  bounds: [LngLat, LngLat] | null,
+  outside: string,
+  subject: { required: string; few: string; many: string; crossing: string },
+  maxPoints = MAX_SHAPE_POINTS,
+) {
+  const coordinate = (min: number, max: number) =>
+    z
+      .number({ error: "Cada ponto precisa de longitude e latitude" })
+      .min(min, { error: outside })
+      .max(max, { error: outside });
+  const [[west, south], [east, north]] = bounds ?? [
+    [-180, -90],
+    [180, 90],
+  ];
+  return z
+    .array(z.tuple([coordinate(west, east), coordinate(south, north)]), {
+      error: subject.required,
+    })
     .transform((points) => {
       const first = points[0];
       const last = points.at(-1);
@@ -294,44 +344,221 @@ const shapeSchema = z.object({
         ([lng, lat]) => [Number(lng.toFixed(6)), Number(lat.toFixed(6))] as LngLat,
       );
     })
-    .refine((points) => points.length >= 3, { error: "O bairro precisa de ao menos 3 pontos" })
-    .refine((points) => points.length <= MAX_SHAPE_POINTS, {
-      error: `O bairro pode ter no máximo ${MAX_SHAPE_POINTS} pontos`,
-    })
+    .refine((points) => points.length >= 3, { error: subject.few })
+    .refine((points) => points.length <= maxPoints, { error: subject.many })
     .refine((points) => points.length < 3 || isSimplePolygon(points), {
-      error: "As linhas do bairro não podem se cruzar",
-    }),
-});
+      error: subject.crossing,
+    });
+}
 
-export function parseNeighborhoodShape(raw: unknown): LngLat[] {
-  const result = shapeSchema.safeParse(raw);
+const NEIGHBORHOOD_SUBJECT = {
+  required: "Envie a lista de pontos do bairro",
+  few: "O bairro precisa de ao menos 3 pontos",
+  many: `O bairro pode ter no máximo ${MAX_SHAPE_POINTS} pontos`,
+  crossing: "As linhas do bairro não podem se cruzar",
+};
+
+function cityShapeBounds(city: CityDataset): [LngLat, LngLat] {
+  const [[west, south], [east, north]] = boundsOf(city.city.boundary);
+  return [
+    [west - SHAPE_MARGIN_DEGREES, south - SHAPE_MARGIN_DEGREES],
+    [east + SHAPE_MARGIN_DEGREES, north + SHAPE_MARGIN_DEGREES],
+  ];
+}
+
+const shapeSchema = (city: CityDataset) =>
+  z.object({
+    polygon: polygonSchema(
+      cityShapeBounds(city),
+      `O desenho passou dos limites de ${city.city.name}`,
+      NEIGHBORHOOD_SUBJECT,
+    ),
+  });
+
+export function parseNeighborhoodShape(raw: unknown, city: CityDataset): LngLat[] {
+  const result = shapeSchema(city).safeParse(raw);
   if (!result.success) {
     throw new ValidationError(issuesFrom(result.error));
   }
   return result.data.polygon;
 }
 
-const newNeighborhoodSchema = shapeSchema.extend({
-  name: z
-    .string({ error: "Digite o nome do bairro" })
+const name = (required: string, max = 80) =>
+  z
+    .string({ error: required })
     .trim()
-    .min(2, { error: "Digite o nome do bairro" })
-    .max(80, { error: "Use no máximo 80 caracteres" }),
-  regionId: z
-    .string({ error: "Selecione a região" })
-    .refine((value) => city.regions.some((region) => region.id === value), {
-      error: "Selecione uma região da lista",
-    }),
-});
+    .min(2, { error: required })
+    .max(max, { error: `Use no máximo ${max} caracteres` });
 
-export type NewNeighborhood = z.infer<typeof newNeighborhoodSchema>;
+const neighborhoodDetailsSchema = (city: CityDataset) =>
+  z.object({
+    name: name("Digite o nome do bairro"),
+    regionId: z
+      .string({ error: "Selecione a zona" })
+      .refine((value) => city.regions.some((region) => region.id === value), {
+        error: (issue) => (issue.input === "" ? "Selecione a zona" : "Selecione uma zona da lista"),
+      }),
+  });
 
-export function parseNewNeighborhood(raw: unknown): NewNeighborhood {
-  const result = newNeighborhoodSchema.safeParse(raw);
+export type NeighborhoodDetails = z.infer<ReturnType<typeof neighborhoodDetailsSchema>>;
+
+export function parseNeighborhoodDetails(raw: unknown, city: CityDataset): NeighborhoodDetails {
+  const result = neighborhoodDetailsSchema(city).safeParse(raw);
   if (!result.success) {
     throw new ValidationError(issuesFrom(result.error));
   }
   return result.data;
+}
+
+const newNeighborhoodSchema = (city: CityDataset) =>
+  neighborhoodDetailsSchema(city).extend(shapeSchema(city).shape);
+
+export type NewNeighborhood = z.infer<ReturnType<typeof newNeighborhoodSchema>>;
+
+export function parseNewNeighborhood(raw: unknown, city: CityDataset): NewNeighborhood {
+  const result = newNeighborhoodSchema(city).safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data;
+}
+
+function parseName(raw: unknown, required: string): string {
+  const result = z.object({ name: name(required) }).safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data.name;
+}
+
+export function parseRegionName(raw: unknown): string {
+  return parseName(raw, "Digite o nome da zona");
+}
+
+export function parseAgencyName(raw: unknown): string {
+  return parseName(raw, "Digite o nome do órgão");
+}
+
+const MAX_BOUNDARY_POINTS = 5000;
+
+const cityBoundarySchema = z.object({
+  boundary: polygonSchema(
+    null,
+    "Ponto fora do mapa",
+    {
+      required: "Desenhe o limite da cidade no mapa",
+      few: "O limite precisa de ao menos 3 pontos",
+      many: "O limite tem pontos demais; simplifique o desenho",
+      crossing: "As linhas do limite não podem se cruzar",
+    },
+    MAX_BOUNDARY_POINTS,
+  ),
+});
+
+export function parseCityBoundary(raw: unknown): LngLat[] {
+  const result = cityBoundarySchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data.boundary;
+}
+
+const newCitySchema = cityBoundarySchema.extend({
+  center: z.tuple([longitude, latitude]).nullable().default(null),
+  ibgeCode: z
+    .number({ error: "Selecione o município" })
+    .int({ error: "Selecione o município" })
+    .min(1_000_000, { error: "Selecione o município" })
+    .max(9_999_999, { error: "Selecione o município" }),
+  name: name("Selecione o município", 120),
+  uf: z.string({ error: "Selecione a UF" }).refine(isStateCode, { error: "Selecione a UF" }),
+});
+
+export type NewCity = z.infer<typeof newCitySchema>;
+
+export function parseNewCity(raw: unknown): NewCity {
+  const result = newCitySchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data;
+}
+
+const USERNAME = /^[a-z0-9._-]+$/i;
+const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 200;
+
+const password = (required: string) =>
+  z
+    .string({ error: required })
+    .min(1, { error: required })
+    .min(MIN_PASSWORD, { error: `A senha precisa ter ao menos ${MIN_PASSWORD} caracteres` })
+    .max(MAX_PASSWORD, { error: `A senha pode ter no máximo ${MAX_PASSWORD} caracteres` });
+
+const userSchema = z.object({
+  username: z
+    .string({ error: "Digite o usuário" })
+    .trim()
+    .min(1, { error: "Digite o usuário" })
+    .min(3, { error: "O usuário precisa ter ao menos 3 caracteres" })
+    .max(40, { error: "O usuário pode ter no máximo 40 caracteres" })
+    .regex(USERNAME, { error: "Use só letras sem acento, números, ponto, hífen ou sublinhado" }),
+  name: name("Digite o nome"),
+  role: z.enum(USER_ROLES, { error: "Selecione o perfil" }),
+  cityIds: z.array(z.number().int().positive()).default([]),
+  password: password("Digite a senha").nullable().default(null),
+});
+
+export type UserInput = z.infer<typeof userSchema>;
+
+export function parseUserInput(raw: unknown, requirePassword: boolean): UserInput {
+  const result = userSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  if (requirePassword && result.data.password === null) {
+    throw new ValidationError([{ path: "password", message: "Digite a senha" }]);
+  }
+  return result.data;
+}
+
+const loginSchema = z.object({
+  username: z.string({ error: "Digite o usuário" }).trim().min(1, { error: "Digite o usuário" }),
+  password: z
+    .string({ error: "Digite a senha" })
+    .min(1, { error: "Digite a senha" })
+    .max(MAX_PASSWORD, { error: "Usuário ou senha incorretos" }),
+});
+
+export function parseLogin(raw: unknown): { username: string; password: string } {
+  const result = loginSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data;
+}
+
+const passwordChangeSchema = z.object({
+  current: z.string({ error: "Digite a senha atual" }).min(1, { error: "Digite a senha atual" }),
+  next: password("Digite a nova senha"),
+});
+
+export function parsePasswordChange(raw: unknown): { current: string; next: string } {
+  const result = passwordChangeSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data;
+}
+
+export function parseCityChoice(raw: unknown): number {
+  const result = z
+    .object({ cityId: z.number({ error: "Selecione a cidade" }).int().positive() })
+    .safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(issuesFrom(result.error));
+  }
+  return result.data.cityId;
 }
 
 const tagTargetSchema = z.union(

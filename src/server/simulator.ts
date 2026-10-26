@@ -25,7 +25,7 @@ import type {
   EquipmentPosition,
   Occurrence,
 } from "../shared/types.ts";
-import { transaction, type Database } from "./db.ts";
+import type { Database, Queryable } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import { agingFactor, failureRatePerDay, type DemandModel } from "./patterns.ts";
 import { createRandom, type Random } from "./random.ts";
@@ -147,6 +147,23 @@ type Repair = {
 type FlowOverride = { mode: "stuck" | "spike"; until: number };
 type Burst = { neighborhoodId: string; kind: OccurrenceKind; remaining: number };
 
+async function moveAll(
+  q: Queryable,
+  table: "agents" | "equipment",
+  moves: [number, number, number][],
+  now: number,
+): Promise<void> {
+  if (moves.length === 0) {
+    return;
+  }
+  const [lat, lng] = table === "agents" ? ["lat", "lng"] : ["current_lat", "current_lng"];
+  await q.run(
+    `UPDATE ${table} SET ${lat} = t.lat, ${lng} = t.lng, last_seen_at = $4
+     FROM unnest($1::int[], $2::float8[], $3::float8[]) AS t (id, lat, lng) WHERE ${table}.id = t.id`,
+    [moves.map((move) => move[0]), moves.map((move) => move[1]), moves.map((move) => move[2]), now],
+  );
+}
+
 export type Simulator = ReturnType<typeof createSimulator>;
 
 export function createSimulator(
@@ -158,6 +175,7 @@ export function createSimulator(
   options: SimulatorOptions,
 ) {
   const random: Random = createRandom(options.seed);
+  const cityId = city.city.id;
   const multiplier = options.liveMultiplier;
   const journeys = new Map<string, Journey>();
   const resting = new Map<string, number>();
@@ -171,13 +189,18 @@ export function createSimulator(
   let lastSimulatedHour = 0;
   let lastShiftHour = -1;
   let timer: ReturnType<typeof setInterval> | null = null;
+  let running = false;
 
-  for (const row of db.prepare("SELECT equipment_id, base_volume FROM sim_flow_sites").all() as {
-    equipment_id: number;
-    base_volume: number;
-  }[]) {
-    baseVolumes.set(row.equipment_id, row.base_volume);
-  }
+  const loadVolumes = async () => {
+    const rows = await db.query<{ equipment_id: number; base_volume: number }>(
+      "SELECT equipment_id, base_volume FROM sim_flow_sites",
+    );
+    for (const row of rows) {
+      baseVolumes.set(row.equipment_id, row.base_volume);
+    }
+  };
+  let volumesLoaded: Promise<void> | null = null;
+  const ensureVolumes = () => (volumesLoaded ??= loadVolumes());
 
   const regionOf = new Map(city.neighborhoods.map((item) => [item.id, item.regionId]));
   const allNodes = Array.from({ length: roads.nodeCount }, (_, index) => index);
@@ -240,30 +263,19 @@ export function createSimulator(
     return advance(roads, journey, mode, dt);
   }
 
-  function flowVolume(item: Equipment): number {
+  async function flowVolume(q: Queryable, item: Equipment): Promise<number> {
     const known = baseVolumes.get(item.id);
     if (known !== undefined) {
       return known;
     }
     const volume = baseVolumeFor(item.type, "residential", random);
-    db.prepare(
-      "INSERT OR REPLACE INTO sim_flow_sites (equipment_id, base_volume) VALUES (?, ?)",
-    ).run(item.id, volume);
+    await q.run(
+      `INSERT INTO sim_flow_sites (equipment_id, base_volume) VALUES ($1, $2)
+       ON CONFLICT (equipment_id) DO UPDATE SET base_volume = excluded.base_volume`,
+      [item.id, volume],
+    );
     baseVolumes.set(item.id, volume);
     return volume;
-  }
-
-  function addReading(id: number, hourStart: number, count: number): void {
-    if (count <= 0) {
-      db.prepare(
-        "INSERT OR IGNORE INTO readings (equipment_id, hour_start, count) VALUES (?, ?, 0)",
-      ).run(id, hourStart);
-      return;
-    }
-    db.prepare(
-      `INSERT INTO readings (equipment_id, hour_start, count) VALUES (?, ?, ?)
-       ON CONFLICT (equipment_id, hour_start) DO UPDATE SET count = count + excluded.count`,
-    ).run(id, hourStart, count);
   }
 
   function sampleCount(expected: number): number {
@@ -272,44 +284,54 @@ export function createSimulator(
       : Math.max(0, Math.round(random.normal(expected, Math.sqrt(expected))));
   }
 
-  function catchUpReadings(now: number): void {
+  async function catchUpReadings(now: number): Promise<void> {
+    await ensureVolumes();
     const current = startOfHour(now);
-    transaction(db, () => {
-      for (const item of listEquipment(db)) {
+    await db.transaction(async (tx) => {
+      const rows: unknown[][] = [];
+      for (const item of await listEquipment(tx, cityId)) {
         const telemetry = EQUIPMENT_TYPES[item.type].telemetry;
         if ((telemetry !== "flow" && telemetry !== "usage") || item.status !== "operational") {
           continue;
         }
-        const site = { type: item.type, baseVolume: flowVolume(item) };
-        const row = db
-          .prepare("SELECT MAX(hour_start) AS last FROM readings WHERE equipment_id = ?")
-          .get(item.id) as {
-          last: number | null;
-        };
-        const from = Math.max((row.last ?? current - HOUR) + HOUR, current - CATCH_UP_HOURS * HOUR);
+        const site = { type: item.type, baseVolume: await flowVolume(tx, item) };
+        const row = await tx.one<{ last: number | null; current: number | null }>(
+          `SELECT MAX(hour_start) AS last, MAX(count) FILTER (WHERE hour_start = $2) AS current
+           FROM readings WHERE equipment_id = $1`,
+          [item.id, current],
+        );
+        const last = row?.last ?? null;
+        const from = Math.max((last ?? current - HOUR) + HOUR, current - CATCH_UP_HOURS * HOUR);
         for (let hour = from; hour < current; hour += HOUR) {
-          addReading(item.id, hour, sampleCount(expectedReading(site, hour)));
+          rows.push([item.id, hour, sampleCount(expectedReading(site, hour))]);
         }
-        const existing = db
-          .prepare("SELECT count FROM readings WHERE equipment_id = ? AND hour_start = ?")
-          .get(item.id, current) as { count: number } | undefined;
-        if (!existing) {
-          addReading(
+        if (row?.current == null) {
+          rows.push([
             item.id,
             current,
             sampleCount(expectedReading(site, current) * ((now - current) / HOUR)),
-          );
+          ]);
         }
+      }
+      for (let start = 0; start < rows.length; start += 5000) {
+        const slice = rows.slice(start, start + 5000);
+        await tx.run(
+          `INSERT INTO readings (equipment_id, hour_start, count)
+           SELECT * FROM unnest($1::int[], $2::bigint[], $3::int[])
+           ON CONFLICT (equipment_id, hour_start) DO UPDATE SET count = readings.count + excluded.count`,
+          [slice.map((r) => r[0]), slice.map((r) => r[1]), slice.map((r) => r[2])],
+        );
       }
     });
   }
 
-  function createOccurrence(
+  async function createOccurrence(
+    q: Queryable,
     now: number,
     neighborhoodId: string,
     kind: OccurrenceKind,
     equipment: Equipment[],
-  ): Occurrence {
+  ): Promise<Occurrence> {
     let equipmentId: number | null = null;
     const sampled = occurrenceLocation(random, city, neighborhoodId);
     const [lng, lat] = onRoad([sampled.lng, sampled.lat]);
@@ -328,8 +350,8 @@ export function createSimulator(
         location.lat = target.lat;
         location.lng = target.lng;
         if (kind === "traffic_light_out" || random.chance(0.6)) {
-          setEquipmentStatus(
-            db,
+          await setEquipmentStatus(
+            q,
             target.id,
             "malfunction",
             kind === "vandalism" ? "Vandalismo" : "Semáforo apagado",
@@ -344,7 +366,8 @@ export function createSimulator(
         }
       }
     }
-    return insertOccurrence(db, {
+    return insertOccurrence(q, {
+      cityId,
       kind,
       severity: pickSeverity(random, kind),
       neighborhoodId,
@@ -356,7 +379,8 @@ export function createSimulator(
     });
   }
 
-  function tick(now: number): void {
+  async function tick(now: number): Promise<void> {
+    await ensureVolumes();
     const dt = lastTick === 0 ? options.tickMs : Math.min(Math.max(now - lastTick, 0), MAX_TICK_MS);
     lastTick = now;
     const { hour } = localParts(now);
@@ -364,16 +388,17 @@ export function createSimulator(
     const changedEquipment = new Set<number>();
     const changedOccurrences = new Set<number>();
 
-    transaction(db, () => {
+    const change = await db.transaction(async (tx) => {
       if (startOfHour(now) !== lastSimulatedHour) {
         lastSimulatedHour = startOfHour(now);
-        db.prepare("INSERT OR IGNORE INTO simulation_hours (hour_start) VALUES (?)").run(
-          lastSimulatedHour,
+        await tx.run(
+          "INSERT INTO simulation_hours (hour_start) VALUES ($1) ON CONFLICT DO NOTHING",
+          [lastSimulatedHour],
         );
       }
-      const agents = listAgents(db);
-      const equipment = listEquipment(db);
-      const tracked = trackedIds(db);
+      const agents = await listAgents(tx, cityId);
+      const equipment = await listEquipment(tx, cityId);
+      const tracked = await trackedIds(tx);
       const byId = new Map(equipment.map((item) => [item.id, item]));
 
       if (hour !== lastShiftHour) {
@@ -381,29 +406,29 @@ export function createSimulator(
         for (const agent of agents) {
           const onDuty = shiftCovers(agent.shift, hour);
           if (!onDuty && (agent.status === "available" || agent.status === "break")) {
-            updateAgent(agent, { status: "off_duty" }, now);
+            await updateAgent(tx, agent, { status: "off_duty" }, now);
           } else if (onDuty && agent.status === "off_duty") {
-            updateAgent(agent, { status: "available" }, now);
+            await updateAgent(tx, agent, { status: "available" }, now);
           }
         }
       }
 
       for (const agent of agents) {
         if (agent.status === "available" && perTick(40 * MINUTE, dt)) {
-          updateAgent(agent, { status: "break" }, now);
+          await updateAgent(tx, agent, { status: "break" }, now);
         } else if (agent.status === "break" && perTick(4 * MINUTE, dt)) {
-          updateAgent(agent, { status: "available" }, now);
+          await updateAgent(tx, agent, { status: "available" }, now);
         }
       }
 
-      const active = listActiveOccurrences(db);
+      const active = await listActiveOccurrences(tx, cityId);
       for (const neighborhood of city.neighborhoods) {
         for (const kind of OCCURRENCE_KIND_KEYS) {
           const count = random.poisson(
             (demand.rate(neighborhood.id, kind, now) * multiplier * dt) / HOUR,
           );
           for (let index = 0; index < count; index += 1) {
-            const occurrence = createOccurrence(now, neighborhood.id, kind, equipment);
+            const occurrence = await createOccurrence(tx, now, neighborhood.id, kind, equipment);
             active.push(occurrence);
             changedOccurrences.add(occurrence.id);
             if (occurrence.equipmentId !== null) {
@@ -426,7 +451,13 @@ export function createSimulator(
         }
       }
       if (burst && random.chance(0.6)) {
-        const occurrence = createOccurrence(now, burst.neighborhoodId, burst.kind, equipment);
+        const occurrence = await createOccurrence(
+          tx,
+          now,
+          burst.neighborhoodId,
+          burst.kind,
+          equipment,
+        );
         active.push(occurrence);
         changedOccurrences.add(occurrence.id);
         burst.remaining -= 1;
@@ -435,7 +466,7 @@ export function createSimulator(
         }
       }
 
-      const freshAgents = listAgents(db);
+      const freshAgents = await listAgents(tx, cityId);
       const agentById = new Map(freshAgents.map((agent) => [agent.id, agent]));
       for (const occurrence of active) {
         if (occurrence.status !== "open") {
@@ -448,13 +479,13 @@ export function createSimulator(
             age >=
             (OCCURRENCE_KINDS[occurrence.kind].handlingMinutes * 2 * MINUTE) / multiplier
           ) {
-            resolveOccurrence(db, occurrence.id, now);
+            await resolveOccurrence(tx, occurrence.id, now);
             changedOccurrences.add(occurrence.id);
           }
           continue;
         }
         if (age >= STALE_OCCURRENCE_MS) {
-          resolveOccurrence(db, occurrence.id, now);
+          await resolveOccurrence(tx, occurrence.id, now);
           changedOccurrences.add(occurrence.id);
           continue;
         }
@@ -473,10 +504,11 @@ export function createSimulator(
         const nearest = pool.reduce((best, agent) =>
           etaHours(agent) < etaHours(best) ? agent : best,
         );
-        assignOccurrence(db, occurrence.id, nearest.id);
-        db.prepare(
-          "UPDATE agents SET status = 'responding', occurrence_id = ?, updated_at = ? WHERE id = ?",
-        ).run(occurrence.id, now, nearest.id);
+        await assignOccurrence(tx, occurrence.id, nearest.id);
+        await tx.run(
+          "UPDATE agents SET status = 'responding', occurrence_id = $1, updated_at = $2 WHERE id = $3",
+          [occurrence.id, now, nearest.id],
+        );
         agentById.set(nearest.id, {
           ...nearest,
           status: "responding",
@@ -487,12 +519,8 @@ export function createSimulator(
 
       const positions: AgentPosition[] = [];
       const moving: EquipmentPosition[] = [];
-      const updateAgentPosition = db.prepare(
-        "UPDATE agents SET lat = ?, lng = ?, last_seen_at = ? WHERE id = ?",
-      );
-      const updateVehicle = db.prepare(
-        "UPDATE equipment SET current_lat = ?, current_lng = ?, last_seen_at = ? WHERE id = ?",
-      );
+      const agentMoves: [number, number, number][] = [];
+      const vehicleMoves: [number, number, number][] = [];
 
       for (const agent of agentById.values()) {
         if (tracked.agents.has(agent.id)) {
@@ -503,11 +531,12 @@ export function createSimulator(
         const vehicle = agentVehicle(agent, byId);
         const modes = agentModes(vehicle);
         if (agent.status === "responding" && agent.occurrenceId !== null) {
-          const occurrence = getOccurrence(db, agent.occurrenceId);
+          const occurrence = await getOccurrence(tx, cityId, agent.occurrenceId);
           if (!occurrence || occurrence.status === "resolved") {
-            db.prepare(
-              "UPDATE agents SET status = 'available', occurrence_id = NULL, updated_at = ? WHERE id = ?",
-            ).run(now, agent.id);
+            await tx.run(
+              "UPDATE agents SET status = 'available', occurrence_id = NULL, updated_at = $1 WHERE id = $2",
+              [now, agent.id],
+            );
             agent.status = "available";
             agent.occurrenceId = null;
           } else {
@@ -526,12 +555,13 @@ export function createSimulator(
                 now - arrivedAt >=
                 (OCCURRENCE_KINDS[occurrence.kind].handlingMinutes * MINUTE) / multiplier
               ) {
-                resolveOccurrence(db, occurrence.id, now);
+                await resolveOccurrence(tx, occurrence.id, now);
                 arrivals.delete(occurrence.id);
                 changedOccurrences.add(occurrence.id);
-                db.prepare(
-                  "UPDATE agents SET status = 'available', occurrence_id = NULL, updated_at = ? WHERE id = ?",
-                ).run(now, agent.id);
+                await tx.run(
+                  "UPDATE agents SET status = 'available', occurrence_id = NULL, updated_at = $1 WHERE id = $2",
+                  [now, agent.id],
+                );
                 agent.status = "available";
                 agent.occurrenceId = null;
               }
@@ -546,7 +576,7 @@ export function createSimulator(
           position = journeys.get(key)!.position;
         }
         if (position[0] !== agent.lng || position[1] !== agent.lat || agent.status !== "off_duty") {
-          updateAgentPosition.run(position[1], position[0], now, agent.id);
+          agentMoves.push([agent.id, position[1], position[0]]);
         }
         positions.push({
           id: agent.id,
@@ -556,7 +586,7 @@ export function createSimulator(
           occurrenceId: agent.occurrenceId,
         });
         if (vehicle && agent.status !== "off_duty" && !tracked.equipment.has(vehicle.id)) {
-          updateVehicle.run(position[1], position[0], now, vehicle.id);
+          vehicleMoves.push([vehicle.id, position[1], position[0]]);
           moving.push({
             id: vehicle.id,
             lat: position[1],
@@ -566,6 +596,10 @@ export function createSimulator(
         }
       }
 
+      await moveAll(tx, "agents", agentMoves, now);
+      await moveAll(tx, "equipment", vehicleMoves, now);
+
+      const roamers: EquipmentPosition[] = [];
       const assignedVehicles = new Set(
         freshAgents.map((agent) => agent.vehicleId).filter((id) => id !== null),
       );
@@ -607,10 +641,21 @@ export function createSimulator(
           continue;
         }
         const position = journeys.get(key)?.position ?? stored;
-        db.prepare(
-          "UPDATE equipment SET current_lat = ?, current_lng = ?, battery = ? WHERE id = ?",
-        ).run(position[1], position[0], battery, item.id);
+        roamers.push({ id: item.id, lat: position[1], lng: position[0], battery });
         moving.push({ id: item.id, lat: position[1], lng: position[0], battery });
+      }
+      if (roamers.length > 0) {
+        await tx.run(
+          `UPDATE equipment SET current_lat = t.lat, current_lng = t.lng, battery = t.battery
+           FROM unnest($1::int[], $2::float8[], $3::float8[], $4::float8[]) AS t (id, lat, lng, battery)
+           WHERE equipment.id = t.id`,
+          [
+            roamers.map((item) => item.id),
+            roamers.map((item) => item.lat),
+            roamers.map((item) => item.lng),
+            roamers.map((item) => item.battery),
+          ],
+        );
       }
 
       for (const [id, until] of silent) {
@@ -619,8 +664,8 @@ export function createSimulator(
         }
         silent.delete(id);
         if (random.chance(COMMUNICATION_FAILURE_CHANCE) && byId.get(id)?.status === "operational") {
-          setEquipmentStatus(
-            db,
+          await setEquipmentStatus(
+            tx,
             id,
             "malfunction",
             "Perda de comunicação confirmada",
@@ -650,11 +695,12 @@ export function createSimulator(
       }
 
       const silentIds = [...silent.keys()];
-      db.prepare(
-        `UPDATE equipment SET last_seen_at = ? WHERE status IN ('operational', 'maintenance') AND installed_at IS NOT NULL
-         AND id NOT IN (SELECT equipment_id FROM tags WHERE equipment_id IS NOT NULL)
-         ${silentIds.length > 0 ? `AND id NOT IN (${silentIds.join(",")})` : ""}`,
-      ).run(now);
+      await tx.run(
+        `UPDATE equipment SET last_seen_at = $1 WHERE city_id = $2 AND status IN ('operational', 'maintenance')
+         AND installed_at IS NOT NULL AND NOT (id = ANY($3::int[]))
+         AND id NOT IN (SELECT equipment_id FROM tags WHERE equipment_id IS NOT NULL)`,
+        [now, cityId, silentIds],
+      );
 
       for (const item of equipment) {
         if (
@@ -687,18 +733,18 @@ export function createSimulator(
           agingFactor(item.type, now, options.seededAt),
         );
         if (random.chance((rate * multiplier * dt) / DAY)) {
-          setEquipmentStatus(
-            db,
+          await setEquipmentStatus(
+            tx,
             item.id,
             "malfunction",
             "Falha detectada pela telemetria",
             now,
             "immediate",
           );
-          db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
+          await tx.run("UPDATE equipment SET maintenance_notes = $1 WHERE id = $2", [
             "Falha detectada pela telemetria. Equipe técnica precisa ir ao local.",
             item.id,
-          );
+          ]);
           repairs.set(item.id, {
             phase: "malfunction",
             until: now + ((0.5 + random.next() * 3) * DAY) / multiplier,
@@ -712,31 +758,31 @@ export function createSimulator(
         if (now < repair.until) {
           continue;
         }
-        const item = getEquipment(db, id);
+        const item = await getEquipment(tx, id);
         if (item?.status !== repair.phase) {
           repairs.delete(id);
           continue;
         }
         if (repair.phase === "stolen") {
-          setEquipmentStatus(db, id, "operational", "Equipamento reposto", now, "none");
+          await setEquipmentStatus(tx, id, "operational", "Equipamento reposto", now, "none");
           const interval =
             item.maintenanceIntervalDays ?? EQUIPMENT_TYPES[item.type].maintenanceIntervalDays;
-          completeMaintenance(db, id, today, addDays(today, interval), now);
-          db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
+          await completeMaintenance(tx, id, today, addDays(today, interval), now);
+          await tx.run("UPDATE equipment SET maintenance_notes = $1 WHERE id = $2", [
             "Equipamento novo instalado no lugar do furtado.",
             id,
-          );
+          ]);
           repairs.delete(id);
         } else if (repair.phase === "malfunction") {
-          setEquipmentStatus(db, id, "maintenance", "Equipe técnica iniciou o reparo", now);
+          await setEquipmentStatus(tx, id, "maintenance", "Equipe técnica iniciou o reparo", now);
           repairs.set(id, {
             phase: "maintenance",
             until: now + ((4 + random.next() * 26) * HOUR) / multiplier,
             preventive: false,
           });
         } else {
-          setEquipmentStatus(
-            db,
+          await setEquipmentStatus(
+            tx,
             id,
             "operational",
             repair.preventive ? "Manutenção preventiva concluída" : "Reparo concluído",
@@ -744,11 +790,11 @@ export function createSimulator(
           );
           const interval =
             item.maintenanceIntervalDays ?? EQUIPMENT_TYPES[item.type].maintenanceIntervalDays;
-          completeMaintenance(db, id, today, addDays(today, interval), now);
-          db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
+          await completeMaintenance(tx, id, today, addDays(today, interval), now);
+          await tx.run("UPDATE equipment SET maintenance_notes = $1 WHERE id = $2", [
             `Manutenção preventiva a cada ${interval} dias.`,
             id,
-          );
+          ]);
           repairs.delete(id);
         }
         changedEquipment.add(id);
@@ -763,7 +809,14 @@ export function createSimulator(
         );
         if (due.length > 0) {
           const item = random.pick(due);
-          setEquipmentStatus(db, item.id, "maintenance", "Manutenção preventiva", now, "scheduled");
+          await setEquipmentStatus(
+            tx,
+            item.id,
+            "maintenance",
+            "Manutenção preventiva",
+            now,
+            "scheduled",
+          );
           repairs.set(item.id, {
             phase: "maintenance",
             until: now + ((2 + random.next() * 4) * HOUR) / multiplier,
@@ -779,11 +832,11 @@ export function createSimulator(
           THEFT_PRONE.has(item.type) &&
           random.chance((THEFT_RATE_PER_DAY * multiplier * dt) / DAY)
         ) {
-          setEquipmentStatus(db, item.id, "stolen", "Furto registrado", now, "immediate");
-          db.prepare("UPDATE equipment SET maintenance_notes = ? WHERE id = ?").run(
+          await setEquipmentStatus(tx, item.id, "stolen", "Furto registrado", now, "immediate");
+          await tx.run("UPDATE equipment SET maintenance_notes = $1 WHERE id = $2", [
             "Equipamento furtado. Registrar boletim e programar a reposição.",
             item.id,
-          );
+          ]);
           changedEquipment.add(item.id);
         }
       }
@@ -797,9 +850,13 @@ export function createSimulator(
           !silent.has(item.id)
         );
       });
+      const volumes = new Map<number, number>();
+      for (const item of flowItems) {
+        volumes.set(item.id, await flowVolume(tx, item));
+      }
       if (perTick(7 * MINUTE, dt)) {
         const candidates = flowItems.filter(
-          (item) => flowVolume(item) >= ANOMALY_MIN_VOLUME && !overrides.has(item.id),
+          (item) => volumes.get(item.id)! >= ANOMALY_MIN_VOLUME && !overrides.has(item.id),
         );
         if (candidates.length > 0) {
           overrides.set(random.pick(candidates).id, {
@@ -808,6 +865,7 @@ export function createSimulator(
           });
         }
       }
+      const counts: number[] = [];
       for (const item of flowItems) {
         const override = overrides.get(item.id);
         if (override && now >= override.until) {
@@ -815,11 +873,18 @@ export function createSimulator(
         }
         const current = overrides.get(item.id);
         const expected =
-          (expectedReading({ type: item.type, baseVolume: flowVolume(item) }, hourStart) * dt) /
+          (expectedReading({ type: item.type, baseVolume: volumes.get(item.id)! }, hourStart) *
+            dt) /
           HOUR;
         const factor = current?.mode === "stuck" ? 0 : current?.mode === "spike" ? 3 : 1;
-        addReading(item.id, hourStart, sampleCount(expected * factor));
+        counts.push(sampleCount(expected * factor));
       }
+      await tx.run(
+        `INSERT INTO readings (equipment_id, hour_start, count)
+         SELECT id, $2, count FROM unnest($1::int[], $3::int[]) AS t (id, count)
+         ON CONFLICT (equipment_id, hour_start) DO UPDATE SET count = readings.count + excluded.count`,
+        [flowItems.map((item) => item.id), hourStart, counts],
+      );
 
       for (const id of changedEquipment) {
         if (!byId.has(id)) {
@@ -827,39 +892,40 @@ export function createSimulator(
         }
       }
 
-      const equipmentChanges = [...changedEquipment]
-        .map((id) => getEquipment(db, id))
-        .filter((item): item is Equipment => item !== null);
-      const occurrenceChanges = [...changedOccurrences]
-        .map((id) => getOccurrence(db, id))
-        .filter((item): item is Occurrence => item !== null);
+      const equipmentChanges = (
+        await Promise.all([...changedEquipment].map((id) => getEquipment(tx, id)))
+      ).filter((item): item is Equipment => item !== null);
+      const occurrenceChanges = (
+        await Promise.all([...changedOccurrences].map((id) => getOccurrence(tx, cityId, id)))
+      ).filter((item): item is Occurrence => item !== null);
 
-      queueMicrotask(() =>
-        hub.publish(
-          {
-            agents: positions,
-            movingEquipment: moving,
-            equipment: equipmentChanges,
-            occurrences: occurrenceChanges,
-          },
-          now,
-        ),
-      );
+      return {
+        agents: positions,
+        movingEquipment: moving,
+        equipment: equipmentChanges,
+        occurrences: occurrenceChanges,
+      };
     });
+    await hub.publish(change, now);
   }
 
-  function updateAgent(agent: Agent, change: { status: Agent["status"] }, now: number): void {
-    db.prepare("UPDATE agents SET status = ?, updated_at = ? WHERE id = ?").run(
+  async function updateAgent(
+    q: Queryable,
+    agent: Agent,
+    change: { status: Agent["status"] },
+    now: number,
+  ): Promise<void> {
+    await q.run("UPDATE agents SET status = $1, updated_at = $2 WHERE id = $3", [
       change.status,
       now,
       agent.id,
-    );
+    ]);
     agent.status = change.status;
     if (change.status === "off_duty") {
       const base = city.neighborhoods.find((item) => item.id === agent.baseNeighborhoodId);
       if (base) {
         const [lng, lat] = onRoad([base.lng, base.lat]);
-        db.prepare("UPDATE agents SET lat = ?, lng = ? WHERE id = ?").run(lat, lng, agent.id);
+        await q.run("UPDATE agents SET lat = $1, lng = $2 WHERE id = $3", [lat, lng, agent.id]);
         agent.lat = lat;
         agent.lng = lng;
       }
@@ -869,9 +935,19 @@ export function createSimulator(
   return {
     tick,
     catchUpReadings,
-    start: () => {
-      catchUpReadings(Date.now());
-      timer = setInterval(() => tick(Date.now()), options.tickMs);
+    start: async () => {
+      await catchUpReadings(Date.now());
+      timer = setInterval(() => {
+        if (running) {
+          return;
+        }
+        running = true;
+        tick(Date.now())
+          .catch((error: unknown) => console.error(error))
+          .finally(() => {
+            running = false;
+          });
+      }, options.tickMs);
     },
     stop: () => {
       if (timer) {

@@ -1,11 +1,4 @@
-import {
-  AGENT_ROLES,
-  EQUIPMENT_TYPES,
-  type Agency,
-  type AgentRole,
-  type EquipmentType,
-  type Shift,
-} from "../../shared/catalog.ts";
+import { type AgentRole, type EquipmentType, type Shift } from "../../shared/catalog.ts";
 import { closestArea, distanceKm, pointInPolygon } from "../../shared/geo.ts";
 import type {
   AgentInput,
@@ -16,6 +9,35 @@ import type {
 } from "../../shared/types.ts";
 import type { Random } from "../random.ts";
 import { BRANDS, FIRST_NAMES, LAST_NAMES, SERIAL_PREFIX } from "./texts.ts";
+
+export const SEED_AGENCIES = {
+  mobility: "Secretaria de Mobilidade Urbana",
+  municipal_guard: "Guarda Civil Municipal",
+  military_police: "Polícia Militar",
+  operator: "Concessionária",
+} as const;
+export type SeedAgency = keyof typeof SEED_AGENCIES;
+
+const TYPE_AGENCY: Record<EquipmentType, SeedAgency> = {
+  radar: "mobility",
+  camera: "municipal_guard",
+  truck_scale: "mobility",
+  smart_traffic_light: "mobility",
+  automated_gate: "mobility",
+  parking_kiosk: "mobility",
+  parking_enforcement_vehicle: "mobility",
+  transport_vehicle: "operator",
+  e_scooter: "operator",
+  agent_motorcycle: "mobility",
+  patrol_vehicle: "municipal_guard",
+  variable_message_sign: "mobility",
+};
+
+const ROLE_AGENCY: Record<AgentRole, SeedAgency> = {
+  traffic_agent: "mobility",
+  municipal_guard: "municipal_guard",
+  military_police: "military_police",
+};
 
 type Placement = "major" | "commercial" | "any" | "center" | "poi";
 
@@ -49,7 +71,7 @@ export type EquipmentSeed = {
   serialNumber: string;
   brand: string;
   model: string;
-  agency: Agency;
+  agency: SeedAgency;
   cep: string;
   street: string;
   reference: string;
@@ -163,10 +185,8 @@ export function createInventory(city: CityDataset, random: Random): EquipmentSee
       usedSerials.add(serialNumber);
 
       const attributes = attributesFor(type, random);
-      const agency: Agency =
-        type === "patrol_vehicle" && random.chance(0.45)
-          ? "military_police"
-          : EQUIPMENT_TYPES[type].defaultAgency;
+      const agency: SeedAgency =
+        type === "patrol_vehicle" && random.chance(0.45) ? "military_police" : TYPE_AGENCY[type];
       if (type === "patrol_vehicle") {
         attributes["prefix"] =
           `${agency === "military_police" ? "PM" : "GCM"}-${random.int(100, 999)}`;
@@ -282,14 +302,16 @@ const ROLE_PLAN: { role: AgentRole; count: number; ranks: string[] }[] = [
   { role: "military_police", count: 16, ranks: ["Soldado", "Cabo", "3º Sargento", "Tenente"] },
 ];
 
+export type AgentSeed = Omit<AgentInput, "agencyId"> & { agency: SeedAgency };
+
 export function createAgents(
   city: CityDataset,
   random: Random,
-  vehicles: { id: number; type: EquipmentType; agency: Agency }[],
-): AgentInput[] {
+  vehicles: { id: number; type: EquipmentType; agency: SeedAgency }[],
+): AgentSeed[] {
   const usedNames = new Set<string>();
   const freeVehicles = [...vehicles];
-  const agents: AgentInput[] = [];
+  const agents: AgentSeed[] = [];
   let badgeCounter = 1000;
 
   for (const { role, count, ranks } of ROLE_PLAN) {
@@ -317,7 +339,7 @@ export function createAgents(
         military_police: `Base PM ${regionName}`,
       }[role];
 
-      const agency = AGENT_ROLES[role].agency;
+      const agency = ROLE_AGENCY[role];
       const vehicleIndex = freeVehicles.findIndex((vehicle) =>
         role === "traffic_agent"
           ? vehicle.type === "agent_motorcycle"
@@ -333,6 +355,7 @@ export function createAgents(
         name,
         badge: `${{ traffic_agent: "AT", municipal_guard: "GCM", military_police: "PM" }[role]}-${badgeCounter}`,
         role,
+        agency,
         rank: random.pick(ranks),
         phone: `(14) 9${random.int(8000, 9999)}-${String(random.int(0, 9999)).padStart(4, "0")}`,
         shift: random.weighted(

@@ -6,7 +6,7 @@ import type { StatusEventRecord } from "./failures.ts";
 import type { OccurrenceRecord } from "./risk.ts";
 import { buildTrends, gapDays } from "./trends.ts";
 
-const regions: Region[] = [{ id: "center", name: "Centro", polygon: [] }];
+const regions: Region[] = [{ id: "center", name: "Centro" }];
 const neighborhoods: Neighborhood[] = [
   { id: "a", name: "Jardim A", regionId: "center", lat: 0, lng: 0, polygon: [] },
   { id: "b", name: "Jardim B", regionId: "center", lat: 0, lng: 0, polygon: [] },

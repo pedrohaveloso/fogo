@@ -5,6 +5,7 @@ import { formatRelative, formatTime } from "../format.ts";
 import { useFetch } from "../useFetch.ts";
 import { visitBaseline } from "../visit.ts";
 import { InlineLoading } from "./LoadingNotice.tsx";
+import { cityPath } from "../cityScope.ts";
 
 const REFRESH_MS = 30_000;
 const SHOWN = 30;
@@ -31,7 +32,7 @@ function sinceSummary(items: ActivityItem[]): string {
 }
 
 export function ActivityPanel({ now, onOpen }: { now: number; onOpen: (target: Target) => void }) {
-  const { data, error, reload } = useFetch<ActivityFeed>("/activity", REFRESH_MS);
+  const { data, error, reload } = useFetch<ActivityFeed>(cityPath("/activity"), REFRESH_MS);
   const [all, setAll] = useState(false);
   const baseline = visitBaseline();
 

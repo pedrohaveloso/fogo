@@ -22,5 +22,8 @@ export default defineConfig({
     root: projectRoot,
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
+    globalSetup: ["src/server/test-setup.ts"],
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
   },
 });

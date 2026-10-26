@@ -1,5 +1,4 @@
 import type {
-  Agency,
   AgentRole,
   AgentStatus,
   EquipmentStatus,
@@ -19,14 +18,13 @@ export type Equipment = {
   serialNumber: string;
   brand: string;
   model: string;
-  agency: Agency;
+  agencyId: number;
   status: EquipmentStatus;
   cep: string;
   street: string;
   reference: string;
   neighborhoodId: string;
-  city: string;
-  uf: string;
+  cityId: number;
   lat: number;
   lng: number;
   currentLat: number | null;
@@ -51,10 +49,11 @@ export type EquipmentInput = Omit<
 
 export type Agent = {
   id: number;
+  cityId: number;
   name: string;
   badge: string;
   role: AgentRole;
-  agency: Agency;
+  agencyId: number;
   rank: string;
   phone: string;
   shift: Shift;
@@ -72,7 +71,7 @@ export type Agent = {
 
 export type AgentInput = Omit<
   Agent,
-  "id" | "createdAt" | "updatedAt" | "lastSeenAt" | "occurrenceId" | "agency"
+  "id" | "createdAt" | "updatedAt" | "lastSeenAt" | "occurrenceId" | "cityId"
 >;
 
 export type OccurrenceStatus = "open" | "responding" | "resolved";
@@ -184,7 +183,9 @@ export type StreamTick = {
   metaChanged: boolean;
 };
 
-export type Region = { id: string; name: string; polygon: LngLat[] };
+export type Region = { id: string; name: string };
+
+export type Agency = { id: number; name: string };
 
 export type Neighborhood = {
   id: string;
@@ -229,14 +230,51 @@ export type PointOfInterest = {
   neighborhoodId: string;
 };
 
+export type CityInfo = {
+  id: number;
+  name: string;
+  uf: string;
+  ibgeCode: number;
+  center: LngLat;
+  boundary: LngLat[];
+  simulated: boolean;
+};
+
 export type CityDataset = {
-  source: string;
-  generatedAt: string;
-  city: { name: string; uf: string; center: LngLat; boundary: LngLat[] };
+  city: CityInfo;
   regions: Region[];
   neighborhoods: Neighborhood[];
   streets: Street[];
   pois: PointOfInterest[];
+  agencies: Agency[];
+};
+
+export type CitySummary = Pick<CityInfo, "id" | "name" | "uf" | "ibgeCode" | "simulated">;
+
+export type CityDetail = CitySummary & {
+  center: LngLat;
+  boundary: LngLat[];
+  equipment: number;
+  agents: number;
+  neighborhoods: number;
+};
+
+export type Municipality = { ibgeCode: number; name: string };
+
+export type BoundaryLookup = { center: LngLat; boundary: LngLat[] };
+
+export const USER_ROLES = ["admin", "user"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export type SessionUser = { id: number; username: string; name: string; role: UserRole };
+
+export type User = SessionUser & { cityIds: number[]; createdAt: string; updatedAt: string };
+
+export type Session = {
+  mode: RunMode;
+  user: SessionUser | null;
+  cities: CitySummary[];
+  cityId: number | null;
 };
 
 export const RUN_MODES = ["simulation", "production"] as const;
@@ -247,9 +285,10 @@ export type Landmark = { name: string; kind: string; lat: number; lng: number };
 export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
 
 export type Meta = {
-  city: CityDataset["city"];
+  city: CityInfo;
   regions: Region[];
   neighborhoods: Neighborhood[];
+  agencies: Agency[];
   landmarks: Landmark[];
   streets: StreetPlace[];
   serverTime: string;
@@ -262,7 +301,7 @@ export type AddressLookup = {
   street: string;
   neighborhoodId: string | null;
   neighborhoodName: string;
-  city: string;
+  cityName: string;
   uf: string;
   lat: number | null;
   lng: number | null;

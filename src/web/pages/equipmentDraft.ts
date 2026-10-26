@@ -1,6 +1,5 @@
 import {
   EQUIPMENT_TYPES,
-  type Agency,
   type EquipmentStatus,
   type EquipmentType,
   type MaintenanceNeed,
@@ -12,15 +11,14 @@ export type Draft = {
   serialNumber: string;
   brand: string;
   model: string;
-  agency: Agency;
+  agencyId: string;
   status: EquipmentStatus;
   installedAt: string;
   cep: string;
   street: string;
   reference: string;
   neighborhoodId: string;
-  city: string;
-  uf: string;
+  cityId: number | null;
   lat: string;
   lng: string;
   maintenanceNeed: MaintenanceNeed;
@@ -36,14 +34,14 @@ export const LABELS: Record<string, string> = {
   serialNumber: "Número de série",
   brand: "Marca",
   model: "Modelo",
-  agency: "Órgão responsável",
+  agencyId: "Órgão responsável",
   status: "Situação",
   installedAt: "Data de instalação",
   cep: "CEP",
   street: "Rua",
   reference: "Referência",
   neighborhoodId: "Bairro",
-  city: "Cidade",
+  cityId: "Cidade",
   uf: "UF",
   lat: "Latitude",
   lng: "Longitude",
@@ -62,22 +60,21 @@ export const REFERENCE_SUGGESTIONS = [
   "S/N",
 ];
 
-export function emptyDraft(type: EquipmentType): Draft {
+export function emptyDraft(type: EquipmentType, cityId: number | null): Draft {
   const spec = EQUIPMENT_TYPES[type];
   return {
     type,
     serialNumber: "",
     brand: "",
     model: "",
-    agency: spec.defaultAgency,
+    agencyId: "",
     status: "not_installed",
     installedAt: "",
     cep: "",
     street: "",
     reference: "",
     neighborhoodId: "",
-    city: "Marília",
-    uf: "SP",
+    cityId,
     lat: "",
     lng: "",
     maintenanceNeed: "none",
@@ -95,15 +92,14 @@ export function fromEquipment(item: Equipment): Draft {
     serialNumber: item.serialNumber,
     brand: item.brand,
     model: item.model,
-    agency: item.agency,
+    agencyId: String(item.agencyId),
     status: item.status,
     installedAt: item.installedAt ?? "",
     cep: item.cep,
     street: item.street,
     reference: item.reference,
     neighborhoodId: item.neighborhoodId,
-    city: item.city,
-    uf: item.uf,
+    cityId: item.cityId,
     lat: String(item.lat),
     lng: String(item.lng),
     maintenanceNeed: item.maintenanceNeed,
@@ -135,6 +131,7 @@ export function toPayload(draft: Draft) {
   }
   return {
     ...draft,
+    agencyId: toNumber(draft.agencyId),
     lat: toNumber(draft.lat),
     lng: toNumber(draft.lng),
     installedAt: toDate(draft.installedAt),

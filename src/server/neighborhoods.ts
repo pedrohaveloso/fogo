@@ -1,35 +1,28 @@
 import { centroid, pointInPolygon, type LngLat } from "../shared/geo.ts";
 import { fold } from "../shared/text.ts";
-import type { CityDataset, Neighborhood, NeighborhoodShape } from "../shared/types.ts";
-import { transaction, type Database } from "./db.ts";
-import type { NewNeighborhood } from "./validation.ts";
+import type { CityDataset, NeighborhoodShape, Region } from "../shared/types.ts";
+import { findNeighborhood, reloadCity } from "./city.ts";
+import type { Database } from "./db.ts";
+import type { NeighborhoodDetails, NewNeighborhood } from "./validation.ts";
 
 type ShapeRow = {
-  neighborhood_id: string;
-  polygon: string;
-  lat: number;
-  lng: number;
-  edited: number;
+  id: string;
+  edited: boolean;
+  original_polygon: LngLat[] | null;
+  original_lat: number | null;
+  original_lng: number | null;
   updated_at: number;
 };
-
-type CustomRow = { id: string; name: string; region_id: string };
 
 export class NeighborhoodNameTakenError extends Error {}
 
 export class NeighborhoodInUseError extends Error {}
 
-export type NeighborhoodShapes = ReturnType<typeof createNeighborhoodShapes>;
+export class RegionNameTakenError extends Error {}
 
-export function storeDefaultShapes(db: Database, city: CityDataset, now: number): void {
-  const insert = db.prepare(
-    `INSERT INTO neighborhood_shapes (neighborhood_id, polygon, lat, lng, edited, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?) ON CONFLICT (neighborhood_id) DO NOTHING`,
-  );
-  for (const item of city.neighborhoods) {
-    insert.run(item.id, JSON.stringify(item.polygon), item.lat, item.lng, now);
-  }
-}
+export class RegionInUseError extends Error {}
+
+export type NeighborhoodShapes = ReturnType<typeof createNeighborhoodShapes>;
 
 function anchorFor(polygon: LngLat[], current: LngLat): LngLat {
   if (pointInPolygon(current, polygon)) {
@@ -39,11 +32,11 @@ function anchorFor(polygon: LngLat[], current: LngLat): LngLat {
   return [Number(lng.toFixed(6)), Number(lat.toFixed(6))];
 }
 
-export function slugFor(name: string, taken: (id: string) => boolean): string {
+export function slugFor(name: string, fallback: string, taken: (id: string) => boolean): string {
   const base =
     fold(name)
       .replaceAll(/[^a-z0-9]+/g, "-")
-      .replaceAll(/^-|-$/g, "") || "bairro";
+      .replaceAll(/^-|-$/g, "") || fallback;
   let id = base;
   for (let suffix = 2; taken(id); suffix += 1) {
     id = `${base}-${suffix}`;
@@ -52,154 +45,183 @@ export function slugFor(name: string, taken: (id: string) => boolean): string {
 }
 
 export function createNeighborhoodShapes(db: Database, city: CityDataset) {
-  const defaults = new Map(
-    city.neighborhoods.map((item) => [
-      item.id,
-      { polygon: item.polygon, anchor: [item.lng, item.lat] as LngLat },
-    ]),
-  );
-  const byId = new Map(city.neighborhoods.map((item) => [item.id, item]));
+  const cityId = () => city.city.id;
+  const reload = () => reloadCity(db, city);
 
-  function rows(): ShapeRow[] {
-    return db.prepare("SELECT * FROM neighborhood_shapes").all() as ShapeRow[];
+  async function rows(): Promise<Map<string, ShapeRow>> {
+    const found = await db.query<ShapeRow>(
+      `SELECT id, original_polygon IS NOT NULL AND original_polygon <> polygon AS edited,
+       original_polygon, original_lat, original_lng, updated_at
+       FROM neighborhoods WHERE city_id = $1`,
+      [cityId()],
+    );
+    return new Map(found.map((row) => [row.id, row]));
   }
 
-  function apply(row: ShapeRow): void {
-    const neighborhood = byId.get(row.neighborhood_id);
-    if (neighborhood) {
-      neighborhood.polygon = JSON.parse(row.polygon) as LngLat[];
-      neighborhood.lat = row.lat;
-      neighborhood.lng = row.lng;
-    }
+  async function list(): Promise<NeighborhoodShape[]> {
+    const stored = await rows();
+    return city.neighborhoods.map((item) => {
+      const row = stored.get(item.id);
+      return {
+        ...item,
+        edited: row?.edited ?? false,
+        custom: row?.original_polygon == null,
+        updatedAt: row ? new Date(row.updated_at).toISOString() : null,
+      };
+    });
   }
 
-  function rowOf(id: string): ShapeRow | undefined {
-    return db.prepare("SELECT * FROM neighborhood_shapes WHERE neighborhood_id = ?").get(id) as
-      | ShapeRow
-      | undefined;
+  async function shapeOf(id: string): Promise<NeighborhoodShape | null> {
+    return (await list()).find((item) => item.id === id) ?? null;
   }
 
-  function adopt(row: CustomRow): void {
-    if (byId.has(row.id)) {
-      return;
-    }
-    const neighborhood: Neighborhood = {
-      id: row.id,
-      name: row.name,
-      regionId: row.region_id,
-      lat: 0,
-      lng: 0,
-      polygon: [],
-    };
-    city.neighborhoods.push(neighborhood);
-    byId.set(row.id, neighborhood);
+  async function write(
+    id: string,
+    polygon: LngLat[],
+    anchor: LngLat,
+    now: number,
+  ): Promise<NeighborhoodShape> {
+    await db.run(
+      "UPDATE neighborhoods SET polygon = $1, lat = $2, lng = $3, updated_at = $4 WHERE id = $5",
+      [JSON.stringify(polygon), anchor[1], anchor[0], now, id],
+    );
+    await reload();
+    return (await shapeOf(id))!;
   }
 
-  function load(now: number): void {
-    for (const row of db.prepare("SELECT * FROM custom_neighborhoods").all() as CustomRow[]) {
-      adopt(row);
-    }
-    storeDefaultShapes(db, city, now);
-    for (const row of rows()) {
-      apply(row);
-    }
-  }
-
-  function toShape(neighborhood: Neighborhood, row: ShapeRow | undefined): NeighborhoodShape {
-    return {
-      ...neighborhood,
-      edited: row?.edited === 1,
-      custom: !defaults.has(neighborhood.id),
-      updatedAt: row ? new Date(row.updated_at).toISOString() : null,
-    };
-  }
-
-  function list(): NeighborhoodShape[] {
-    const stored = new Map(rows().map((row) => [row.neighborhood_id, row]));
-    return city.neighborhoods.map((item) => toShape(item, stored.get(item.id)));
-  }
-
-  function write(id: string, polygon: LngLat[], anchor: LngLat, edited: boolean, now: number) {
-    db.prepare(
-      `INSERT INTO neighborhood_shapes (neighborhood_id, polygon, lat, lng, edited, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT (neighborhood_id) DO UPDATE SET polygon = excluded.polygon, lat = excluded.lat,
-       lng = excluded.lng, edited = excluded.edited, updated_at = excluded.updated_at`,
-    ).run(id, JSON.stringify(polygon), anchor[1], anchor[0], edited ? 1 : 0, now);
-    const row = rowOf(id)!;
-    apply(row);
-    return toShape(byId.get(id)!, row);
-  }
-
-  function save(id: string, polygon: LngLat[], now: number): NeighborhoodShape | null {
-    const neighborhood = byId.get(id);
+  async function save(
+    id: string,
+    polygon: LngLat[],
+    now: number,
+  ): Promise<NeighborhoodShape | null> {
+    const neighborhood = findNeighborhood(city, id);
     if (!neighborhood) {
       return null;
     }
-    const edited = defaults.has(id);
-    return write(
-      id,
-      polygon,
-      anchorFor(polygon, [neighborhood.lng, neighborhood.lat]),
-      edited,
-      now,
-    );
+    return write(id, polygon, anchorFor(polygon, [neighborhood.lng, neighborhood.lat]), now);
   }
 
-  function reset(id: string, now: number): NeighborhoodShape | null {
-    const original = defaults.get(id);
-    if (!original) {
+  async function reset(id: string, now: number): Promise<NeighborhoodShape | null> {
+    const row = (await rows()).get(id);
+    if (!row || row.original_polygon === null) {
       return null;
     }
-    return write(id, original.polygon, original.anchor, false, now);
+    return write(id, row.original_polygon, [row.original_lng!, row.original_lat!], now);
   }
 
-  function create(input: NewNeighborhood, now: number): NeighborhoodShape {
-    const name = fold(input.name);
-    if (city.neighborhoods.some((item) => fold(item.name) === name)) {
+  function nameTaken(name: string, exceptId: string | null): boolean {
+    const folded = fold(name);
+    return city.neighborhoods.some((item) => item.id !== exceptId && fold(item.name) === folded);
+  }
+
+  async function freeId(table: "neighborhoods" | "regions", name: string, fallback: string) {
+    const base = slugFor(name, fallback, () => false);
+    const taken = new Set(
+      (
+        await db.query<{ id: string }>(`SELECT id FROM ${table} WHERE id = $1 OR id LIKE $2`, [
+          base,
+          `${base}-%`,
+        ])
+      ).map((row) => row.id),
+    );
+    return slugFor(name, fallback, (candidate) => taken.has(candidate));
+  }
+
+  async function create(input: NewNeighborhood, now: number): Promise<NeighborhoodShape> {
+    if (nameTaken(input.name, null)) {
       throw new NeighborhoodNameTakenError();
     }
-    const id = slugFor(input.name, (candidate) => byId.has(candidate));
-    return transaction(db, () => {
-      db.prepare(
-        "INSERT INTO custom_neighborhoods (id, name, region_id, created_at) VALUES (?, ?, ?, ?)",
-      ).run(id, input.name, input.regionId, now);
-      adopt({ id, name: input.name, region_id: input.regionId });
-      return write(
-        id,
-        input.polygon,
-        anchorFor(input.polygon, centroid(input.polygon)),
-        false,
-        now,
-      );
-    });
+    const id = await freeId("neighborhoods", input.name, "bairro");
+    const [lng, lat] = anchorFor(input.polygon, centroid(input.polygon));
+    await db.run(
+      `INSERT INTO neighborhoods (id, city_id, region_id, name, polygon, lat, lng, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`,
+      [id, cityId(), input.regionId, input.name, JSON.stringify(input.polygon), lat, lng, now],
+    );
+    await reload();
+    return (await shapeOf(id))!;
   }
 
-  function remove(id: string): boolean {
-    if (defaults.has(id) || !byId.has(id)) {
+  async function update(
+    id: string,
+    input: NeighborhoodDetails,
+    now: number,
+  ): Promise<NeighborhoodShape | null> {
+    if (!findNeighborhood(city, id)) {
+      return null;
+    }
+    if (nameTaken(input.name, id)) {
+      throw new NeighborhoodNameTakenError();
+    }
+    await db.run(
+      "UPDATE neighborhoods SET name = $1, region_id = $2, updated_at = $3 WHERE id = $4",
+      [input.name, input.regionId, now, id],
+    );
+    await reload();
+    return shapeOf(id);
+  }
+
+  async function remove(id: string): Promise<boolean> {
+    if (!findNeighborhood(city, id)) {
       return false;
     }
-    const { total } = db
-      .prepare(
-        `SELECT (SELECT COUNT(*) FROM equipment WHERE neighborhood_id = ?)
-          + (SELECT COUNT(*) FROM agents WHERE base_neighborhood_id = ?)
-          + (SELECT COUNT(*) FROM occurrences WHERE neighborhood_id = ?) AS total`,
-      )
-      .get(id, id, id) as { total: number };
+    const { total } = (await db.one<{ total: number }>(
+      `SELECT (SELECT COUNT(*) FROM equipment WHERE neighborhood_id = $1)
+        + (SELECT COUNT(*) FROM agents WHERE base_neighborhood_id = $1)
+        + (SELECT COUNT(*) FROM occurrences WHERE neighborhood_id = $1) AS total`,
+      [id],
+    ))!;
     if (total > 0) {
       throw new NeighborhoodInUseError();
     }
-    transaction(db, () => {
-      db.prepare("DELETE FROM neighborhood_shapes WHERE neighborhood_id = ?").run(id);
-      db.prepare("DELETE FROM custom_neighborhoods WHERE id = ?").run(id);
-    });
-    city.neighborhoods.splice(
-      city.neighborhoods.findIndex((item) => item.id === id),
-      1,
-    );
-    byId.delete(id);
+    await db.run("DELETE FROM neighborhoods WHERE id = $1", [id]);
+    await reload();
     return true;
   }
 
-  return { load, list, save, reset, create, remove };
+  function regionNameTaken(name: string, exceptId: string | null): boolean {
+    const folded = fold(name);
+    return city.regions.some((item) => item.id !== exceptId && fold(item.name) === folded);
+  }
+
+  async function createRegion(name: string, now: number): Promise<Region> {
+    if (regionNameTaken(name, null)) {
+      throw new RegionNameTakenError();
+    }
+    const id = await freeId("regions", name, "zona");
+    await db.run("INSERT INTO regions (id, city_id, name, created_at) VALUES ($1, $2, $3, $4)", [
+      id,
+      cityId(),
+      name,
+      now,
+    ]);
+    await reload();
+    return { id, name };
+  }
+
+  async function renameRegion(id: string, name: string): Promise<Region | null> {
+    if (!city.regions.some((item) => item.id === id)) {
+      return null;
+    }
+    if (regionNameTaken(name, id)) {
+      throw new RegionNameTakenError();
+    }
+    await db.run("UPDATE regions SET name = $1 WHERE id = $2", [name, id]);
+    await reload();
+    return { id, name };
+  }
+
+  async function removeRegion(id: string): Promise<boolean> {
+    if (!city.regions.some((item) => item.id === id)) {
+      return false;
+    }
+    if (city.neighborhoods.some((item) => item.regionId === id)) {
+      throw new RegionInUseError();
+    }
+    await db.run("DELETE FROM regions WHERE id = $1", [id]);
+    await reload();
+    return true;
+  }
+
+  return { list, save, reset, create, update, remove, createRegion, renameRegion, removeRegion };
 }

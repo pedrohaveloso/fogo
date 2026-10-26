@@ -1,7 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
-  AGENCIES,
-  AGENCY_LABELS,
   EQUIPMENT_STATUSES,
   EQUIPMENT_TYPES,
   EQUIPMENT_TYPE_KEYS,
@@ -9,13 +7,12 @@ import {
   MAINTENANCE_NEEDS,
   STATUS_COLORS,
   STATUS_LABELS,
-  type Agency,
   type AttributeSpec,
   type EquipmentStatus,
   type EquipmentType,
 } from "../../shared/catalog.ts";
 import { addDays, localDate } from "../../shared/time.ts";
-import type { AddressLookup, Equipment, Tag } from "../../shared/types.ts";
+import type { AddressLookup, Equipment, Meta, Tag } from "../../shared/types.ts";
 import {
   LABELS,
   REFERENCE_SUGGESTIONS,
@@ -41,6 +38,11 @@ import { LocationPicker } from "../map/LocationPicker.tsx";
 import { containingArea } from "../../shared/geo.ts";
 import { Link, navigate } from "../router.tsx";
 import { showToast } from "../toast.tsx";
+import { cityPath, currentCityId } from "../cityScope.ts";
+import { useSession } from "../session.ts";
+import { useFetch } from "../useFetch.ts";
+
+type LookupStatus = { message: string; problem: boolean };
 
 function AttributeInput({
   spec,
@@ -103,13 +105,15 @@ function AttributeInput({
 }
 
 export function EquipmentFormPage({ id }: { id: number | null }) {
-  const meta = useMeta();
-  const [draft, setDraft] = useState<Draft>(() => emptyDraft("radar"));
+  const currentMeta = useMeta();
+  const cities = useSession().session?.cities ?? [];
+  const [draft, setDraft] = useState<Draft>(() => emptyDraft("radar", currentCityId()));
+  const [pendingUf, setPendingUf] = useState("");
   const [loaded, setLoaded] = useState(id === null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
-  const [lookup, setLookup] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<LookupStatus | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tag, setTag] = useState<Tag | null>(null);
 
@@ -118,7 +122,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
       return;
     }
     api
-      .get<{ equipment: Equipment; tag: Tag | null }>(`/equipment/${id}`)
+      .get<{ equipment: Equipment; tag: Tag | null }>(cityPath(`/equipment/${id}`))
       .then((data) => {
         setDraft(fromEquipment(data.equipment));
         setTag(data.tag);
@@ -131,6 +135,29 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
       );
   }, [id]);
 
+  const otherCity = draft.cityId !== null && draft.cityId !== currentCityId();
+  const otherMeta = useFetch<Meta>(otherCity ? cityPath("/meta", draft.cityId) : null);
+  const meta = draft.cityId === null ? null : otherCity ? otherMeta.data : currentMeta;
+  const uf = cities.find((item) => item.id === draft.cityId)?.uf ?? pendingUf;
+  const states = [...new Set(cities.map((item) => item.uf))].sort();
+  const citiesOfState = cities.filter((item) => item.uf === uf);
+
+  const changeCity = (cityId: number | null) =>
+    setDraft((current) => ({
+      ...current,
+      cityId,
+      agencyId: "",
+      neighborhoodId: "",
+      lat: "",
+      lng: "",
+    }));
+
+  const changeState = (value: string) => {
+    setPendingUf(value);
+    const options = cities.filter((item) => item.uf === value);
+    changeCity(options.length === 1 ? options[0]!.id : null);
+  };
+
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
   const spec = EQUIPMENT_TYPES[draft.type];
@@ -139,7 +166,6 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     setDraft((current) => ({
       ...current,
       type,
-      agency: EQUIPMENT_TYPES[type].defaultAgency,
       maintenanceIntervalDays: String(EQUIPMENT_TYPES[type].maintenanceIntervalDays),
       attributes: {},
     }));
@@ -153,34 +179,54 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
     }));
 
   const searchCep = async () => {
-    if (draft.cep.replaceAll(/\D/g, "").length !== 8) {
-      setLookup("Digite os 8 números do CEP para buscar.");
+    if (draft.cityId === null) {
+      setLookup({ message: "Escolha a cidade antes de buscar o CEP.", problem: true });
       return;
     }
-    setLookup("Buscando CEP...");
+    if (draft.cep.replaceAll(/\D/g, "").length !== 8) {
+      setLookup({ message: "Digite os 8 números do CEP para buscar.", problem: true });
+      return;
+    }
+    setLookup({ message: "Buscando CEP...", problem: false });
     try {
-      const result = await api.get<AddressLookup>(`/address/${encodeURIComponent(draft.cep)}`);
+      const result = await api.get<AddressLookup>(
+        cityPath(`/address/${encodeURIComponent(draft.cep)}`, draft.cityId),
+      );
       setDraft((current) => ({
         ...current,
         cep: result.cep,
         street: result.street || current.street,
         neighborhoodId: result.neighborhoodId ?? current.neighborhoodId,
-        city: result.city || current.city,
-        uf: result.uf || current.uf,
         lat: result.lat === null ? current.lat : result.lat.toFixed(6),
         lng: result.lng === null ? current.lng : result.lng.toFixed(6),
       }));
+      const cityName = meta?.city.name ?? "";
+      const elsewhere =
+        result.cityName !== "" && (result.cityName !== cityName || result.uf !== meta?.city.uf);
       setLookup(
-        result.neighborhoodId
-          ? `Endereço preenchido (${result.source === "local" ? "base local" : "ViaCEP"}). Ajuste o ponto no mapa se precisar.`
-          : `Endereço encontrado, mas o bairro "${result.neighborhoodName}" não está no cadastro. Escolha o bairro mais próximo.`,
+        elsewhere
+          ? {
+              message: `Este CEP é de ${result.cityName}/${result.uf}, não de ${cityName}. Confira o número ou escolha outra cidade.`,
+              problem: true,
+            }
+          : result.neighborhoodId
+            ? {
+                message: `Endereço preenchido (${result.source === "local" ? "base local" : "ViaCEP"}). Ajuste o ponto no mapa se precisar.`,
+                problem: false,
+              }
+            : {
+                message: `O bairro "${result.neighborhoodName}" não está no cadastro. Escolha o mais próximo.`,
+                problem: false,
+              },
       );
     } catch (error) {
-      setLookup(
-        error instanceof ApiError && error.status === 404
-          ? `Não encontramos o CEP ${draft.cep}. Confira os números ou preencha o endereço à mão.`
-          : `Não foi possível consultar o CEP ${draft.cep} agora. Tente de novo ou preencha o endereço à mão.`,
-      );
+      setLookup({
+        message:
+          error instanceof ApiError && error.status === 404
+            ? `Não encontramos o CEP ${draft.cep}. Confira os números ou preencha o endereço à mão.`
+            : `Não foi possível consultar o CEP ${draft.cep} agora. Tente de novo ou preencha à mão.`,
+        problem: true,
+      });
     }
   };
 
@@ -192,8 +238,8 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
       const payload = toPayload(draft);
       const saved =
         id === null
-          ? await api.post<Equipment>("/equipment", payload)
-          : await api.put<Equipment>(`/equipment/${id}`, payload);
+          ? await api.post<Equipment>(cityPath("/equipment"), payload)
+          : await api.put<Equipment>(cityPath(`/equipment/${id}`), payload);
       showToast(
         id === null
           ? `Equipamento ${saved.serialNumber} cadastrado.`
@@ -213,7 +259,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
   const remove = async () => {
     setConfirmDelete(false);
     try {
-      await api.delete(`/equipment/${id}`);
+      await api.delete(cityPath(`/equipment/${id}`));
       showToast(`Equipamento ${draft.serialNumber} excluído.`);
       navigate("/equipment");
     } catch (error) {
@@ -229,9 +275,11 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
       </main>
     );
   }
-  if (!meta || !loaded) {
+  if (!currentMeta || !loaded || (draft.cityId !== null && !meta)) {
     return <LoadingNotice label="Carregando..." onRetry={() => window.location.reload()} />;
   }
+  const neighborhoods = meta?.neighborhoods ?? [];
+  const agencies = meta?.agencies ?? [];
 
   const location =
     draft.lat &&
@@ -301,16 +349,19 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                 />
               )}
             </Field>
-            <Field path="agency" label={LABELS["agency"]!} error={errors["agency"]}>
+            <Field path="agencyId" label={LABELS["agencyId"]!} error={errors["agencyId"]}>
               {(props) => (
                 <select
                   {...props}
-                  value={draft.agency}
-                  onChange={(event) => set("agency", event.target.value as Agency)}
+                  value={draft.agencyId}
+                  onChange={(event) => set("agencyId", event.target.value)}
                 >
-                  {AGENCIES.map((agency) => (
-                    <option key={agency} value={agency}>
-                      {AGENCY_LABELS[agency]}
+                  <option value="">
+                    {draft.cityId === null ? "Escolha a cidade antes" : "Selecione o órgão"}
+                  </option>
+                  {agencies.map((agency) => (
+                    <option key={agency.id} value={agency.id}>
+                      {agency.name}
                     </option>
                   ))}
                 </select>
@@ -346,12 +397,37 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
         <fieldset className="form-section">
           <legend>{spec.mobile ? "Localização da base" : "Localização de instalação"}</legend>
           <div className="form-grid">
-            <Field
-              path="cep"
-              label={LABELS["cep"]!}
-              error={errors["cep"]}
-              hint="Digite os 8 números, como 17500-000, e clique em Buscar CEP para preencher rua, bairro e coordenadas. Também dá para preencher tudo à mão."
-            >
+            <Field path="uf" label={LABELS["uf"]!} error={errors["uf"]}>
+              {(props) => (
+                <select {...props} value={uf} onChange={(event) => changeState(event.target.value)}>
+                  <option value="">Selecione a UF</option>
+                  {states.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="cityId" label={LABELS["cityId"]!} error={errors["cityId"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.cityId ?? ""}
+                  onChange={(event) =>
+                    changeCity(event.target.value === "" ? null : Number(event.target.value))
+                  }
+                >
+                  <option value="">Selecione a cidade</option>
+                  {citiesOfState.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field path="cep" label={LABELS["cep"]!} error={errors["cep"]} status={lookup}>
               {(props) => (
                 <div className="input-row">
                   <input
@@ -376,12 +452,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                 />
               )}
             </Field>
-            <Field
-              path="reference"
-              label={LABELS["reference"]!}
-              error={errors["reference"]}
-              hint='Ex.: "número 181", "KM 203", "S/N", "em frente ao Mercado do Tio".'
-            >
+            <Field path="reference" label={LABELS["reference"]!} error={errors["reference"]}>
               {(props) => (
                 <>
                   <input
@@ -412,31 +483,12 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                   onChange={(event) => set("neighborhoodId", event.target.value)}
                 >
                   <option value="">Selecione o bairro</option>
-                  {meta.neighborhoods.map((item) => (
+                  {neighborhoods.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
                     </option>
                   ))}
                 </select>
-              )}
-            </Field>
-            <Field path="city" label={LABELS["city"]!} error={errors["city"]}>
-              {(props) => (
-                <input
-                  {...props}
-                  value={draft.city}
-                  onChange={(event) => set("city", event.target.value)}
-                />
-              )}
-            </Field>
-            <Field path="uf" label={LABELS["uf"]!} error={errors["uf"]}>
-              {(props) => (
-                <input
-                  {...props}
-                  maxLength={2}
-                  value={draft.uf}
-                  onChange={(event) => set("uf", event.target.value.toUpperCase())}
-                />
               )}
             </Field>
             <Field path="lat" label={LABELS["lat"]!} error={errors["lat"]}>
@@ -460,13 +512,8 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               )}
             </Field>
           </div>
-          {lookup && (
-            <p className="hint" role="status">
-              {lookup}
-            </p>
-          )}
           <LocationPicker
-            center={meta.city.center}
+            center={(meta ?? currentMeta).city.center}
             value={location}
             onChange={(value) =>
               setDraft((current) => ({
@@ -474,14 +521,14 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
                 lat: value.lat.toFixed(6),
                 lng: value.lng.toFixed(6),
                 neighborhoodId:
-                  containingArea(meta.neighborhoods, [value.lng, value.lat])?.id ??
+                  containingArea(neighborhoods, [value.lng, value.lat])?.id ??
                   current.neighborhoodId,
               }))
             }
           />
           <p className="hint">
-            O bairro acompanha o ponto escolhido. Clique no mapa ou arraste o marcador amarelo para
-            ajustar as coordenadas GPS.
+            O bairro acompanha o ponto escolhido. Clique no mapa ou arraste o marcador para ajustar
+            as coordenadas GPS.
           </p>
         </fieldset>
 

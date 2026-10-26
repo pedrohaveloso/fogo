@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { pointInPolygon, type LngLat } from "../src/shared/geo.ts";
-import type { CityDataset } from "../src/shared/types.ts";
+import type { CitySource } from "../src/server/seed/marilia.ts";
 import type { RoadData, RoadEdge } from "../src/server/roads.ts";
 import { overpass } from "./overpass.ts";
 
@@ -105,7 +105,7 @@ function largestComponent(count: number, edges: RoadEdge[]): Set<number> {
 }
 
 async function main(): Promise<void> {
-  const city = JSON.parse(await readFile(CITY, "utf8")) as CityDataset;
+  const city = JSON.parse(await readFile(CITY, "utf8")) as CitySource;
   const elements = await overpass(
     `area["name"="Marília"]["admin_level"="8"]->.a;way(area.a)["highway"~"^(${Object.keys(DEFAULT_LIMITS).join("|")})$"]["access"!~"^(no|private)$"];out body;>;out skel qt;`,
   );

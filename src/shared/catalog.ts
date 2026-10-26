@@ -43,23 +43,6 @@ export const MAINTENANCE_LABELS: Record<MaintenanceNeed, string> = {
   immediate: "Imediata",
 };
 
-export const AGENCIES = ["mobility", "municipal_guard", "military_police", "operator"] as const;
-export type Agency = (typeof AGENCIES)[number];
-
-export const AGENCY_LABELS: Record<Agency, string> = {
-  mobility: "Secretaria de Mobilidade Urbana",
-  municipal_guard: "Guarda Civil Municipal",
-  military_police: "Polícia Militar",
-  operator: "Operadora privada/concessionária",
-};
-
-export const AGENCY_SHORT_LABELS: Record<Agency, string> = {
-  mobility: "Mobilidade Urbana",
-  municipal_guard: "Guarda Municipal",
-  military_police: "Polícia Militar",
-  operator: "Concessionária",
-};
-
 export type AttributeSpec =
   | { key: string; label: string; kind: "boolean" }
   | { key: string; label: string; kind: "number"; unit?: string; min: number; max: number }
@@ -70,7 +53,6 @@ export type EquipmentTypeSpec = {
   label: string;
   plural: string;
   mobile: boolean;
-  defaultAgency: Agency;
   maintenanceIntervalDays: number;
   telemetry: "flow" | "usage" | "position" | "none";
   attributes: AttributeSpec[];
@@ -83,7 +65,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Radar de fiscalização",
     plural: "Radares",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 180,
     telemetry: "flow",
     attributes: [
@@ -115,7 +96,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Câmera de videomonitoramento",
     plural: "Câmeras",
     mobile: false,
-    defaultAgency: "municipal_guard",
     maintenanceIntervalDays: 120,
     telemetry: "flow",
     attributes: [
@@ -140,7 +120,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Balança de caminhão",
     plural: "Balanças",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 90,
     telemetry: "flow",
     attributes: [
@@ -152,7 +131,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Semáforo inteligente",
     plural: "Semáforos",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 150,
     telemetry: "flow",
     attributes: [
@@ -165,7 +143,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Cancela automatizada",
     plural: "Cancelas",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 90,
     telemetry: "usage",
     attributes: [
@@ -181,7 +158,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Totem de estacionamento rotativo",
     plural: "Totens",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 60,
     telemetry: "usage",
     attributes: [
@@ -194,7 +170,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Veículo autônomo de fiscalização (rotativo)",
     plural: "Veículos autônomos",
     mobile: true,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 45,
     telemetry: "position",
     attributes: [
@@ -207,7 +182,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Veículo de transporte",
     plural: "Veículos de transporte",
     mobile: true,
-    defaultAgency: "operator",
     maintenanceIntervalDays: 180,
     telemetry: "position",
     attributes: [
@@ -226,7 +200,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Patinete elétrico",
     plural: "Patinetes",
     mobile: true,
-    defaultAgency: "operator",
     maintenanceIntervalDays: 30,
     telemetry: "position",
     attributes: [
@@ -251,7 +224,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Moto de agente de trânsito",
     plural: "Motos de agentes",
     mobile: true,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 60,
     telemetry: "position",
     attributes: [
@@ -263,7 +235,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Viatura",
     plural: "Viaturas",
     mobile: true,
-    defaultAgency: "municipal_guard",
     maintenanceIntervalDays: 60,
     telemetry: "position",
     attributes: [
@@ -286,7 +257,6 @@ const EQUIPMENT_TYPE_SPECS = {
     label: "Painel de mensagem variável",
     plural: "Painéis",
     mobile: false,
-    defaultAgency: "mobility",
     maintenanceIntervalDays: 180,
     telemetry: "none",
     attributes: [
@@ -301,10 +271,10 @@ export const EQUIPMENT_TYPES: Record<EquipmentType, EquipmentTypeSpec> = EQUIPME
 export const EQUIPMENT_TYPE_KEYS = Object.keys(EQUIPMENT_TYPES) as EquipmentType[];
 
 export const AGENT_ROLES = {
-  traffic_agent: { label: "Agente de trânsito", agency: "mobility" },
-  municipal_guard: { label: "Guarda municipal", agency: "municipal_guard" },
-  military_police: { label: "Policial militar", agency: "military_police" },
-} as const satisfies Record<string, { label: string; agency: Agency }>;
+  traffic_agent: { label: "Agente de trânsito" },
+  municipal_guard: { label: "Guarda municipal" },
+  military_police: { label: "Policial militar" },
+} as const satisfies Record<string, { label: string }>;
 export type AgentRole = keyof typeof AGENT_ROLES;
 export const AGENT_ROLE_KEYS = Object.keys(AGENT_ROLES) as AgentRole[];
 

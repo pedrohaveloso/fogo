@@ -34,7 +34,7 @@ export async function lookupAddress(
       street: local.name,
       neighborhoodId: local.neighborhoodId,
       neighborhoodName: neighborhood?.name ?? "",
-      city: city.city.name,
+      cityName: city.city.name,
       uf: city.city.uf,
       lat: local.lat,
       lng: local.lng,
@@ -58,17 +58,23 @@ export async function lookupAddress(
     return null;
   }
 
-  const neighborhood = body.bairro ? findNeighborhoodByName(body.bairro) : null;
-  const street = body.logradouro
-    ? city.streets.find((item) => normalizeName(item.name) === normalizeName(body.logradouro ?? ""))
-    : undefined;
+  const sameCity =
+    normalizeName(body.localidade ?? "") === normalizeName(city.city.name) &&
+    body.uf === city.city.uf;
+  const neighborhood = sameCity && body.bairro ? findNeighborhoodByName(city, body.bairro) : null;
+  const street =
+    sameCity && body.logradouro
+      ? city.streets.find(
+          (item) => normalizeName(item.name) === normalizeName(body.logradouro ?? ""),
+        )
+      : undefined;
   const anchor = street ?? neighborhood;
   return {
     cep,
     street: body.logradouro ?? "",
     neighborhoodId: neighborhood?.id ?? street?.neighborhoodId ?? null,
     neighborhoodName: body.bairro ?? "",
-    city: body.localidade ?? "",
+    cityName: body.localidade ?? "",
     uf: body.uf ?? "",
     lat: anchor?.lat ?? null,
     lng: anchor?.lng ?? null,

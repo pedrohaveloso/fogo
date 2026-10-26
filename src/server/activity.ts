@@ -1,8 +1,8 @@
 import { EQUIPMENT_TYPES, OCCURRENCE_KINDS, STATUS_LABELS } from "../shared/catalog.ts";
 import type { EquipmentStatus } from "../shared/catalog.ts";
-import type { ActivityFeed, ActivityItem } from "../shared/types.ts";
+import type { ActivityFeed, ActivityItem, CityDataset } from "../shared/types.ts";
 import { neighborhoodName } from "./city.ts";
-import type { Database } from "./db.ts";
+import type { Queryable } from "./db.ts";
 
 const MAX_ITEMS = 300;
 const DOWN_STATUSES = new Set<string>(["malfunction", "maintenance", "stolen"]);
@@ -27,15 +27,20 @@ type StatusRow = {
   neighborhood_id: string;
 };
 
-export function loadActivity(db: Database, since: number): ActivityFeed {
+export async function loadActivity(
+  db: Queryable,
+  city: CityDataset,
+  since: number,
+): Promise<ActivityFeed> {
+  const cityId = city.city.id;
+  const neighborhood = (id: string) => neighborhoodName(city, id);
   const items: (ActivityItem & { time: number })[] = [];
 
-  const occurrences = db
-    .prepare(
-      `SELECT id, kind, neighborhood_id, description, created_at, resolved_at FROM occurrences
-       WHERE created_at >= ? OR resolved_at >= ?`,
-    )
-    .all(since, since) as OccurrenceRow[];
+  const occurrences = await db.query<OccurrenceRow>(
+    `SELECT id, kind, neighborhood_id, description, created_at, resolved_at FROM occurrences
+     WHERE city_id = $1 AND (created_at >= $2 OR resolved_at >= $2)`,
+    [cityId, since],
+  );
   for (const row of occurrences) {
     const label = OCCURRENCE_KINDS[row.kind].label;
     const target = { kind: "occurrence", id: row.id } as const;
@@ -46,7 +51,7 @@ export function loadActivity(db: Database, since: number): ActivityFeed {
         at: new Date(row.created_at).toISOString(),
         kind: "occurrence_opened",
         title: label,
-        detail: `${row.description}, em ${neighborhoodName(row.neighborhood_id)}`,
+        detail: `${row.description}, em ${neighborhood(row.neighborhood_id)}`,
         neighborhoodId: row.neighborhood_id,
         target,
       });
@@ -58,20 +63,19 @@ export function loadActivity(db: Database, since: number): ActivityFeed {
         at: new Date(row.resolved_at).toISOString(),
         kind: "occurrence_resolved",
         title: `Encerramento: ${label}`,
-        detail: `Em ${neighborhoodName(row.neighborhood_id)}`,
+        detail: `Em ${neighborhood(row.neighborhood_id)}`,
         neighborhoodId: row.neighborhood_id,
         target,
       });
     }
   }
 
-  const statusChanges = db
-    .prepare(
-      `SELECT e.id, e.equipment_id, e.status, e.reason, e.at, q.type, q.serial_number, q.neighborhood_id
+  const statusChanges = await db.query<StatusRow>(
+    `SELECT e.id, e.equipment_id, e.status, e.reason, e.at, q.type, q.serial_number, q.neighborhood_id
        FROM equipment_status_events e JOIN equipment q ON q.id = e.equipment_id
-       WHERE e.at >= ? AND (e.status = 'operational' OR e.status IN ('malfunction', 'maintenance', 'stolen'))`,
-    )
-    .all(since) as StatusRow[];
+       WHERE q.city_id = $1 AND e.at >= $2 AND (e.status = 'operational' OR e.status IN ('malfunction', 'maintenance', 'stolen'))`,
+    [cityId, since],
+  );
   for (const row of statusChanges) {
     const down = DOWN_STATUSES.has(row.status);
     const name = `${EQUIPMENT_TYPES[row.type].label} ${row.serial_number}`;
@@ -83,7 +87,7 @@ export function loadActivity(db: Database, since: number): ActivityFeed {
       title: down
         ? `${name}: ${STATUS_LABELS[row.status].toLowerCase()}`
         : `${name} voltou a operar`,
-      detail: `${row.reason ? `${row.reason}, em ` : "Em "}${neighborhoodName(row.neighborhood_id)}`,
+      detail: `${row.reason ? `${row.reason}, em ` : "Em "}${neighborhood(row.neighborhood_id)}`,
       neighborhoodId: row.neighborhood_id,
       target: { kind: "equipment", id: row.equipment_id },
     });

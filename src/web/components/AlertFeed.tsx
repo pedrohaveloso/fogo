@@ -3,6 +3,7 @@ import type { Alert, AlertCategory } from "../../shared/types.ts";
 import { api } from "../api.ts";
 import { ALERT_CATEGORY_LABELS, ALERT_LABELS } from "../colors.ts";
 import { formatRelative } from "../format.ts";
+import { cityPath } from "../cityScope.ts";
 
 export type AlertFilterKey =
   | "all"
@@ -181,7 +182,7 @@ export function AlertFeed({ alerts, now, generatedAt, onLocate }: Props) {
     setPending(alert.id);
     setFailed(null);
     try {
-      const path = `/alerts/${encodeURIComponent(alert.id)}/ack`;
+      const path = cityPath(`/alerts/${encodeURIComponent(alert.id)}/ack`);
       await (alert.acknowledged ? api.delete(path) : api.post(path));
     } catch {
       setFailed(alert.id);

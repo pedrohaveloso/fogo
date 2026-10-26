@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { distanceKm, type LngLat } from "../shared/geo.ts";
 import { HOUR, MINUTE, startOfHour } from "../shared/time.ts";
 import type { StreamTick } from "../shared/types.ts";
-import { city, roads } from "./city.ts";
-import { openDatabase, type Database } from "./db.ts";
+import type { Database } from "./db.ts";
 import type { LiveHub } from "./live.ts";
 import { createDemandModel } from "./patterns.ts";
 import { listAgents } from "./repositories/agents.ts";
@@ -12,9 +11,13 @@ import { listEquipment, setEquipmentStatus } from "./repositories/equipment.ts";
 import { createTag } from "./repositories/tags.ts";
 import { getOccurrence, insertOccurrence } from "./repositories/occurrences.ts";
 import type { RoadData } from "./roads.ts";
-import { seedDatabase } from "./seed/index.ts";
+import { loadMariliaRoads } from "./seed/marilia.ts";
 import { createSimulator } from "./simulator.ts";
 import { NOW } from "./test-fixtures.ts";
+import { seededDatabase } from "./test-database.ts";
+
+const roads = loadMariliaRoads();
+const CITY_ID = 1;
 
 const TICK_MS = 2000;
 const KM_PER_DEGREE = 111.32;
@@ -51,17 +54,16 @@ function kmToRoad([lng, lat]: LngLat): number {
   return best;
 }
 
-function assignee(db: Database, id: number): number | null {
-  return getOccurrence(db, id)!.agentId;
+async function assignee(db: Database, id: number): Promise<number | null> {
+  return (await getOccurrence(db, CITY_ID, id))!.agentId;
 }
 
 function kmh(from: LngLat, to: LngLat): number {
   return distanceKm(from, to) / (TICK_MS / HOUR);
 }
 
-function setup(liveMultiplier = 60) {
-  const db = openDatabase(":memory:");
-  seedDatabase(db, city, { now: NOW, seed: 5, historyDays: 30, readingDays: 2 });
+async function setup(liveMultiplier = 60) {
+  const { db, city } = await seededDatabase();
   const publish = vi.fn<(change: Partial<StreamTick>, now: number) => void>();
   const hub = { publish } as unknown as LiveHub;
   const simulator = createSimulator(db, city, roads, hub, createDemandModel(city, NOW), {
@@ -70,18 +72,18 @@ function setup(liveMultiplier = 60) {
     seed: 3,
     seededAt: NOW,
   });
-  return { db, simulator, publish };
+  return { db, simulator, publish, city };
 }
 
-function run(
-  simulator: ReturnType<typeof setup>["simulator"],
+async function run(
+  simulator: Awaited<ReturnType<typeof setup>>["simulator"],
   from: number,
   ticks: number,
-): number {
+): Promise<number> {
   let now = from;
   for (let index = 0; index < ticks; index += 1) {
     now += TICK_MS;
-    simulator.tick(now);
+    await simulator.tick(now);
   }
   return now;
 }
@@ -91,20 +93,18 @@ describe("simulator", () => {
     "creates live occurrences, dispatches agents and resolves them",
     { timeout: 30_000 },
     async () => {
-      const { db, simulator, publish } = setup();
-      run(simulator, NOW, 600);
-      const rows = db
-        .prepare(
-          "SELECT status, COUNT(*) AS total FROM occurrences WHERE source = 'live' GROUP BY status",
-        )
-        .all() as { status: string; total: number }[];
+      const { db, simulator, publish } = await setup(240);
+      await run(simulator, NOW, 150);
+      const rows = (await db.query(
+        "SELECT status, COUNT(*) AS total FROM occurrences WHERE source = 'live' GROUP BY status",
+        [],
+      )) as { status: string; total: number }[];
       const totals = Object.fromEntries(rows.map((row) => [row.status, row.total]));
       expect(totals["resolved"]).toBeGreaterThan(5);
-      const assigned = db
-        .prepare(
-          "SELECT COUNT(*) AS total FROM occurrences WHERE source = 'live' AND agent_id IS NOT NULL",
-        )
-        .get() as {
+      const assigned = (await db.one(
+        "SELECT COUNT(*) AS total FROM occurrences WHERE source = 'live' AND agent_id IS NOT NULL",
+        [],
+      )) as {
         total: number;
       };
       expect(assigned.total).toBeGreaterThan(0);
@@ -114,56 +114,55 @@ describe("simulator", () => {
     },
   );
 
-  it("keeps agents consistent with their occurrences", { timeout: 30_000 }, () => {
-    const { db, simulator } = setup();
-    run(simulator, NOW, 300);
-    const orphans = db
-      .prepare(
-        `SELECT COUNT(*) AS total FROM agents a LEFT JOIN occurrences o ON o.id = a.occurrence_id
+  it("keeps agents consistent with their occurrences", { timeout: 30_000 }, async () => {
+    const { db, simulator } = await setup(120);
+    await run(simulator, NOW, 150);
+    const orphans = (await db.one(
+      `SELECT COUNT(*) AS total FROM agents a LEFT JOIN occurrences o ON o.id = a.occurrence_id
          WHERE a.status = 'responding' AND (o.id IS NULL OR o.status = 'resolved')`,
-      )
-      .get() as { total: number };
+      [],
+    )) as { total: number };
     expect(orphans.total).toBe(0);
   });
 
-  it("breaks and repairs equipment over time", { timeout: 30_000 }, () => {
-    const { db, simulator } = setup(2000);
-    run(simulator, NOW, 400);
-    const events = db
-      .prepare(
-        "SELECT status, COUNT(*) AS total FROM equipment_status_events WHERE at > ? GROUP BY status",
-      )
-      .all(NOW) as { status: string; total: number }[];
+  it("breaks and repairs equipment over time", { timeout: 30_000 }, async () => {
+    const { db, simulator } = await setup(8000);
+    await run(simulator, NOW, 100);
+    const events = (await db.query(
+      "SELECT status, COUNT(*) AS total FROM equipment_status_events WHERE at > $1 GROUP BY status",
+      [NOW],
+    )) as { status: string; total: number }[];
     const totals = Object.fromEntries(events.map((row) => [row.status, row.total]));
     expect(totals["malfunction"]).toBeGreaterThan(0);
     expect(totals["operational"]).toBeGreaterThan(0);
   });
 
-  it("records every hour it simulated", () => {
-    const { db, simulator } = setup();
-    run(simulator, NOW, 5);
-    simulator.tick(NOW + 2 * HOUR);
+  it("records every hour it simulated", async () => {
+    const { db, simulator } = await setup();
+    await run(simulator, NOW, 5);
+    await simulator.tick(NOW + 2 * HOUR);
     const hours = (
-      db.prepare("SELECT hour_start FROM simulation_hours ORDER BY hour_start").all() as {
+      (await db.query("SELECT hour_start FROM simulation_hours ORDER BY hour_start", [])) as {
         hour_start: number;
       }[]
     ).map((row) => row.hour_start);
     expect(hours).toEqual([startOfHour(NOW), startOfHour(NOW) + 2 * HOUR]);
   });
 
-  it("replaces stolen equipment after a while", { timeout: 30_000 }, () => {
-    const { db, simulator } = setup(2000);
+  it("replaces stolen equipment after a while", { timeout: 30_000 }, async () => {
+    const { db, simulator } = await setup(8000);
     const id = (
-      db.prepare("SELECT id FROM equipment WHERE status = 'operational' LIMIT 1").get() as {
+      (await db.one("SELECT id FROM equipment WHERE status = 'operational' LIMIT 1", [])) as {
         id: number;
       }
     ).id;
-    setEquipmentStatus(db, id, "stolen", "Furto registrado", NOW, "immediate");
-    run(simulator, NOW, 600);
+    await setEquipmentStatus(db, id, "stolen", "Furto registrado", NOW, "immediate");
+    await run(simulator, NOW, 150);
     const reasons = (
-      db
-        .prepare("SELECT reason FROM equipment_status_events WHERE equipment_id = ? AND at > ?")
-        .all(id, NOW) as { reason: string }[]
+      (await db.query(
+        "SELECT reason FROM equipment_status_events WHERE equipment_id = $1 AND at > $2",
+        [id, NOW],
+      )) as { reason: string }[]
     ).map((row) => row.reason);
     expect(reasons).toContain("Equipamento reposto");
   });
@@ -172,21 +171,21 @@ describe("simulator", () => {
     "moves agents and vehicles only along streets at realistic speeds",
     { timeout: 60_000 },
     async () => {
-      const { db, simulator, publish } = setup();
+      const { db, simulator, publish } = await setup();
       const agentVehicles = new Map(
         (
-          db.prepare("SELECT id, vehicle_id FROM agents").all() as {
+          (await db.query("SELECT id, vehicle_id FROM agents", [])) as {
             id: number;
             vehicle_id: number | null;
           }[]
         ).map((row) => [row.id, row.vehicle_id]),
       );
       const equipmentTypes = new Map(
-        (db.prepare("SELECT id, type FROM equipment").all() as { id: number; type: string }[]).map(
-          (row) => [row.id, row.type],
-        ),
+        (
+          (await db.query("SELECT id, type FROM equipment", [])) as { id: number; type: string }[]
+        ).map((row) => [row.id, row.type]),
       );
-      run(simulator, NOW, 300);
+      await run(simulator, NOW, 300);
       await Promise.resolve();
 
       const limits: Record<string, number> = {
@@ -252,64 +251,68 @@ describe("simulator", () => {
     },
   );
 
-  it("dispatches whoever arrives first and never sends walkers too far", () => {
-    const { db, simulator } = setup(0.0001);
+  it("dispatches whoever arrives first and never sends walkers too far", async () => {
+    const { db, simulator, city } = await setup(0.0001);
     const scene = roads.point(roads.nearestNode(city.city.center));
-    const vehicle = db
-      .prepare("SELECT id FROM equipment WHERE type = 'patrol_vehicle' AND status = 'operational'")
-      .get() as { id: number };
-    const [walker, driver] = db.prepare("SELECT id FROM agents LIMIT 2").all() as {
+    const vehicle = (await db.one(
+      "SELECT id FROM equipment WHERE type = 'patrol_vehicle' AND status = 'operational'",
+      [],
+    )) as { id: number };
+    const [walker, driver] = (await db.query("SELECT id FROM agents LIMIT 2", [])) as {
       id: number;
     }[];
-    db.prepare("UPDATE occurrences SET status = 'resolved', resolved_at = ?").run(NOW);
-    db.prepare(
+    await db.run("UPDATE occurrences SET status = 'resolved', resolved_at = $1", [NOW]);
+    await db.run(
       "UPDATE agents SET shift = 'night', status = 'off_duty', occurrence_id = NULL, vehicle_id = NULL",
-    ).run();
-    const placeAgent = (id: number, kmNorth: number, vehicleId: number | null) =>
-      db
-        .prepare(
-          `UPDATE agents SET shift = 'morning', status = 'available', role = 'traffic_agent',
-           lat = ?, lng = ?, vehicle_id = ? WHERE id = ?`,
-        )
-        .run(scene[1] + kmNorth / KM_PER_DEGREE, scene[0], vehicleId, id);
-    const report = (at: number) =>
-      insertOccurrence(db, {
-        kind: "accident",
-        severity: 2,
-        neighborhoodId: "centro",
-        lng: scene[0],
-        lat: scene[1],
-        description: "Teste",
-        equipmentId: null,
-        source: "live",
-        createdAt: at,
-      }).id;
-
-    placeAgent(walker!.id, 1.2, null);
-    placeAgent(driver!.id, -3, vehicle.id);
-    const first = report(NOW);
-    simulator.tick(NOW + TICK_MS);
-    expect(assignee(db, first)).toBe(driver!.id);
-
-    db.prepare("UPDATE agents SET shift = 'night', status = 'off_duty' WHERE id = ?").run(
-      driver!.id,
+      [],
     );
-    db.prepare("UPDATE occurrences SET status = 'resolved' WHERE id = ?").run(first);
-    placeAgent(walker!.id, 3, null);
-    const second = report(NOW + TICK_MS);
-    simulator.tick(NOW + 2 * TICK_MS);
-    expect(assignee(db, second)).toBeNull();
+    const placeAgent = async (id: number, kmNorth: number, vehicleId: number | null) =>
+      await db.run(
+        `UPDATE agents SET shift = 'morning', status = 'available', role = 'traffic_agent',
+           lat = $1, lng = $2, vehicle_id = $3 WHERE id = $4`,
+        [scene[1] + kmNorth / KM_PER_DEGREE, scene[0], vehicleId, id],
+      );
+    const report = async (at: number) =>
+      (
+        await insertOccurrence(db, {
+          cityId: CITY_ID,
+          kind: "accident",
+          severity: 2,
+          neighborhoodId: "centro",
+          lng: scene[0],
+          lat: scene[1],
+          description: "Teste",
+          equipmentId: null,
+          source: "live",
+          createdAt: at,
+        })
+      ).id;
 
-    placeAgent(walker!.id, 1.2, null);
-    simulator.tick(NOW + 3 * TICK_MS);
-    expect(assignee(db, second)).toBe(walker!.id);
+    await placeAgent(walker!.id, 1.2, null);
+    await placeAgent(driver!.id, -3, vehicle.id);
+    const first = await report(NOW);
+    await simulator.tick(NOW + TICK_MS);
+    expect(await assignee(db, first)).toBe(driver!.id);
+
+    await db.run("UPDATE agents SET shift = 'night', status = 'off_duty' WHERE id = $1", [
+      driver!.id,
+    ]);
+    await db.run("UPDATE occurrences SET status = 'resolved' WHERE id = $1", [first]);
+    await placeAgent(walker!.id, 3, null);
+    const second = await report(NOW + TICK_MS);
+    await simulator.tick(NOW + 2 * TICK_MS);
+    expect(await assignee(db, second)).toBeNull();
+
+    await placeAgent(walker!.id, 1.2, null);
+    await simulator.tick(NOW + 3 * TICK_MS);
+    expect(await assignee(db, second)).toBe(walker!.id);
   });
 
-  it("puts agents on duty when their shift starts", () => {
-    const { db, simulator } = setup();
-    db.prepare("UPDATE agents SET status = 'off_duty'").run();
-    simulator.tick(NOW + 2000);
-    const onDuty = db.prepare("SELECT shift, status FROM agents").all() as {
+  it("puts agents on duty when their shift starts", async () => {
+    const { db, simulator } = await setup();
+    await db.run("UPDATE agents SET status = 'off_duty'", []);
+    await simulator.tick(NOW + 2000);
+    const onDuty = (await db.query("SELECT shift, status FROM agents", [])) as {
       shift: string;
       status: string;
     }[];
@@ -325,32 +328,31 @@ describe("simulator", () => {
     ).toBe(true);
   });
 
-  it("fills telemetry gaps and keeps counting the current hour", () => {
-    const { db, simulator } = setup();
+  it("fills telemetry gaps and keeps counting the current hour", async () => {
+    const { db, simulator } = await setup();
     const later = NOW + 5 * HOUR + 30 * MINUTE;
-    simulator.catchUpReadings(later);
-    const gap = db
-      .prepare(
-        "SELECT COUNT(DISTINCT hour_start) AS hours FROM readings WHERE hour_start >= ? AND hour_start <= ?",
-      )
-      .get(NOW, startOfHour(later)) as { hours: number };
+    await simulator.catchUpReadings(later);
+    const gap = (await db.one(
+      "SELECT COUNT(DISTINCT hour_start) AS hours FROM readings WHERE hour_start >= $1 AND hour_start <= $2",
+      [NOW, startOfHour(later)],
+    )) as { hours: number };
     expect(gap.hours).toBe(6);
-    const before = db
-      .prepare("SELECT SUM(count) AS total FROM readings WHERE hour_start = ?")
-      .get(startOfHour(later)) as { total: number };
-    run(simulator, later, 30);
-    const after = db
-      .prepare("SELECT SUM(count) AS total FROM readings WHERE hour_start = ?")
-      .get(startOfHour(later)) as { total: number };
+    const before = (await db.one("SELECT SUM(count) AS total FROM readings WHERE hour_start = $1", [
+      startOfHour(later),
+    ])) as { total: number };
+    await run(simulator, later, 30);
+    const after = (await db.one("SELECT SUM(count) AS total FROM readings WHERE hour_start = $1", [
+      startOfHour(later),
+    ])) as { total: number };
     expect(after.total).toBeGreaterThan(before.total);
   });
 
-  it("leaves tagged agents and equipment to their tags", { timeout: 30_000 }, () => {
-    const { db, simulator } = setup();
-    const agent = listAgents(db).find(
+  it("leaves tagged agents and equipment to their tags", { timeout: 30_000 }, async () => {
+    const { db, simulator } = await setup();
+    const agent = (await listAgents(db, CITY_ID)).find(
       (item) => item.status === "available" && item.vehicleId !== null,
     )!;
-    const equipment = listEquipment(db);
+    const equipment = await listEquipment(db, CITY_ID);
     const scooter = equipment.find(
       (item) => item.type === "e_scooter" && item.status === "operational",
     )!;
@@ -362,17 +364,19 @@ describe("simulator", () => {
       { kind: "equipment" as const, id: scooter.id },
       { kind: "equipment" as const, id: camera.id },
     ]) {
-      createTag(db, target, NOW);
+      await createTag(db, target, NOW);
     }
-    db.prepare("UPDATE equipment SET last_seen_at = ? WHERE id = ?").run(NOW - HOUR, camera.id);
-    const untagged = listAgents(db).find(
+    await db.run("UPDATE equipment SET last_seen_at = $1 WHERE id = $2", [NOW - HOUR, camera.id]);
+    const untagged = (await listAgents(db, CITY_ID)).find(
       (item) => item.status === "available" && item.vehicleId !== null && item.id !== agent.id,
     )!;
 
-    run(simulator, NOW, 120);
+    await run(simulator, NOW, 120);
 
-    const agentsAfter = new Map(listAgents(db).map((item) => [item.id, item]));
-    const equipmentAfter = new Map(listEquipment(db).map((item) => [item.id, item]));
+    const agentsAfter = new Map((await listAgents(db, CITY_ID)).map((item) => [item.id, item]));
+    const equipmentAfter = new Map(
+      (await listEquipment(db, CITY_ID)).map((item) => [item.id, item]),
+    );
     expect(agentsAfter.get(agent.id)).toMatchObject({ lat: agent.lat, lng: agent.lng });
     expect(equipmentAfter.get(scooter.id)).toMatchObject({
       currentLat: scooter.currentLat,

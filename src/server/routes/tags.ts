@@ -1,25 +1,26 @@
 import { Hono } from "hono";
-import type { AppDeps } from "../app.ts";
+import type { AppDeps, AppEnv } from "../app.ts";
 import { getAgent } from "../repositories/agents.ts";
 import { getEquipment } from "../repositories/equipment.ts";
 import {
   authenticateTag,
   createTag,
   deleteTag,
+  getTag,
   reportLocation,
-  targetExists,
+  targetCityId,
 } from "../repositories/tags.ts";
 import { parseLocationReport, parseTagTarget } from "../validation.ts";
 
 const BEARER = /^Bearer\s+(\S+)$/i;
 
-export function tagRoutes(deps: AppDeps): Hono {
-  const { db, hub, now } = deps;
-  const routes = new Hono();
+export function tagRoutes(deps: AppDeps): Hono<AppEnv> {
+  const { db, now } = deps;
+  const routes = new Hono<AppEnv>();
 
   routes.post("/tags", async (c) => {
     const target = parseTagTarget(await c.req.json());
-    if (!targetExists(db, target)) {
+    if ((await targetCityId(db, target)) !== c.get("context").city.city.id) {
       return c.json(
         {
           error:
@@ -28,33 +29,47 @@ export function tagRoutes(deps: AppDeps): Hono {
         404,
       );
     }
-    return c.json(createTag(db, target, now()), 201);
+    return c.json(await createTag(db, target, now()), 201);
   });
 
-  routes.delete("/tags/:id", (c) =>
-    deleteTag(db, c.req.param("id"))
-      ? c.body(null, 204)
-      : c.json({ error: "Tag não encontrada" }, 404),
-  );
+  routes.delete("/tags/:id", async (c) => {
+    const tag = await getTag(db, c.req.param("id"));
+    if (!tag || (await targetCityId(db, tag.target)) !== c.get("context").city.city.id) {
+      return c.json({ error: "Tag não encontrada" }, 404);
+    }
+    await deleteTag(db, tag.id);
+    return c.body(null, 204);
+  });
+
+  return routes;
+}
+
+export function deviceRoutes(deps: AppDeps): Hono<AppEnv> {
+  const { db, cities, now } = deps;
+  const routes = new Hono<AppEnv>();
 
   routes.post("/tags/:id/location", async (c) => {
     const token = BEARER.exec(c.req.header("Authorization") ?? "")?.[1];
-    const tag = token ? authenticateTag(db, c.req.param("id"), token) : null;
+    const tag = token ? await authenticateTag(db, c.req.param("id"), token) : null;
     if (!tag) {
       return c.json({ error: "Tag ou token inválido" }, 401);
     }
     const report = parseLocationReport(await c.req.json());
     const current = now();
-    const result = reportLocation(db, tag, report, current);
+    const result = await reportLocation(db, tag, report, current);
     if (!result.applied) {
       return c.json({ applied: false, reason: "Leitura mais antiga que a última recebida" });
     }
     if (result.target.kind === "equipment") {
-      const equipment = getEquipment(db, result.target.id);
-      hub.publish({ equipment: equipment ? [equipment] : [] }, current);
+      const equipment = await getEquipment(db, result.target.id);
+      if (equipment) {
+        cities.get(equipment.cityId)?.hub.publish({ equipment: [equipment] }, current);
+      }
     } else {
-      const agent = getAgent(db, result.target.id);
-      hub.publish({ agentRecords: agent ? [agent] : [] }, current);
+      const agent = await getAgent(db, result.target.id);
+      if (agent) {
+        cities.get(agent.cityId)?.hub.publish({ agentRecords: [agent] }, current);
+      }
     }
     return c.json({ applied: true, at: new Date(result.at).toISOString() });
   });

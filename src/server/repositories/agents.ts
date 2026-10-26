@@ -1,19 +1,14 @@
-import {
-  AGENT_ROLES,
-  type Agency,
-  type AgentRole,
-  type AgentStatus,
-  type Shift,
-} from "../../shared/catalog.ts";
+import type { AgentRole, AgentStatus, Shift } from "../../shared/catalog.ts";
 import type { Agent, AgentInput } from "../../shared/types.ts";
-import type { Database } from "../db.ts";
+import { isUniqueViolation, named, type Queryable } from "../db.ts";
 
 type AgentRow = {
   id: number;
   name: string;
   badge: string;
+  city_id: number;
   role: string;
-  agency: string;
+  agency_id: number;
   rank: string;
   phone: string;
   shift: string;
@@ -32,10 +27,11 @@ type AgentRow = {
 function toAgent(row: AgentRow): Agent {
   return {
     id: row.id,
+    cityId: row.city_id,
     name: row.name,
     badge: row.badge,
     role: row.role as AgentRole,
-    agency: row.agency as Agency,
+    agencyId: row.agency_id,
     rank: row.rank,
     phone: row.phone,
     shift: row.shift as Shift,
@@ -59,7 +55,7 @@ function inputParams(input: AgentInput) {
     name: input.name,
     badge: input.badge,
     role: input.role,
-    agency: AGENT_ROLES[input.role].agency,
+    agency_id: input.agencyId,
     rank: input.rank,
     phone: input.phone,
     shift: input.shift,
@@ -73,63 +69,74 @@ function inputParams(input: AgentInput) {
 }
 
 function rethrowBadge(error: unknown, badge: string): never {
-  if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+  if (isUniqueViolation(error)) {
     throw new BadgeTakenError(badge);
   }
   throw error;
 }
 
-export function listAgents(db: Database): Agent[] {
-  return (db.prepare("SELECT * FROM agents ORDER BY name").all() as AgentRow[]).map(toAgent);
+export async function listAgents(db: Queryable, cityId: number): Promise<Agent[]> {
+  const rows = await db.query<AgentRow>("SELECT * FROM agents WHERE city_id = $1 ORDER BY name", [
+    cityId,
+  ]);
+  return rows.map(toAgent);
 }
 
-export function getAgent(db: Database, id: number): Agent | null {
-  const row = db.prepare("SELECT * FROM agents WHERE id = ?").get(id) as AgentRow | undefined;
+export async function getAgent(db: Queryable, id: number): Promise<Agent | null> {
+  const row = await db.one<AgentRow>("SELECT * FROM agents WHERE id = $1", [id]);
   return row ? toAgent(row) : null;
 }
 
-export function createAgent(db: Database, input: AgentInput, now: number): Agent {
+export async function createAgent(
+  db: Queryable,
+  cityId: number,
+  input: AgentInput,
+  now: number,
+): Promise<Agent> {
   try {
-    const result = db
-      .prepare(
-        `INSERT INTO agents (name, badge, role, agency, rank, phone, shift, status, base_name,
+    const row = await db.one<{ id: number }>(
+      ...named(
+        `INSERT INTO agents (city_id, name, badge, role, agency_id, rank, phone, shift, status, base_name,
          base_neighborhood_id, lat, lng, vehicle_id, last_seen_at, created_at, updated_at)
-         VALUES (:name, :badge, :role, :agency, :rank, :phone, :shift, :status, :base_name,
-         :base_neighborhood_id, :lat, :lng, :vehicle_id, :now, :now, :now)`,
-      )
-      .run({ ...inputParams(input), now });
-    return getAgent(db, Number(result.lastInsertRowid))!;
+         VALUES (:city_id, :name, :badge, :role, :agency_id, :rank, :phone, :shift, :status, :base_name,
+         :base_neighborhood_id, :lat, :lng, :vehicle_id, :now, :now, :now) RETURNING id`,
+        { ...inputParams(input), city_id: cityId, now },
+      ),
+    );
+    return (await getAgent(db, row!.id))!;
   } catch (error) {
     rethrowBadge(error, input.badge);
   }
 }
 
-function releaseOccurrence(db: Database, agentId: number): void {
-  db.prepare(
-    "UPDATE occurrences SET status = 'open', agent_id = NULL WHERE agent_id = ? AND status = 'responding'",
-  ).run(agentId);
+async function releaseOccurrence(db: Queryable, agentId: number): Promise<void> {
+  await db.run(
+    "UPDATE occurrences SET status = 'open', agent_id = NULL WHERE agent_id = $1 AND status = 'responding'",
+    [agentId],
+  );
 }
 
-export function updateAgent(
-  db: Database,
+export async function updateAgent(
+  db: Queryable,
   id: number,
   input: AgentInput,
   now: number,
-): Agent | null {
+): Promise<Agent | null> {
   if (input.status !== "responding") {
-    releaseOccurrence(db, id);
+    await releaseOccurrence(db, id);
   }
   try {
-    const result = db
-      .prepare(
-        `UPDATE agents SET name = :name, badge = :badge, role = :role, agency = :agency, rank = :rank,
+    const changed = await db.run(
+      ...named(
+        `UPDATE agents SET name = :name, badge = :badge, role = :role, agency_id = :agency_id, rank = :rank,
          phone = :phone, shift = :shift, status = :status, base_name = :base_name,
          base_neighborhood_id = :base_neighborhood_id, lat = :lat, lng = :lng, vehicle_id = :vehicle_id,
          occurrence_id = CASE WHEN :status = 'responding' THEN occurrence_id ELSE NULL END,
          updated_at = :now WHERE id = :id`,
-      )
-      .run({ ...inputParams(input), now, id });
-    if (Number(result.changes) === 0) {
+        { ...inputParams(input), now, id },
+      ),
+    );
+    if (changed === 0) {
       return null;
     }
   } catch (error) {
@@ -138,7 +145,7 @@ export function updateAgent(
   return getAgent(db, id);
 }
 
-export function deleteAgent(db: Database, id: number): boolean {
-  releaseOccurrence(db, id);
-  return Number(db.prepare("DELETE FROM agents WHERE id = ?").run(id).changes) > 0;
+export async function deleteAgent(db: Queryable, id: number): Promise<boolean> {
+  await releaseOccurrence(db, id);
+  return (await db.run("DELETE FROM agents WHERE id = $1", [id])) > 0;
 }

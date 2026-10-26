@@ -28,11 +28,13 @@ import { useLive, useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
 import { Link, navigate } from "../router.tsx";
 import { showToast } from "../toast.tsx";
+import { cityPath } from "../cityScope.ts";
 
 type Draft = {
   name: string;
   badge: string;
   role: AgentRole;
+  agencyId: string;
   rank: string;
   phone: string;
   shift: Shift;
@@ -48,6 +50,7 @@ const LABELS: Record<string, string> = {
   name: "Nome completo",
   badge: "Matrícula",
   role: "Função",
+  agencyId: "Órgão",
   rank: "Graduação ou cargo",
   phone: "Telefone ou rádio",
   shift: "Turno",
@@ -63,6 +66,7 @@ const EMPTY: Draft = {
   name: "",
   badge: "",
   role: "traffic_agent",
+  agencyId: "",
   rank: "",
   phone: "",
   shift: "morning",
@@ -79,6 +83,7 @@ function fromAgent(agent: Agent): Draft {
     name: agent.name,
     badge: agent.badge,
     role: agent.role,
+    agencyId: String(agent.agencyId),
     rank: agent.rank,
     phone: agent.phone,
     shift: agent.shift,
@@ -107,7 +112,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
       return;
     }
     api
-      .get<{ agent: Agent; tag: Tag | null }>(`/agents/${id}`)
+      .get<{ agent: Agent; tag: Tag | null }>(cityPath(`/agents/${id}`))
       .then((data) => {
         setDraft(fromAgent(data.agent));
         setTag(data.tag);
@@ -131,13 +136,14 @@ export function AgentFormPage({ id }: { id: number | null }) {
       ...draft,
       lat: draft.lat === "" ? null : Number(draft.lat),
       lng: draft.lng === "" ? null : Number(draft.lng),
+      agencyId: draft.agencyId === "" ? null : Number(draft.agencyId),
       vehicleId: draft.vehicleId === "" ? null : Number(draft.vehicleId),
     };
     try {
       const saved =
         id === null
-          ? await api.post<Agent>("/agents", payload)
-          : await api.put<Agent>(`/agents/${id}`, payload);
+          ? await api.post<Agent>(cityPath("/agents"), payload)
+          : await api.put<Agent>(cityPath(`/agents/${id}`), payload);
       showToast(
         id === null ? `${saved.name} cadastrado(a).` : `Cadastro de ${saved.name} atualizado.`,
       );
@@ -155,7 +161,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
   const remove = async () => {
     setConfirmDelete(false);
     try {
-      await api.delete(`/agents/${id}`);
+      await api.delete(cityPath(`/agents/${id}`));
       showToast(`${draft.name} removido(a) do cadastro.`);
       navigate("/agents");
     } catch (error) {
@@ -184,7 +190,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
   const vehicles = (snapshot?.equipment ?? []).filter(
     (item) =>
       item.type === vehicleType &&
-      (vehicleType === "agent_motorcycle" || item.agency === AGENT_ROLES[draft.role].agency) &&
+      (vehicleType === "agent_motorcycle" || String(item.agencyId) === draft.agencyId) &&
       (!taken.has(item.id) || String(item.id) === draft.vehicleId),
   );
   const location =
@@ -230,6 +236,28 @@ export function AgentFormPage({ id }: { id: number | null }) {
                   value={draft.rank}
                   onChange={(event) => set("rank", event.target.value)}
                 />
+              )}
+            </Field>
+            <Field path="agencyId" label={LABELS["agencyId"]!} error={errors["agencyId"]}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={draft.agencyId}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      agencyId: event.target.value,
+                      vehicleId: "",
+                    }))
+                  }
+                >
+                  <option value="">Selecione o órgão</option>
+                  {meta.agencies.map((agency) => (
+                    <option key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </option>
+                  ))}
+                </select>
               )}
             </Field>
             <Field path="phone" label={LABELS["phone"]!} error={errors["phone"]}>

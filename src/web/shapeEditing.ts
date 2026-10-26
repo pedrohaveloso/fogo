@@ -30,9 +30,9 @@ export function midpoints(polygon: readonly LngLat[]): LngLat[] {
 
 export function shapeProblem(polygon: readonly LngLat[]): string | null {
   if (polygon.length < MIN_SHAPE_POINTS) {
-    return `Marque ao menos ${MIN_SHAPE_POINTS} pontos para fechar o bairro.`;
+    return null;
   }
-  return isSimplePolygon(polygon) ? null : "As linhas do bairro estão se cruzando.";
+  return isSimplePolygon(polygon) ? null : "As linhas do desenho estão se cruzando.";
 }
 
 export function sameShape(a: readonly LngLat[], b: readonly LngLat[]): boolean {

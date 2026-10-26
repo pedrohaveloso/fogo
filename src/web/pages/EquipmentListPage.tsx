@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AGENCY_SHORT_LABELS, EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
+import { EQUIPMENT_TYPES, STATUS_LABELS } from "../../shared/catalog.ts";
 import {
   MAINTENANCE_SOON_DAYS,
   maintenanceDaysLeft,
@@ -17,9 +17,16 @@ import {
   toggleDownOfType,
   type EquipmentFilters,
 } from "../components/OperationsFilters.tsx";
-import { formatDate, formatRelative } from "../format.ts";
+import { agencyName, formatDate, formatRelative } from "../format.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
-import { EDIT_GLYPH, Glyph, TYPE_GLYPHS } from "../icons.tsx";
+import {
+  EDIT_GLYPH,
+  Glyph,
+  SORT_ASC_GLYPH,
+  SORT_DESC_GLYPH,
+  SORT_GLYPH,
+  TYPE_GLYPHS,
+} from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { Pagination } from "../components/Pagination.tsx";
 import { useLive, useMeta } from "../live.ts";
@@ -239,10 +246,23 @@ export function EquipmentListPage() {
                           })
                         }
                       >
-                        {column.label}
-                        <span className="sort-arrow" aria-hidden="true">
-                          {sort.key === column.key ? (sort.direction === 1 ? "▲" : "▼") : ""}
+                        <span
+                          className="sort-icon"
+                          data-active={sort.key === column.key}
+                          aria-hidden="true"
+                        >
+                          <Glyph
+                            d={
+                              sort.key !== column.key
+                                ? SORT_GLYPH
+                                : sort.direction === 1
+                                  ? SORT_ASC_GLYPH
+                                  : SORT_DESC_GLYPH
+                            }
+                            size={14}
+                          />
                         </span>
+                        {column.label}
                       </button>
                     </th>
                   ))}
@@ -315,7 +335,7 @@ export function EquipmentListPage() {
                           <span className="cell-warning">sem comunicação</span>
                         )}
                       </td>
-                      <td style={{ whiteSpace: "nowrap" }}>{AGENCY_SHORT_LABELS[item.agency]}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{agencyName(meta, item.agencyId)}</td>
                       <td className="cell-actions">
                         <Link
                           href={`/equipment/${item.id}`}

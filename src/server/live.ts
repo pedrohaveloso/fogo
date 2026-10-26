@@ -26,23 +26,28 @@ export function createLiveHub(db: Database, city: CityDataset, predictions: Pred
   const listeners = new Set<Listener>();
   let cityLevel: { level: HealthLevel; since: string } | null = null;
 
-  function acknowledged(): Set<string> {
-    const rows = db.prepare("SELECT alert_id FROM alert_acks").all() as { alert_id: string }[];
+  async function acknowledged(): Promise<Set<string>> {
+    const rows = await db.query<{ alert_id: string }>("SELECT alert_id FROM alert_acks");
     return new Set(rows.map((row) => row.alert_id));
   }
 
-  function state(now: number) {
-    const equipment = listEquipment(db);
-    const agents = listAgents(db);
-    const occurrences = listActiveOccurrences(db);
+  async function state(now: number) {
+    const [equipment, agents, occurrences, anomalies, staffing, acks] = await Promise.all([
+      listEquipment(db, city.city.id),
+      listAgents(db, city.city.id),
+      listActiveOccurrences(db, city.city.id),
+      predictions.anomalies(now),
+      predictions.staffing(now, STAFFING_HORIZON_HOURS),
+      acknowledged(),
+    ]);
     const operations = computeSummary({
       city,
       equipment,
       agents,
       occurrences,
-      anomalies: predictions.anomalies(now),
-      staffing: predictions.staffing(now, STAFFING_HORIZON_HOURS),
-      acknowledged: acknowledged(),
+      anomalies,
+      staffing,
+      acknowledged: acks,
       now,
     });
     cityLevel = levelSince(cityLevel, operations.city.level, now);
@@ -50,21 +55,21 @@ export function createLiveHub(db: Database, city: CityDataset, predictions: Pred
     return { equipment, agents, occurrences, operations };
   }
 
-  function summary(now: number): OperationsSummary {
-    return state(now).operations;
+  async function summary(now: number): Promise<OperationsSummary> {
+    return (await state(now)).operations;
   }
 
-  function snapshot(now: number): OperationsSnapshot {
-    const { equipment, agents, occurrences, operations } = state(now);
+  async function snapshot(now: number): Promise<OperationsSnapshot> {
+    const { equipment, agents, occurrences, operations } = await state(now);
     return { ...operations, equipment, agents, occurrences };
   }
 
-  function publish(change: Partial<Omit<StreamTick, "summary">>, now: number): void {
+  async function publish(change: Partial<Omit<StreamTick, "summary">>, now: number): Promise<void> {
     if (listeners.size === 0) {
       return;
     }
     const tick: StreamTick = {
-      summary: summary(now),
+      summary: await summary(now),
       agents: change.agents ?? [],
       agentRecords: change.agentRecords ?? [],
       movingEquipment: change.movingEquipment ?? [],
@@ -84,14 +89,15 @@ export function createLiveHub(db: Database, city: CityDataset, predictions: Pred
     return () => listeners.delete(listener);
   }
 
-  function acknowledge(alertId: string, now: number): void {
-    db.prepare(
-      "INSERT INTO alert_acks (alert_id, acknowledged_at) VALUES (?, ?) ON CONFLICT (alert_id) DO NOTHING",
-    ).run(alertId, now);
+  async function acknowledge(alertId: string, now: number): Promise<void> {
+    await db.run(
+      "INSERT INTO alert_acks (alert_id, acknowledged_at) VALUES ($1, $2) ON CONFLICT (alert_id) DO NOTHING",
+      [alertId, now],
+    );
   }
 
-  function unacknowledge(alertId: string): void {
-    db.prepare("DELETE FROM alert_acks WHERE alert_id = ?").run(alertId);
+  async function unacknowledge(alertId: string): Promise<void> {
+    await db.run("DELETE FROM alert_acks WHERE alert_id = $1", [alertId]);
   }
 
   return {

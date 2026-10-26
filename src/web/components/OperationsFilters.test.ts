@@ -35,7 +35,8 @@ describe("matchesFilters", () => {
     expect(matchesFilters(item, { ...EMPTY_FILTERS, neighborhoodId: "centro" }, meta, NOW)).toBe(
       false,
     );
-    expect(matchesFilters(item, { ...EMPTY_FILTERS, agency: "mobility" }, meta, NOW)).toBe(false);
+    expect(matchesFilters(item, { ...EMPTY_FILTERS, agency: "1" }, meta, NOW)).toBe(false);
+    expect(matchesFilters(item, { ...EMPTY_FILTERS, agency: "2" }, meta, NOW)).toBe(true);
     expect(matchesFilters(item, { ...EMPTY_FILTERS, search: "FLORES" }, meta, NOW)).toBe(true);
   });
 
@@ -141,7 +142,7 @@ describe("placeFilterCount", () => {
         ...EMPTY_FILTERS,
         regionId: "centro",
         neighborhoodId: "fragata",
-        agency: "municipal_guard",
+        agency: "2",
         maintenance: "overdue",
       }),
     ).toBe(4);

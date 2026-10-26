@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { silentMinutes } from "../../shared/telemetry.ts";
 import { InlineLoading } from "./LoadingNotice.tsx";
 import {
-  AGENCY_LABELS,
   AGENT_ROLES,
   EQUIPMENT_STATUSES,
   UNAVAILABLE_STATUSES,
@@ -27,6 +26,7 @@ import { nearestAvailableAgents } from "../../shared/response.ts";
 import { formatMaintenanceDue } from "../../shared/text.ts";
 import { api, ApiError } from "../api.ts";
 import {
+  agencyName,
   formatDate,
   formatDateTime,
   formatHour,
@@ -40,6 +40,7 @@ import { CLOSE_GLYPH, Glyph } from "../icons.tsx";
 import { useFetch } from "../useFetch.ts";
 import { AgentStatusBadge, HealthTag, SeverityBadge, StatusBadge, TypeLabel } from "./badges.tsx";
 import { LineChart } from "./charts/LineChart.tsx";
+import { cityPath } from "../cityScope.ts";
 
 type EquipmentDetails = {
   equipment: Equipment;
@@ -100,7 +101,7 @@ function EquipmentPanel({
   now: number;
   meta: Meta;
 }) {
-  const { data, error, reload } = useFetch<EquipmentDetails>(`/equipment/${id}`, 30_000);
+  const { data, error, reload } = useFetch<EquipmentDetails>(cityPath(`/equipment/${id}`), 30_000);
   const item = live ?? data?.equipment;
   if (error && !item) {
     return <p className="error-box">{error}</p>;
@@ -132,12 +133,12 @@ function EquipmentPanel({
           {item.brand} {item.model}
         </dd>
         <dt>Órgão</dt>
-        <dd>{AGENCY_LABELS[item.agency]}</dd>
+        <dd>{agencyName(meta, item.agencyId)}</dd>
         <dt>Endereço</dt>
         <dd>
           {item.street}, {item.reference}
           <br />
-          {neighborhood?.name}, {item.city}/{item.uf}, CEP {item.cep}
+          {neighborhood?.name}, {meta.city.name}/{meta.city.uf}, CEP {item.cep}
         </dd>
         <dt>Coordenadas</dt>
         <dd>
@@ -261,7 +262,7 @@ function AgentPanel({
   meta: Meta;
   occurrences: Occurrence[];
 }) {
-  const { data, error, reload } = useFetch<AgentDetails>(`/agents/${id}`, 30_000);
+  const { data, error, reload } = useFetch<AgentDetails>(cityPath(`/agents/${id}`), 30_000);
   const agent = live ?? data?.agent;
   if (error && !agent) {
     return <p className="error-box">{error}</p>;
@@ -284,7 +285,7 @@ function AgentPanel({
         <dt>Matrícula</dt>
         <dd>{agent.badge}</dd>
         <dt>Órgão</dt>
-        <dd>{AGENCY_LABELS[agent.agency]}</dd>
+        <dd>{agencyName(meta, agent.agencyId)}</dd>
         <dt>Turno</dt>
         <dd>{SHIFTS[agent.shift]}</dd>
         <dt>Base</dt>
@@ -351,7 +352,7 @@ function OccurrencePanel({
     setBusy(true);
     setError(null);
     try {
-      await api.post(`/occurrences/${occurrence.id}/resolve`);
+      await api.post(cityPath(`/occurrences/${occurrence.id}/resolve`));
       onClose();
     } catch (reason) {
       setError(

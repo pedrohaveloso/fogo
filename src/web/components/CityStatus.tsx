@@ -1,7 +1,6 @@
 import type { Kpis, OperationsSummary } from "../../shared/types.ts";
 import { HEALTH_LABELS } from "../colors.ts";
 import { formatInteger, formatTime } from "../format.ts";
-import { generalIndicators } from "../summaries.ts";
 import {
   showsUnavailableOnly,
   toggleUnavailable,
@@ -48,12 +47,14 @@ function Count({ value, label, tone, filter }: CountProps) {
 }
 
 export function CityStatus({
+  cityName,
   city,
   kpis,
   waiting,
   filters,
   onFiltersChange,
 }: {
+  cityName: string;
   city: OperationsSummary["city"];
   kpis: Kpis;
   waiting: number;
@@ -64,7 +65,7 @@ export function CityStatus({
     <section className="city-status" data-level={city.level} aria-labelledby="city-status-title">
       <div className="city-stage">
         <h2 id="city-status-title" className="city-stage-label">
-          Situação de Marília
+          Situação de {cityName}
         </h2>
         <p className="city-stage-level" role="status">
           {HEALTH_LABELS[city.level]}
@@ -95,23 +96,6 @@ export function CityStatus({
           }}
         />
       </div>
-      <section className="city-fleet" aria-labelledby="city-fleet-title">
-        <h3 id="city-fleet-title" className="city-fleet-title">
-          Indicadores gerais
-        </h3>
-        <ul className="city-fleet-list">
-          {generalIndicators(kpis).map((item) => (
-            <li key={item.key}>
-              <strong>{item.value}</strong> {item.label}
-            </li>
-          ))}
-        </ul>
-        <p className="city-fleet-note">
-          Disponibilidade sobre os{" "}
-          {formatInteger(kpis.equipmentTotal - kpis.notInstalled - kpis.disabled)} equipamentos
-          instalados e ativos.
-        </p>
-      </section>
     </section>
   );
 }

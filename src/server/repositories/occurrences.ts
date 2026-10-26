@@ -1,6 +1,6 @@
 import type { OccurrenceKind, Severity } from "../../shared/catalog.ts";
 import type { Occurrence, OccurrenceStatus } from "../../shared/types.ts";
-import type { Database } from "../db.ts";
+import type { Queryable } from "../db.ts";
 
 type OccurrenceRow = {
   id: number;
@@ -37,6 +37,7 @@ function toOccurrence(row: OccurrenceRow): Occurrence {
 }
 
 export type NewOccurrence = {
+  cityId: number;
   kind: OccurrenceKind;
   severity: Severity;
   neighborhoodId: string;
@@ -48,13 +49,16 @@ export type NewOccurrence = {
   createdAt: number;
 };
 
-export function insertOccurrence(db: Database, occurrence: NewOccurrence): Occurrence {
-  const result = db
-    .prepare(
-      `INSERT INTO occurrences (kind, severity, status, source, neighborhood_id, lat, lng, description,
-       equipment_id, created_at) VALUES (?, ?, 'open', ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+export async function insertOccurrence(
+  db: Queryable,
+  occurrence: NewOccurrence,
+): Promise<Occurrence> {
+  const row = await db.one<OccurrenceRow>(
+    `INSERT INTO occurrences (city_id, kind, severity, status, source, neighborhood_id, lat, lng,
+     description, equipment_id, created_at) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, $10)
+     RETURNING *`,
+    [
+      occurrence.cityId,
       occurrence.kind,
       occurrence.severity,
       occurrence.source,
@@ -64,56 +68,54 @@ export function insertOccurrence(db: Database, occurrence: NewOccurrence): Occur
       occurrence.description,
       occurrence.equipmentId,
       occurrence.createdAt,
-    );
-  return getOccurrence(db, Number(result.lastInsertRowid))!;
+    ],
+  );
+  return toOccurrence(row!);
 }
 
-export function getOccurrence(db: Database, id: number): Occurrence | null {
-  const row = db.prepare("SELECT * FROM occurrences WHERE id = ?").get(id) as
-    | OccurrenceRow
-    | undefined;
+export async function getOccurrence(
+  db: Queryable,
+  cityId: number,
+  id: number,
+): Promise<Occurrence | null> {
+  const row = await db.one<OccurrenceRow>(
+    "SELECT * FROM occurrences WHERE id = $1 AND city_id = $2",
+    [id, cityId],
+  );
   return row ? toOccurrence(row) : null;
 }
 
-export function listActiveOccurrences(db: Database): Occurrence[] {
-  const rows = db
-    .prepare("SELECT * FROM occurrences WHERE status != 'resolved' ORDER BY created_at DESC")
-    .all() as OccurrenceRow[];
+export async function listActiveOccurrences(db: Queryable, cityId: number): Promise<Occurrence[]> {
+  const rows = await db.query<OccurrenceRow>(
+    "SELECT * FROM occurrences WHERE city_id = $1 AND status <> 'resolved' ORDER BY created_at DESC, id DESC",
+    [cityId],
+  );
   return rows.map(toOccurrence);
 }
 
-export function listRecentOccurrences(db: Database, since: number, limit: number): Occurrence[] {
-  const rows = db
-    .prepare("SELECT * FROM occurrences WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?")
-    .all(since, limit) as OccurrenceRow[];
+export async function listRecentOccurrences(
+  db: Queryable,
+  cityId: number,
+  since: number,
+  limit: number,
+): Promise<Occurrence[]> {
+  const rows = await db.query<OccurrenceRow>(
+    "SELECT * FROM occurrences WHERE city_id = $1 AND created_at >= $2 ORDER BY created_at DESC, id DESC LIMIT $3",
+    [cityId, since, limit],
+  );
   return rows.map(toOccurrence);
 }
 
-export function assignOccurrence(db: Database, id: number, agentId: number): void {
-  db.prepare("UPDATE occurrences SET status = 'responding', agent_id = ? WHERE id = ?").run(
+export async function assignOccurrence(db: Queryable, id: number, agentId: number): Promise<void> {
+  await db.run("UPDATE occurrences SET status = 'responding', agent_id = $1 WHERE id = $2", [
     agentId,
     id,
-  );
+  ]);
 }
 
-export function resolveOccurrence(db: Database, id: number, at: number): void {
-  db.prepare("UPDATE occurrences SET status = 'resolved', resolved_at = ? WHERE id = ?").run(
+export async function resolveOccurrence(db: Queryable, id: number, at: number): Promise<void> {
+  await db.run("UPDATE occurrences SET status = 'resolved', resolved_at = $1 WHERE id = $2", [
     at,
     id,
-  );
-}
-
-export type OccurrenceCountRow = {
-  neighborhood_id: string;
-  kind: string;
-  created_at: number;
-  source: string;
-};
-
-export function occurrencesBetween(db: Database, from: number, to: number): OccurrenceCountRow[] {
-  return db
-    .prepare(
-      "SELECT neighborhood_id, kind, created_at, source FROM occurrences WHERE created_at >= ? AND created_at < ?",
-    )
-    .all(from, to) as OccurrenceCountRow[];
+  ]);
 }

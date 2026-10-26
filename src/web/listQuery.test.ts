@@ -29,7 +29,7 @@ describe("equipment list query", () => {
       statuses: ["malfunction" as const, "stolen" as const],
       regionId: "south",
       neighborhoodId: "fragata",
-      agency: "mobility" as const,
+      agency: "3",
       maintenance: "urgent" as const,
     };
     const sort = { key: "seen" as const, direction: -1 as const };
@@ -41,11 +41,14 @@ describe("equipment list query", () => {
 
   it("ignores values it does not know", () => {
     const parsed = equipmentFromQuery(
-      new URLSearchParams("type=foguete&status=operational,quebrado&sort=x&maintenance=y"),
+      new URLSearchParams(
+        "type=foguete&status=operational,quebrado&sort=x&maintenance=y&agency=mobility",
+      ),
     );
     expect(parsed.filters.type).toBe("");
     expect(parsed.filters.statuses).toEqual(["operational"]);
     expect(parsed.filters.maintenance).toBe("");
+    expect(parsed.filters.agency).toBe("");
     expect(parsed.sort).toEqual(DEFAULT_SORT);
   });
 });

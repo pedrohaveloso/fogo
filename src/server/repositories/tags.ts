@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EQUIPMENT_TYPES } from "../../shared/catalog.ts";
 import type { CreatedTag, Tag, TagTarget } from "../../shared/types.ts";
-import type { Database } from "../db.ts";
+import type { Queryable } from "../db.ts";
 import { getAgent } from "./agents.ts";
 import { getEquipment } from "./equipment.ts";
 
@@ -53,53 +53,66 @@ function column(target: TagTarget): "equipment_id" | "agent_id" {
   return target.kind === "equipment" ? "equipment_id" : "agent_id";
 }
 
-export function targetExists(db: Database, target: TagTarget): boolean {
-  return target.kind === "equipment"
-    ? getEquipment(db, target.id) !== null
-    : getAgent(db, target.id) !== null;
+export async function targetCityId(db: Queryable, target: TagTarget): Promise<number | null> {
+  const owner =
+    target.kind === "equipment" ? await getEquipment(db, target.id) : await getAgent(db, target.id);
+  return owner?.cityId ?? null;
 }
 
-export function tagFor(db: Database, target: TagTarget): Tag | null {
-  const row = db.prepare(`SELECT * FROM tags WHERE ${column(target)} = ?`).get(target.id) as
-    | TagRow
-    | undefined;
+export async function getTag(db: Queryable, id: string): Promise<Tag | null> {
+  const row = await db.one<TagRow>("SELECT * FROM tags WHERE id = $1", [id]);
   return row ? toTag(row) : null;
 }
 
-export function createTag(db: Database, target: TagTarget, now: number): CreatedTag {
-  if (tagFor(db, target)) {
+export async function tagFor(db: Queryable, target: TagTarget): Promise<Tag | null> {
+  const row = await db.one<TagRow>(`SELECT * FROM tags WHERE ${column(target)} = $1`, [target.id]);
+  return row ? toTag(row) : null;
+}
+
+export async function createTag(
+  db: Queryable,
+  target: TagTarget,
+  now: number,
+): Promise<CreatedTag> {
+  if (await tagFor(db, target)) {
     throw new TagTakenError();
   }
   const token = randomBytes(24).toString("base64url");
   const id = newTagId();
-  db.prepare(
-    `INSERT INTO tags (id, token_hash, equipment_id, agent_id, created_at) VALUES (?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    hashToken(token).toString("hex"),
-    target.kind === "equipment" ? target.id : null,
-    target.kind === "agent" ? target.id : null,
-    now,
+  await db.run(
+    "INSERT INTO tags (id, token_hash, equipment_id, agent_id, created_at) VALUES ($1, $2, $3, $4, $5)",
+    [
+      id,
+      hashToken(token).toString("hex"),
+      target.kind === "equipment" ? target.id : null,
+      target.kind === "agent" ? target.id : null,
+      now,
+    ],
   );
-  return { tag: tagFor(db, target)!, token };
+  return { tag: (await tagFor(db, target))!, token };
 }
 
-export function deleteTag(db: Database, id: string): boolean {
-  return Number(db.prepare("DELETE FROM tags WHERE id = ?").run(id).changes) > 0;
+export async function deleteTag(db: Queryable, id: string): Promise<boolean> {
+  return (await db.run("DELETE FROM tags WHERE id = $1", [id])) > 0;
 }
 
-export function authenticateTag(db: Database, id: string, token: string): Tag | null {
-  const row = db.prepare("SELECT * FROM tags WHERE id = ?").get(id) as TagRow | undefined;
+export async function authenticateTag(
+  db: Queryable,
+  id: string,
+  token: string,
+): Promise<Tag | null> {
+  const row = await db.one<TagRow>("SELECT * FROM tags WHERE id = $1", [id]);
   const expected = row ? Buffer.from(row.token_hash, "hex") : hashToken("");
   const matches = timingSafeEqual(expected, hashToken(token));
   return row && matches ? toTag(row) : null;
 }
 
-export function trackedIds(db: Database): { equipment: Set<number>; agents: Set<number> } {
-  const rows = db.prepare("SELECT equipment_id, agent_id FROM tags").all() as Pick<
-    TagRow,
-    "equipment_id" | "agent_id"
-  >[];
+export async function trackedIds(
+  db: Queryable,
+): Promise<{ equipment: Set<number>; agents: Set<number> }> {
+  const rows = await db.query<Pick<TagRow, "equipment_id" | "agent_id">>(
+    "SELECT equipment_id, agent_id FROM tags",
+  );
   return {
     equipment: new Set(
       rows.flatMap((row) => (row.equipment_id === null ? [] : [row.equipment_id])),
@@ -108,12 +121,12 @@ export function trackedIds(db: Database): { equipment: Set<number>; agents: Set<
   };
 }
 
-export function reportLocation(
-  db: Database,
+export async function reportLocation(
+  db: Queryable,
   tag: Tag,
   report: LocationReport,
   now: number,
-): ReportResult {
+): Promise<ReportResult> {
   const at = Math.min(report.at ?? now, now);
   const last = tag.lastReportAt === null ? null : Date.parse(tag.lastReportAt);
   if (last !== null && at < last) {
@@ -121,21 +134,22 @@ export function reportLocation(
   }
   const { target } = tag;
   if (target.kind === "agent") {
-    db.prepare("UPDATE agents SET lat = ?, lng = ?, last_seen_at = ? WHERE id = ?").run(
+    await db.run("UPDATE agents SET lat = $1, lng = $2, last_seen_at = $3 WHERE id = $4", [
       report.lat,
       report.lng,
       at,
       target.id,
-    );
+    ]);
   } else {
-    const equipment = getEquipment(db, target.id);
+    const equipment = await getEquipment(db, target.id);
     const mobile = equipment !== null && EQUIPMENT_TYPES[equipment.type].mobile;
-    db.prepare(
-      `UPDATE equipment SET last_seen_at = ?, battery = COALESCE(?, battery),
-       current_lat = CASE WHEN ? THEN ? ELSE current_lat END,
-       current_lng = CASE WHEN ? THEN ? ELSE current_lng END WHERE id = ?`,
-    ).run(at, report.battery, mobile ? 1 : 0, report.lat, mobile ? 1 : 0, report.lng, target.id);
+    await db.run(
+      `UPDATE equipment SET last_seen_at = $1, battery = COALESCE($2, battery),
+       current_lat = CASE WHEN $3::boolean THEN $4::double precision ELSE current_lat END,
+       current_lng = CASE WHEN $3::boolean THEN $5::double precision ELSE current_lng END WHERE id = $6`,
+      [at, report.battery, mobile, report.lat, report.lng, target.id],
+    );
   }
-  db.prepare("UPDATE tags SET last_report_at = ? WHERE id = ?").run(at, tag.id);
+  await db.run("UPDATE tags SET last_report_at = $1 WHERE id = $2", [at, tag.id]);
   return { applied: true, target, at };
 }

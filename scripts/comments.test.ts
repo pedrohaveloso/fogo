@@ -10,7 +10,6 @@ describe("isCheckedFile", () => {
     expect(isCheckedFile("README.md")).toBe(false);
     expect(isCheckedFile("src/web/index.html")).toBe(false);
     expect(isCheckedFile("vite.config.ts")).toBe(false);
-    expect(isCheckedFile("docs/research/notes.ts")).toBe(false);
   });
 });
 

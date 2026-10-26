@@ -21,7 +21,7 @@ function SlowMessage({ onRetry }: { onRetry: () => void }) {
   return (
     <>
       <p>
-        A conexão com o servidor está demorando. Se houver muitas abas do F.O.G.O. abertas, feche
+        A conexão com o servidor está demorando. Se houver muitas abas do FOGO abertas, feche
         algumas e tente de novo.
       </p>
       <button type="button" className="button button-small" onClick={onRetry}>

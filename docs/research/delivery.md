@@ -1,4 +1,4 @@
-# Entrega do F.O.G.O.: configuração para IA e documentação
+# Entrega do FOGO: configuração para IA e documentação
 
 Pesquisa feita em 22/10/2026. Nenhum arquivo do projeto além deste foi alterado.
 
@@ -6,7 +6,7 @@ Pesquisa feita em 22/10/2026. Nenhum arquivo do projeto além deste foi alterado
 
 O código está em bom estado para entrega: 18 commits convencionais em inglês, nenhum comentário em `src/` e `scripts/`, CI com ações fixadas por hash, Docker com `compose.yaml` e README completo no conteúdo. Faltam as peças que um avaliador procura antes de ler o código: LICENSE, capturas de tela, visão de arquitetura com diagrama, registro de decisões, crédito de dados em arquivo próprio e a configuração de IA do repositório (CLAUDE.md e `.claude/`).
 
-Não encontrei o regulamento nem os critérios de avaliação da Etapa Bônus. O site oficial (appcoderchallenge.dsin.com.br) respondeu 403 e a busca só devolveu repositórios de outros participantes. O único indício indireto é um README de participante que diz ter declarado o uso de Claude "conforme pede o regulamento", ou seja, o regulamento provavelmente exige declarar uso de IA. O F.O.G.O. já tem essa seção. Recomendo que o dono do projeto confira o enunciado original e acrescente à seção de gaps qualquer item que eu não pude ver.
+Não encontrei o regulamento nem os critérios de avaliação da Etapa Bônus. O site oficial (appcoderchallenge.dsin.com.br) respondeu 403 e a busca só devolveu repositórios de outros participantes. O único indício indireto é um README de participante que diz ter declarado o uso de Claude "conforme pede o regulamento", ou seja, o regulamento provavelmente exige declarar uso de IA. O FOGO já tem essa seção. Recomendo que o dono do projeto confira o enunciado original e acrescente à seção de gaps qualquer item que eu não pude ver.
 
 Prioridade sugerida: LICENSE e crédito de dados, CLAUDE.md curto, capturas de tela e um GIF no README, `docs/arquitetura.md` com Mermaid, três ou quatro ADRs, `.claude/settings.json` com permissões e um hook de verificação.
 
@@ -28,12 +28,12 @@ Sobre repositórios de referência: não consegui abrir CLAUDE.md reais de proje
 
 ### Proposta para este repositório
 
-A configuração pessoal em `~/.claude` já impõe boa parte das regras gerais (Português, Exa, ferramentas, commits). O CLAUDE.md do projeto deve conter só o que é do F.O.G.O. e do dono, e evitar repetir o global. Como o projeto é pessoal e usa só Claude Code, recomendo apenas o `CLAUDE.md` e pular o AGENTS.md. Se um dia outra ferramenta precisar ler o repositório, o caminho documentado é um `CLAUDE.md` que importa o `AGENTS.md` com `@AGENTS.md`.
+A configuração pessoal em `~/.claude` já impõe boa parte das regras gerais (Português, Exa, ferramentas, commits). O CLAUDE.md do projeto deve conter só o que é do FOGO e do dono, e evitar repetir o global. Como o projeto é pessoal e usa só Claude Code, recomendo apenas o `CLAUDE.md` e pular o AGENTS.md. Se um dia outra ferramenta precisar ler o repositório, o caminho documentado é um `CLAUDE.md` que importa o `AGENTS.md` com `@AGENTS.md`.
 
 Esboço de `CLAUDE.md`, cerca de 60 linhas:
 
 ```
-# F.O.G.O.
+# FOGO
 
 Sistema de inventário, central de operações e previsão para a prefeitura de Marília (SP).
 Hono + node:sqlite no servidor, React + MapLibre na interface, TypeScript nos dois lados.
@@ -82,7 +82,7 @@ Conteúdo de `.claude/` proposto:
 - `.claude/rules/web.md` com `paths: ["src/web/**"]`: linguagem de sinalização, tokens de cor, textos em português revisados, acessibilidade (o `.oxlintrc.json` já liga `jsx-a11y`), mapa e MapLibre em `src/web/map/`.
 - `.claude/rules/predictions.md` com `paths: ["src/server/predictions/**"]`: funções puras, um arquivo por modelo, testes com dados sintéticos, nada de ler o gerador, descontar o fator de aceleração.
 - `.claude/skills/new-equipment-type/SKILL.md`: passo a passo para acrescentar um tipo ao catálogo (catálogo, seed, ícone/forma de marcador, teste de validação). É o único fluxo repetido que o código mostra.
-- `.claude/skills/browser-check/SKILL.md` só se as regras de teste no navegador forem específicas do F.O.G.O. (portas 3210 e 5173, iframes de 400px). Se a skill global `u-chrome` já cobrir, não criar.
+- `.claude/skills/browser-check/SKILL.md` só se as regras de teste no navegador forem específicas do FOGO (portas 3210 e 5173, iframes de 400px). Se a skill global `u-chrome` já cobrir, não criar.
 - `.claude/agents/`: nenhum subagente fixo é necessário. A documentação sugere um revisor em contexto novo, mas o skill `code-review` já faz isso. Criar um agente aqui seria duplicação.
 - `.claude/commands/`: não criar.
 - `.claude/settings.local.json` já existe e já está fora do git por regra global (`~/.config/git/ignore`). Acrescente `.claude/settings.local.json` ao `.gitignore` do projeto de qualquer forma, para quem clonar.
@@ -124,12 +124,12 @@ docs/decisoes/0001-node-sqlite.md   um ADR curto por decisão
 docs/decisoes/0002-sse-em-vez-de-websocket.md
 docs/decisoes/0003-modelos-estatisticos-simples.md
 docs/decisoes/0004-linguagem-de-sinalizacao.md
-docs/imagens/                 capturas e GIF
+docs/images/                 capturas e GIF
 ```
 
 ADRs: o formato MADR 4.0 tem versão mínima (título, contexto e problema, opções consideradas, decisão e consequências) e fica em `docs/decisions`. Para um projeto deste tamanho, use a versão mínima e escreva em português; quatro ADRs de uma página bastam. Temas que o código já sustenta: `node:sqlite` sem ORM e servidor rodando `.ts` direto no Node 24, SSE a cada 2 s em vez de WebSocket, previsão por estatística simples e explicável (Poisson, escore z, percentil) em vez de aprendizado de máquina, Voronoi para limites de bairro, aceleração de 20x no simulador com desconto nos modelos.
 
-Arquitetura em C4 enxuto: dois diagramas Mermaid bastam, um de contexto (pessoa da prefeitura, F.O.G.O., OpenFreeMap, ViaCEP, Overpass só no build de dados) e um de contêineres (interface React, API Hono, SQLite, simulador, modelos de previsão). Mermaid renderiza no GitHub direto; a sintaxe `C4Context` do Mermaid ainda é experimental, então prefira `flowchart` com rótulos nos nós. Um terceiro diagrama de sequência para o fluxo simulador, banco, SSE e tela ajuda a explicar o "ao vivo".
+Arquitetura em C4 enxuto: dois diagramas Mermaid bastam, um de contexto (pessoa da prefeitura, FOGO, OpenFreeMap, ViaCEP, Overpass só no build de dados) e um de contêineres (interface React, API Hono, SQLite, simulador, modelos de previsão). Mermaid renderiza no GitHub direto; a sintaxe `C4Context` do Mermaid ainda é experimental, então prefira `flowchart` com rótulos nos nós. Um terceiro diagrama de sequência para o fluxo simulador, banco, SSE e tela ajuda a explicar o "ao vivo".
 
 Estrutura de pastas: `src/shared`, `src/server`, `src/web` já seguem a convenção comum para TypeScript fullstack sem monorepo, e os testes ao lado do código são coerentes. Não vale mover nada; só documentar.
 

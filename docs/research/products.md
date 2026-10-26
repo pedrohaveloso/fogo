@@ -1,28 +1,28 @@
-# Produtos de referência para o F.O.G.O.
+# Produtos de referência para o FOGO
 
 Pesquisa feita em 22/10/2026 sobre centros de operações urbanas, plataformas de segurança pública, gestão de trânsito, telemetria de frota, painéis de cidade e gestão de manutenção. O foco é a interface: como cada produto organiza a tela, mostra situação, trata alertas e desenha o mapa.
 
-A maior parte desses sistemas fica atrás de login. As descrições vêm de manuais e centrais de ajuda públicas, folhetos dos fabricantes, documentos de licitação e reportagens. Vi diretamente a página inicial do COR Rio e as telas atuais do F.O.G.O. (Central, Equipamentos e Cidade preditiva). O Dublin Dashboard estava fora do ar e o painel público do COP Recife não carregou. Afirmações de desempenho dos fabricantes estão marcadas como tal.
+A maior parte desses sistemas fica atrás de login. As descrições vêm de manuais e centrais de ajuda públicas, folhetos dos fabricantes, documentos de licitação e reportagens. Vi diretamente a página inicial do COR Rio e as telas atuais do FOGO (Central, Equipamentos e Cidade preditiva). O Dublin Dashboard estava fora do ar e o painel público do COP Recife não carregou. Afirmações de desempenho dos fabricantes estão marcadas como tal.
 
 ## As 10 lições mais úteis
 
-1. A situação da cidade funciona quando é um número ou palavra curta com critério escrito. O COR Rio trocou os nomes antigos (normalidade, mobilização, atenção, alerta, crise) por estágios de 1 a 5 porque, segundo o próprio COR, a população não entendia os nomes nem sabia o que fazer em cada um. Cada estágio tem uma frase de critério. Na página inicial do COR aparecem dois indicadores lado a lado, "Estágio 1" e "Calor 1", ou seja, uma dimensão diferente ganha escala própria em vez de entrar na conta geral. O F.O.G.O. já tem três níveis com motivo em uma frase; falta mostrar desde quando a cidade está naquele nível e o critério de cada nível ao alcance de um clique.
+1. A situação da cidade funciona quando é um número ou palavra curta com critério escrito. O COR Rio trocou os nomes antigos (normalidade, mobilização, atenção, alerta, crise) por estágios de 1 a 5 porque, segundo o próprio COR, a população não entendia os nomes nem sabia o que fazer em cada um. Cada estágio tem uma frase de critério. Na página inicial do COR aparecem dois indicadores lado a lado, "Estágio 1" e "Calor 1", ou seja, uma dimensão diferente ganha escala própria em vez de entrar na conta geral. O FOGO já tem três níveis com motivo em uma frase; falta mostrar desde quando a cidade está naquele nível e o critério de cada nível ao alcance de um clique.
 
 2. Normal em cinza, cor só para desvio, e a forma carrega a informação junto com a cor. É a prática das telas de alto desempenho que seguem a ISA-101. O MyGeotab leva isso ao marcador: forma pelo tipo de ativo, cor pela situação e até dois sinais extras por marcador (falha, manutenção). O mapa de base também fica neutro: o Esri recomenda Light Gray ou Dark Gray Canvas para contraste, o Verizon Connect tem modo "low colour" e o ClearGuide oferece base em tons de cinza.
 
-3. Dado velho é uma situação própria. O MyGeotab mostra "não comunica" com ícone específico e o tempo sem comunicação no hover. O Verizon Connect pisca em azul o cartão do veículo quando chega dado novo e mostra há quanto tempo ele está na situação atual. O simulador do F.O.G.O. gera quedas de comunicação; elas devem aparecer como "sem sinal há 3 h", distintas de "parado".
+3. Dado velho é uma situação própria. O MyGeotab mostra "não comunica" com ícone específico e o tempo sem comunicação no hover. O Verizon Connect pisca em azul o cartão do veículo quando chega dado novo e mostra há quanto tempo ele está na situação atual. O simulador do FOGO gera quedas de comunicação; elas devem aparecer como "sem sinal há 3 h", distintas de "parado".
 
 4. Lista e mapa compartilham filtros e seleção. Motive (Fleet View 2.0), Verizon Connect e ArcGIS Dashboards ligam as duas visões: passar o mouse num item da lista destaca o ponto no mapa, filtrar um filtra o outro, clicar num registro dá zoom. O Motive e o MyGeotab salvam a última posição, zoom e filtros.
 
-5. Poucos alertas, ordenados por prioridade e com estado. O Esri recomenda no máximo duas notificações por painel. O Rekor Command vende a fila de incidentes ordenada por prioridade. O Samsara separa a caixa de alertas em "meus", "arquivados" e "todos", com tipo, ativo, hora e estado em cada linha. A Central do F.O.G.O. mostrava 63 alertas e 29 críticos sem reconhecimento na captura de hoje; nesse volume o vermelho deixa de distinguir alguma coisa.
+5. Poucos alertas, ordenados por prioridade e com estado. O Esri recomenda no máximo duas notificações por painel. O Rekor Command vende a fila de incidentes ordenada por prioridade. O Samsara separa a caixa de alertas em "meus", "arquivados" e "todos", com tipo, ativo, hora e estado em cada linha. A Central do FOGO mostrava 63 alertas e 29 críticos sem reconhecimento na captura de hoje; nesse volume o vermelho deixa de distinguir alguma coisa.
 
 6. Comparar com o normal daquele dia e horário. O Waze for Cities avisa sobre "trânsito incomum" contra o padrão do mesmo dia da semana e hora. O ClearGuide pinta as vias pelo percentual da velocidade de fluxo livre e tem um mapa de tendência por dia da semana e hora. Na Cidade preditiva, o índice por percentil faz com que dezenas de bairros apareçam como alto ou moderado ao mesmo tempo (35 bairros coloridos na captura de hoje). Mostrar "esperado agora contra o típico deste horário" e colorir só o que foge do normal segue a mesma regra de cor do resto do sistema.
 
-7. Um evento no mapa responde "quem é afetado" e oferece a ação seguinte no mesmo lugar. No Motive, clicar no polígono de um evento climático mostra gravidade, início, fim e quantos motoristas e veículos estão dentro, com um botão para avisar todos. O Mark43 despacha a partir do mapa e recomenda unidades pelo tempo de rota. O MyGeotab tem "mais próximos" no clique do mapa. No F.O.G.O., clicar num bairro crítico deveria listar ocorrências abertas, equipamentos parados e os agentes livres mais próximos com tempo estimado.
+7. Um evento no mapa responde "quem é afetado" e oferece a ação seguinte no mesmo lugar. No Motive, clicar no polígono de um evento climático mostra gravidade, início, fim e quantos motoristas e veículos estão dentro, com um botão para avisar todos. O Mark43 despacha a partir do mapa e recomenda unidades pelo tempo de rota. O MyGeotab tem "mais próximos" no clique do mapa. No FOGO, clicar num bairro crítico deveria listar ocorrências abertas, equipamentos parados e os agentes livres mais próximos com tempo estimado.
 
 8. Inventário começa pelo que está fora do normal. O Fleetio mostra no cabeçalho quantos veículos têm manutenção vencida e quantos vencem em breve, com abas por situação. O UpKeep abre a lista de ordens de serviço já filtrada em aberto, em andamento e em espera, com filtros na barra superior e visões salvas com nome. O Fiix tem painel de ativos fora de operação com data e responsável pela mudança.
 
-9. Risco de falha precisa mostrar o porquê. O Maximo Health mostra a nota de saúde de cada ativo e o detalhamento de cada fator com o seu peso, uma matriz que cruza duas notas e filas de trabalho como "provável falha antes da preventiva". O F.O.G.O. já calcula o risco de falha em 7 dias; falta mostrar quanto da nota vem do tipo e quanto vem da manutenção vencida.
+9. Risco de falha precisa mostrar o porquê. O Maximo Health mostra a nota de saúde de cada ativo e o detalhamento de cada fator com o seu peso, uma matriz que cruza duas notas e filas de trabalho como "provável falha antes da preventiva". O FOGO já calcula o risco de falha em 7 dias; falta mostrar quanto da nota vem do tipo e quanto vem da manutenção vencida.
 
 10. Quem olha poucas vezes por dia precisa de "o que mudou desde a última vez". As salas de controle resolvem isso com operador olhando o tempo todo; o gestor de Marília não está nessa situação. O CommandCentral Aware tem mapa histórico para rever um incidente como aconteceu, o kepler.gl tem linha do tempo com reprodução e o Motive restaura a última visão. Um resumo "desde as 9h" (ocorrências abertas e fechadas, equipamentos que pararam e voltaram, mudanças de nível) atende melhor esse usuário do que a lista ao vivo.
 
@@ -32,9 +32,9 @@ A maior parte desses sistemas fica atrás de login. As descrições vêm de manu
 
 Centro municipal com cerca de 50 órgãos, sala de situação com videowall de 125 telas e um Geoportal com mais de 150 camadas (trânsito, chuva, escolas, hospitais, ocorrências). Recebe e envia dados ao Waze desde 2013.
 
-Vale copiar a escala de estágios com critério de uma frase por nível e a decisão de separar o calor em escala própria ("Calor 1" ao lado de "Estágio 1"). A mudança de nomes para números veio de entrevistas na rua; a lição para o F.O.G.O. é testar se "atenção" e "crítico" dizem ao gestor o que fazer. O mapa da sala dá zoom automático no entorno de cada nova ocorrência.
+Vale copiar a escala de estágios com critério de uma frase por nível e a decisão de separar o calor em escala própria ("Calor 1" ao lado de "Estágio 1"). A mudança de nomes para números veio de entrevistas na rua; a lição para o FOGO é testar se "atenção" e "crítico" dizem ao gestor o que fazer. O mapa da sala dá zoom automático no entorno de cada nova ocorrência.
 
-Vale evitar a escala de cinco cores do Cemaden (verde, amarelo, laranja, vermelho, roxo). Ela serve à comunicação pública; num sistema onde normal é cinza, três níveis bastam. O nível é decidido por pessoas no COR, e o F.O.G.O. calcula o seu por regra, então o critério precisa estar visível para o gestor confiar nele.
+Vale evitar a escala de cinco cores do Cemaden (verde, amarelo, laranja, vermelho, roxo). Ela serve à comunicação pública; num sistema onde normal é cinza, três níveis bastam. O nível é decidido por pessoas no COR, e o FOGO calcula o seu por regra, então o critério precisa estar visível para o gestor confiar nele.
 
 Fontes: https://cor.rio/centro-de-operacoes-rio-apresenta-os-novos-estagios-operacionais-da-cidade/, https://cor.rio/, https://cor.rio/expansao/, https://cor.rio/parcerias/, https://tecnoblog.net/especiais/centro-de-operacoes-rio/
 
@@ -42,7 +42,7 @@ Fontes: https://cor.rio/centro-de-operacoes-rio-apresenta-os-novos-estagios-oper
 
 Sistema estadual que cruza leitura de placas, câmeras públicas e privadas e bases policiais e transforma o resultado em alertas. Segundo o TCE-SP, cada alerta aparece num painel com data, hora, ponto no mapa, relação com outros alertas e acesso às câmeras próximas. Hoje o programa se chama Muralha Paulista.
 
-Vale copiar a ficha do alerta com "relacionados" e "o que há por perto". No F.O.G.O., um alerta de furto de totem pode listar os outros furtos no mesmo bairro na semana e as câmeras próximas e se elas estão funcionando.
+Vale copiar a ficha do alerta com "relacionados" e "o que há por perto". No FOGO, um alerta de furto de totem pode listar os outros furtos no mesmo bairro na semana e as câmeras próximas e se elas estão funcionando.
 
 Vale evitar o modelo de alerta para operador dedicado, com videowall. A interface é pensada para alto volume e atenção contínua.
 
@@ -54,7 +54,7 @@ Central municipal de videomonitoramento inaugurada em 2024, com cerca de 400 pro
 
 Vale copiar pouco da interface, que não é documentada. O painel público mostra que poucos números grandes e atualizados diariamente comunicam mais que muitos gráficos.
 
-Vale evitar a dependência de câmeras e reconhecimento facial como eixo da tela; o F.O.G.O. é sobre equipamentos, agentes e ocorrências.
+Vale evitar a dependência de câmeras e reconhecimento facial como eixo da tela; o FOGO é sobre equipamentos, agentes e ocorrências.
 
 Fontes: https://prefeitura.sp.gov.br/web/seguranca_urbana/w/noticias/369060
 
@@ -62,7 +62,7 @@ Fontes: https://prefeitura.sp.gov.br/web/seguranca_urbana/w/noticias/369060
 
 Centro Integrado de Operações criado para a Copa de 2014, com quase 5 mil câmeras e sala com BHTrans, Guarda Municipal, SAMU e Saúde. Tem uma sala separada para gestão de eventos, que ativa postos de comando.
 
-Vale copiar a separação entre rotina e evento. No F.O.G.O., isso sugere um modo de evento (jogo, show, feriado) que muda o recorte do mapa e os limites de alerta por algumas horas.
+Vale copiar a separação entre rotina e evento. No FOGO, isso sugere um modo de evento (jogo, show, feriado) que muda o recorte do mapa e os limites de alerta por algumas horas.
 
 Vale evitar tratar a sala integrada como modelo de tela para um gestor sozinho num notebook.
 
@@ -72,7 +72,7 @@ Fontes: https://prefeitura.pbh.gov.br/seguranca/copbh, https://prefeitura.pbh.go
 
 Centro Integrado de Coordenação de Serviços, ligado à Secretaria de Segurança, com cerca de 3 mil câmeras, videowall de 39 telas e análise de vídeo que dispara alerta automático. A EPTC publica um mapa de câmeras.
 
-Vale copiar a ideia de protocolo por tipo de ocorrência: cada tipo tem um caminho de resposta definido. No F.O.G.O., o alerta pode trazer o próximo passo recomendado ("acionar manutenção de semáforos", "enviar agente").
+Vale copiar a ideia de protocolo por tipo de ocorrência: cada tipo tem um caminho de resposta definido. No FOGO, o alerta pode trazer o próximo passo recomendado ("acionar manutenção de semáforos", "enviar agente").
 
 Vale evitar mapas públicos que mostram só localização sem situação.
 
@@ -82,9 +82,9 @@ Fontes: https://prefeitura.poa.br/smseg/ceic-poa, https://www.prefeitura.poa.br/
 
 O Centro de Controle Operacional da Urbs monitora trânsito e transporte com mais de 700 câmeras, semáforos, sensores e painéis de mensagem variável que mudam com uma tecla. A Muralha Digital abriu um CCO próprio para segurança.
 
-Vale copiar a ação direta sobre equipamentos a partir da central (mudar a mensagem de um painel). O F.O.G.O. tem painéis de mensagem no inventário; um botão "editar mensagem" na ficha do painel mostraria o equipamento como algo operável.
+Vale copiar a ação direta sobre equipamentos a partir da central (mudar a mensagem de um painel). O FOGO tem painéis de mensagem no inventário; um botão "editar mensagem" na ficha do painel mostraria o equipamento como algo operável.
 
-Vale evitar duas centrais separadas para trânsito e segurança, que é justamente o que o F.O.G.O. junta.
+Vale evitar duas centrais separadas para trânsito e segurança, que é justamente o que o FOGO junta.
 
 Fontes: https://www.curitiba.pr.gov.br/noticias/cameras-e-comunicacao-por-radio-agilizam-informacoes-sobre-o-transito-de-curitiba/34369, https://www.curitiba.pr.gov.br/noticias/centro-de-controle-operacional-da-muralha-digital-de-curitiba-comeca-a-funcionar/57562
 
@@ -102,7 +102,7 @@ Fontes: https://blog.img.com.br/casos-de-sucesso/case-cop-recife-gestao-urbana-a
 
 Sistema de apoio à decisão para segurança pública que nasceu num projeto da polícia de Chicago. Junta despacho (CAD), câmeras, leitura de placas, detecção de disparos e registros num mapa com ícones por evento, além de painéis analíticos e mapas de calor para planejar patrulhas e efetivo. Os estados das entidades são configuráveis.
 
-Vale copiar a ligação entre o ao vivo e o histórico no mesmo mapa (evento atual sobre o mapa de calor dos últimos dias), que o F.O.G.O. já oferece como camada opcional, e o uso do histórico para redesenhar efetivo, que é a função do reforço de agentes.
+Vale copiar a ligação entre o ao vivo e o histórico no mesmo mapa (evento atual sobre o mapa de calor dos últimos dias), que o FOGO já oferece como camada opcional, e o uso do histórico para redesenhar efetivo, que é a função do reforço de agentes.
 
 Vale evitar a dependência de vídeo e a densidade de ícones de uma sala de crime em tempo real.
 
@@ -132,7 +132,7 @@ Fontes: https://www.hexagonsafetyinfrastructure.com/products/computer-aided-disp
 
 Despacho em nuvem com mapa Esri, fila de eventos e fila de unidades. Arrastar uma unidade sobre um evento despacha; desde 2024 dá para criar evento e despachar soltando um alfinete no mapa. Recomenda unidades pelo tempo de rota. O menu de contexto da unidade só mostra as situações possíveis a partir da atual.
 
-Vale copiar as transições válidas no menu (um equipamento "furtado" não vira "operacional" sem passar por "em manutenção", se essa for a regra) e a recomendação por tempo de rota, que o simulador do F.O.G.O. já calcula.
+Vale copiar as transições válidas no menu (um equipamento "furtado" não vira "operacional" sem passar por "em manutenção", se essa for a regra) e a recomendação por tempo de rota, que o simulador do FOGO já calcula.
 
 Vale evitar o arrastar e soltar como único caminho; é rápido para despachante e difícil de descobrir para quem usa pouco.
 
@@ -162,7 +162,7 @@ Fontes: https://www.axon.com/products/axon-fusus, https://www.axon.com/products/
 
 Ferramenta de painéis usada por muitas prefeituras, inclusive o COP Recife. A documentação oficial tem boas regras: um painel por público, só a informação necessária, valores de referência nos indicadores, no máximo duas notificações, formatação condicional que muda a cor ao cruzar um limite, elementos mais importantes maiores e no canto superior esquerdo, mapa ao centro com indicadores à direita, mapa de base cinza para contraste, títulos visíveis em todo elemento. Separa painéis de retrato e de monitoramento.
 
-Vale copiar quase tudo isso como lista de verificação. O layout "mapa ao centro, indicadores à direita" é o que o F.O.G.O. já adotou.
+Vale copiar quase tudo isso como lista de verificação. O layout "mapa ao centro, indicadores à direita" é o que o FOGO já adotou.
 
 Vale evitar o resultado típico de painéis montados por usuário: excesso de rosca, gauge e cor.
 
@@ -192,7 +192,7 @@ Fontes: https://www.iteris.com/blog/iteris-adds-trend-maps-route-alerts-and-inci
 
 Central de trânsito em que o mapa vetorial da cidade é a entrada principal. Cada objeto aparece com dados fixos e dinâmicos, em camadas que se ligam e desligam. A central envia mensagens de falha por e-mail ou SMS ao responsável local.
 
-Vale copiar o envio da falha direto para o órgão responsável. O F.O.G.O. guarda o órgão de cada equipamento; a ficha de falha pode dizer "avisar Mobilidade Urbana".
+Vale copiar o envio da falha direto para o órgão responsável. O FOGO guarda o órgão de cada equipamento; a ficha de falha pode dizer "avisar Mobilidade Urbana".
 
 Vale evitar a tela de engenharia de semáforos, que não é para gestor.
 
@@ -202,7 +202,7 @@ Fontes: https://www.yunextraffic.com/wp-content/uploads/2023/05/Yunex-Traffic_Yu
 
 Plataforma de gestão de mobilidade com operação centrada no mapa e lista de eventos. Associa a cada incidente um plano de resposta e os recursos (câmeras, painéis, viaturas). A visão comum pode ser recortada por operador e área de responsabilidade. A versão de 2026 cria incidentes automaticamente e os gerencia num gestor de eventos.
 
-Vale copiar o plano de resposta ligado ao incidente e o recorte por área de responsabilidade (por região, no F.O.G.O.).
+Vale copiar o plano de resposta ligado ao incidente e o recorte por área de responsabilidade (por região, no FOGO).
 
 Vale evitar a criação automática de muitos incidentes sem agrupamento.
 
@@ -212,7 +212,7 @@ Fontes: https://www.kapsch.net/_Resources/Persistent/8aa7fe0b125f0c4085f776b3ea6
 
 Plataforma para centros de gestão de trânsito que aprende o padrão normal das vias e marca anomalias como incidentes. Os alertas chegam ordenados por prioridade; o operador confirma, e a confirmação volta para o modelo. O fabricante afirma detecção 9 minutos mais rápida.
 
-Vale copiar o ciclo confirmar ou descartar uma anomalia. As anomalias do F.O.G.O. (sensor zerado, pico de fluxo, concentração de ocorrências) ganhariam um "confirmar" e "falso alarme", e a taxa de falsos alarmes aparece na qualidade do modelo.
+Vale copiar o ciclo confirmar ou descartar uma anomalia. As anomalias do FOGO (sensor zerado, pico de fluxo, concentração de ocorrências) ganhariam um "confirmar" e "falso alarme", e a taxa de falsos alarmes aparece na qualidade do modelo.
 
 Vale evitar números de desempenho sem fonte na própria tela.
 
@@ -224,7 +224,7 @@ Telemetria de frota com mapa ao vivo, camadas de trânsito e clima e uma caixa d
 
 Vale copiar a caixa de alertas como uma caixa de entrada: lido, não lido, arquivado, com o reconhecimento separado do arquivamento.
 
-Vale evitar entregar todos os alertas a todos; o F.O.G.O. pode ter uma regra simples do que vai para o gestor.
+Vale evitar entregar todos os alertas a todos; o FOGO pode ter uma regra simples do que vai para o gestor.
 
 Fontes: https://kb.samsara.com/hc/en-us/articles/4408735637005-View-Alerts-in-the-Samsara-Fleet-App, https://www.samsara.com/products/telematics/gps-fleet-tracking
 
@@ -292,7 +292,7 @@ Fontes: https://isprs-annals.copernicus.org/articles/IV-4-W1/19/2016/isprs-annal
 
 O Datastore é o portal de dados abertos de Londres. O CityDashboard, da UCL, junta dados espaciais simples num painel e num mapa. O artigo do Dublin Dashboard observa que painéis como o de Londres tendem a acompanhar metas e não a situação ao vivo.
 
-Vale copiar a distinção entre painel de metas e painel de situação. A Cidade preditiva do F.O.G.O. é o lugar das tendências; a Central é o lugar do agora.
+Vale copiar a distinção entre painel de metas e painel de situação. A Cidade preditiva do FOGO é o lugar das tendências; a Central é o lugar do agora.
 
 Vale evitar misturar os dois na mesma tela.
 
@@ -302,7 +302,7 @@ Fontes: https://data.london.gov.uk/, https://link.springer.com/article/10.1186/s
 
 Plataforma aberta de sensores da prefeitura de Barcelona, com API para dados, ordens e alarmes e um painel web. Foi adotada por outras cidades.
 
-Vale copiar o modelo de dados com alarmes como objetos de primeira classe e a separação entre sensor, leitura e alarme, que corresponde à telemetria do F.O.G.O.
+Vale copiar o modelo de dados com alarmes como objetos de primeira classe e a separação entre sensor, leitura e alarme, que corresponde à telemetria do FOGO.
 
 Vale evitar o painel técnico de sensores como tela de gestor.
 
@@ -340,7 +340,7 @@ Fontes: https://helpdesk.fiixsoftware.com/hc/en-us/articles/11605028180116-Activ
 
 ### Telas de alto desempenho (ISA-101)
 
-Não é um produto, mas é a referência que o F.O.G.O. já segue. A norma não define cores; ela define um processo. A prática associada usa fundo e elementos normais em cinza, uma paleta pequena e exclusiva para prioridades de alarme e forma ou número junto com a cor (por exemplo, triângulo com "2" para prioridade 2).
+Não é um produto, mas é a referência que o FOGO já segue. A norma não define cores; ela define um processo. A prática associada usa fundo e elementos normais em cinza, uma paleta pequena e exclusiva para prioridades de alarme e forma ou número junto com a cor (por exemplo, triângulo com "2" para prioridade 2).
 
 Vale copiar a regra de que a cor de alarme não aparece em nada que não seja alarme, incluindo gráficos e botões, e a prioridade com forma e número.
 
@@ -348,7 +348,7 @@ Vale evitar paletas com magenta e ciano para estados extras sem necessidade.
 
 Fontes: https://aevus.io/learn/isa-101/, https://www.atlas-ot.com/blogs/post/human-machine-interface-standards-isa-101-and-high-performance-hmi1, https://hmilibrary.com/standards/isa-101
 
-## Aplicação no F.O.G.O.
+## Aplicação no FOGO
 
 As propostas abaixo partem das decisões já tomadas (mapa como base da Central, um painel lateral com abas, três níveis de situação, bairro em atenção só com contorno tracejado, listas com barra de filtros e tabela, Cidade preditiva em abas, identidade de sinalização). Observações sobre a tela atual vêm das capturas de 22/10/2026.
 

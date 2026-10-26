@@ -96,7 +96,7 @@ function Route({ pathname }: { pathname: string }) {
         Endereço não encontrado
       </p>
       <h1>Página não encontrada</h1>
-      <p>Este endereço não existe no F.O.G.O. Confira o link ou volte para a Central.</p>
+      <p>Este endereço não existe no FOGO. Confira o link ou volte para a Central.</p>
       <Link href="/" className="button button-primary">
         Ir para a Central de operações
       </Link>

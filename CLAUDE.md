@@ -1,4 +1,4 @@
-# F.O.G.O.
+# FOGO
 
 Inventário, central de operações e previsões para a prefeitura de Marília (SP), feito para a Etapa Bônus do DSIN Coder Challenge 2026. Hono e `node:sqlite` no servidor, React e MapLibre na interface, TypeScript nos dois lados. O `README.md` explica o produto e as decisões; o `DATA.md` lista a origem e a licença dos dados.
 

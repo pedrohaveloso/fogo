@@ -1,6 +1,6 @@
 # Rastreadores
 
-Um dispositivo físico, como um GPS veicular, uma placa ESP32 com módulo GPS ou um celular, pode informar ao F.O.G.O. onde está um equipamento ou um agente. Sem rastreador, quem move os cadastros é o simulador. Com rastreador, a posição passa a vir do dispositivo e o simulador deixa aquele cadastro em paz.
+Um dispositivo físico, como um GPS veicular, uma placa ESP32 com módulo GPS ou um celular, pode informar ao FOGO onde está um equipamento ou um agente. Sem rastreador, quem move os cadastros é o simulador. Com rastreador, a posição passa a vir do dispositivo e o simulador deixa aquele cadastro em paz.
 
 ## Como funciona
 
@@ -12,7 +12,7 @@ Cada dispositivo recebe uma tag, que fica vinculada a um equipamento ou a um age
 ```mermaid
 sequenceDiagram
     participant G as Gestor no painel
-    participant S as Servidor F.O.G.O.
+    participant S as Servidor FOGO
     participant D as Dispositivo
     G->>S: Cria a tag na ficha do equipamento ou do agente
     S-->>G: ID e token (mostrado uma vez)
@@ -86,7 +86,7 @@ Se o dispositivo perder a conexão, ele pode guardar as leituras e reenviar depo
 
 ## Segurança
 
-- Em produção, sirva o F.O.G.O. por HTTPS. O token viaja no cabeçalho, e em HTTP puro qualquer um na mesma rede consegue lê-lo.
+- Em produção, sirva o FOGO por HTTPS. O token viaja no cabeçalho, e em HTTP puro qualquer um na mesma rede consegue lê-lo.
 - Grave o token em memória que não saia junto com logs ou atualizações de firmware.
 - Um token vazado só permite mandar posições daquela tag. Remova a tag e crie outra.
 

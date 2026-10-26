@@ -1,10 +1,10 @@
-# Boas práticas de interface para o F.O.G.O.
+# Boas práticas de interface para o FOGO
 
-Pesquisa feita em 22/10/2026 para orientar a avaliação das telas do F.O.G.O. (inventário, central de operações e cidade preditiva). O usuário principal é um gestor da prefeitura de Marília que abre o sistema num notebook algumas vezes por dia. Ele não é um operador de sala de controle com turno de 8 horas olhando a tela o tempo todo, e isso muda o peso de algumas regras: a primeira leitura da tela precisa responder "está tudo bem?" em poucos segundos, e o que mudou desde a última visita precisa ser fácil de achar.
+Pesquisa feita em 22/10/2026 para orientar a avaliação das telas do FOGO (inventário, central de operações e cidade preditiva). O usuário principal é um gestor da prefeitura de Marília que abre o sistema num notebook algumas vezes por dia. Ele não é um operador de sala de controle com turno de 8 horas olhando a tela o tempo todo, e isso muda o peso de algumas regras: a primeira leitura da tela precisa responder "está tudo bem?" em poucos segundos, e o que mudou desde a última visita precisa ser fácil de achar.
 
 As fontes industriais (ISA-101, ISA-18.2, EEMUA 191) são normas pagas. Onde o texto da norma não está aberto, a referência é a página oficial da norma mais um material secundário que resume os números. Isso está indicado em cada seção.
 
-## As 12 regras mais importantes para o F.O.G.O.
+## As 12 regras mais importantes para o FOGO
 
 1. Cor só para o que está fora do normal. O estado normal fica em cinza, e vermelho, laranja e amarelo aparecem só quando há algo a fazer. Isso já é a base do projeto e deve ser mantido em toda tela nova, inclusive nos gráficos da página preditiva.
 2. Nenhuma informação depende só da cor. Situação, gravidade e risco precisam também de forma, ícone, padrão (zebrado, tracejado) ou texto. Hoje os equipamentos seguem isso, mas as ocorrências não.
@@ -23,9 +23,9 @@ As fontes industriais (ISA-101, ISA-18.2, EEMUA 191) são normas pagas. Onde o t
 
 A prática: o fundo e os elementos em estado normal ficam em tons de cinza de baixo contraste; cores saturadas aparecem só para condições anormais e alarmes; a cor de alarme nunca é usada para estado normal (por exemplo, verde para "ligado"). As telas são organizadas em hierarquia: um nível 1 com a visão geral de toda a área de responsabilidade (indicadores principais, alarmes de maior prioridade e o estado de reconhecimento deles, situação dos equipamentos principais, tendências), um nível 2 por unidade, um nível 3 de detalhe e um nível 4 de diagnóstico. Valores vêm acompanhados de contexto (faixa normal, tendência) em vez de números soltos.
 
-Por quê: quando tudo é colorido o tempo todo, a cor deixa de significar algo e a anomalia não se destaca. O white paper do consórcio ASM sobre fundo cinza explica a razão perceptiva: o contraste reservado para o anormal faz o problema ser encontrado sem busca ativa. A ISA-101 em si não fixa cores; ela exige que a organização tenha uma filosofia e um guia de estilo de HMI e que os siga com consistência. Para o F.O.G.O., o guia de estilo já existe na prática (tokens em `src/web/styles.css` e `src/web/colors.ts`); falta tratar como regra também o verde do indicador "Ao vivo" e as cores categóricas da página preditiva.
+Por quê: quando tudo é colorido o tempo todo, a cor deixa de significar algo e a anomalia não se destaca. O white paper do consórcio ASM sobre fundo cinza explica a razão perceptiva: o contraste reservado para o anormal faz o problema ser encontrado sem busca ativa. A ISA-101 em si não fixa cores; ela exige que a organização tenha uma filosofia e um guia de estilo de HMI e que os siga com consistência. Para o FOGO, o guia de estilo já existe na prática (tokens em `src/web/styles.css` e `src/web/colors.ts`); falta tratar como regra também o verde do indicador "Ao vivo" e as cores categóricas da página preditiva.
 
-Adaptação ao F.O.G.O.: o nível 1 é a central de operações (situação de Marília, contadores, mapa). O nível 2 é a aba de regiões e o filtro por região. O nível 3 é a gaveta de detalhes de equipamento, agente e ocorrência. O nível 4 é a telemetria de 48 horas e o histórico.
+Adaptação ao FOGO: o nível 1 é a central de operações (situação de Marília, contadores, mapa). O nível 2 é a aba de regiões e o filtro por região. O nível 3 é a gaveta de detalhes de equipamento, agente e ocorrência. O nível 4 é a telemetria de 48 horas e o histórico.
 
 Fontes:
 
@@ -40,9 +40,9 @@ Fontes:
 
 A prática: cada alarme precisa indicar uma condição anormal que exige resposta do operador; se ninguém precisa agir, não é alarme (é evento, registro ou relatório). As prioridades são poucas (3 ou 4) e distribuídas de forma desigual, com referência de cerca de 80% baixa, 15% média e 5% alta. As referências de taxa para um operador são cerca de 6 alarmes por hora como aceitável e 12 por hora como máximo administrável; mais de 10 alarmes em 10 minutos caracteriza inundação. Alarmes "velhos" (ativos há mais de 24 horas) devem ser menos de 5 por dia. O ciclo de vida separa reconhecer (o operador viu) de resolver (a condição acabou). Prateleira (shelving) é a supressão temporária feita pelo operador, com prazo e retorno automático, e o sistema deve sempre mostrar a lista do que está suprimido ou fora de serviço. Supressão por projeto esconde alarmes que não fazem sentido no estado atual do sistema.
 
-Por quê: alarmes demais ou com prioridade inflada levam o usuário a ignorar todos, inclusive o que importa. Esse é o mecanismo da fadiga de alertas, e o painel de alertas do F.O.G.O. está exposto a ele (ver "Problemas prováveis").
+Por quê: alarmes demais ou com prioridade inflada levam o usuário a ignorar todos, inclusive o que importa. Esse é o mecanismo da fadiga de alertas, e o painel de alertas do FOGO está exposto a ele (ver "Problemas prováveis").
 
-Adaptação ao F.O.G.O.: o gestor não está de plantão, então a taxa de alertas por hora importa menos que o estoque de alertas ativos e a proporção de críticos. Furtos antigos, equipamentos parados há semanas e manutenção prevista para daqui a 3 dias não pedem ação imediata e deveriam sair do topo da lista ou ir para uma aba de pendências. Cada alerta crítico deveria dizer a ação esperada e quem é o responsável.
+Adaptação ao FOGO: o gestor não está de plantão, então a taxa de alertas por hora importa menos que o estoque de alertas ativos e a proporção de críticos. Furtos antigos, equipamentos parados há semanas e manutenção prevista para daqui a 3 dias não pedem ação imediata e deveriam sair do topo da lista ou ir para uma aba de pendências. Cada alerta crítico deveria dizer a ação esperada e quem é o responsável.
 
 Fontes:
 
@@ -58,7 +58,7 @@ A prática: Endsley define três níveis de consciência situacional: perceber o
 
 Por quê: a atenção e a memória de trabalho são o gargalo. Uma tela que exige somar mentalmente "4 de 5 regiões em atenção + 27 alertas críticos + 15 equipamentos parados" para chegar a "a cidade está como?" consome exatamente o recurso escasso.
 
-Adaptação ao F.O.G.O.: o bloco "Situação de Marília" com o nível e o motivo em uma frase é um bom exemplo de nível 2 entregue pronto. Faltam o nível 3 na central (o que tende a acontecer nas próximas horas, que hoje mora só na página preditiva) e um sinal de "o que mudou desde a última vez que você olhou", útil para quem entra algumas vezes por dia. A escala de estágios do Centro de Operações Rio (estágios 1 a 5, com descrição curta do que cada um significa para a cidade) é uma referência local para dar nome e critério a cada nível.
+Adaptação ao FOGO: o bloco "Situação de Marília" com o nível e o motivo em uma frase é um bom exemplo de nível 2 entregue pronto. Faltam o nível 3 na central (o que tende a acontecer nas próximas horas, que hoje mora só na página preditiva) e um sinal de "o que mudou desde a última vez que você olhou", útil para quem entra algumas vezes por dia. A escala de estágios do Centro de Operações Rio (estágios 1 a 5, com descrição curta do que cada um significa para a cidade) é uma referência local para dar nome e critério a cada nível.
 
 Fontes:
 
@@ -69,11 +69,11 @@ Fontes:
 
 ## 4. Painéis, tabelas, filtros, abas e estados vazios
 
-A prática para painéis: Stephen Few define painel como a informação mais importante para um ou mais objetivos, organizada numa única tela para ser acompanhada de relance. Entre os erros comuns que ele lista estão passar de uma tela, dar contexto insuficiente para os números, mostrar detalhe ou precisão demais e codificar quantidades de forma imprecisa. A NN/g separa painel operacional (decisão imediata, sensível ao tempo) de painel analítico (investigação) e recomenda usar atributos pré-atentivos (posição, comprimento, cor, forma) com parcimônia; num estudo da NN/g, cor e ícone juntos foram mais rápidos de distinguir que só texto. A central do F.O.G.O. é operacional; a página preditiva é analítica e pode ser mais longa.
+A prática para painéis: Stephen Few define painel como a informação mais importante para um ou mais objetivos, organizada numa única tela para ser acompanhada de relance. Entre os erros comuns que ele lista estão passar de uma tela, dar contexto insuficiente para os números, mostrar detalhe ou precisão demais e codificar quantidades de forma imprecisa. A NN/g separa painel operacional (decisão imediata, sensível ao tempo) de painel analítico (investigação) e recomenda usar atributos pré-atentivos (posição, comprimento, cor, forma) com parcimônia; num estudo da NN/g, cor e ícone juntos foram mais rápidos de distinguir que só texto. A central do FOGO é operacional; a página preditiva é analítica e pode ser mais longa.
 
 A prática para tabelas: a NN/g lista quatro tarefas que a tabela precisa suportar: achar registros por critério, comparar, ver ou editar uma linha e agir sobre registros. O nome do registro deve ser um link de verdade (permite abrir em nova aba e é anunciado como link), o cabeçalho ordenável indica o sentido da ordenação (`aria-sort`) e filtros aplicados ficam visíveis com contagem de resultados.
 
-A prática para filtros: filtros interativos (o resultado muda a cada escolha) servem a quem explora e funcionam quando a resposta é instantânea, como no F.O.G.O. Os nomes de filtro e valor devem ser previsíveis e sem jargão. O estado dos filtros deveria sobreviver à navegação (na URL), para o usuário voltar da ficha de um equipamento e encontrar a lista como deixou.
+A prática para filtros: filtros interativos (o resultado muda a cada escolha) servem a quem explora e funcionam quando a resposta é instantânea, como no FOGO. Os nomes de filtro e valor devem ser previsíveis e sem jargão. O estado dos filtros deveria sobreviver à navegação (na URL), para o usuário voltar da ficha de um equipamento e encontrar a lista como deixou.
 
 A prática para abas: abas servem para alternar entre visões relacionadas que não precisam ser vistas ao mesmo tempo. O padrão ARIA de abas exige navegação por setas entre as abas (tabindex móvel), com ativação automática quando o painel aparece sem demora.
 
@@ -97,11 +97,11 @@ Fontes:
 
 ## 5. Mapas
 
-A prática: o mapa base fica apagado (pouco contraste, sem cor) para os dados operacionais se destacarem, o que o F.O.G.O. já faz em `src/web/map/basemap.ts`. Pontos próximos são agrupados (clustering), com o grupo carregando um resumo do que importa (no F.O.G.O., o selo de parados). A legenda precisa estar acessível e explicar cada forma e cor; quando fica escondida atrás de um botão, o mapa precisa ser legível sem ela, o que pede formas e padrões autoexplicativos. Mapa coroplético (área pintada) deve mostrar taxas ou índices, não contagens brutas, porque a área do bairro passa a pesar tanto quanto o valor; contagens ficam melhor como símbolo proporcional. Paletas sequenciais vêm de conjuntos testados para daltonismo (ColorBrewer, viridis), com 5 a 7 classes, e "sem dado" tem aparência diferente de zero. Contorno tracejado e hachura são alternativas à cor e funcionam para daltônicos.
+A prática: o mapa base fica apagado (pouco contraste, sem cor) para os dados operacionais se destacarem, o que o FOGO já faz em `src/web/map/basemap.ts`. Pontos próximos são agrupados (clustering), com o grupo carregando um resumo do que importa (no FOGO, o selo de parados). A legenda precisa estar acessível e explicar cada forma e cor; quando fica escondida atrás de um botão, o mapa precisa ser legível sem ela, o que pede formas e padrões autoexplicativos. Mapa coroplético (área pintada) deve mostrar taxas ou índices, não contagens brutas, porque a área do bairro passa a pesar tanto quanto o valor; contagens ficam melhor como símbolo proporcional. Paletas sequenciais vêm de conjuntos testados para daltonismo (ColorBrewer, viridis), com 5 a 7 classes, e "sem dado" tem aparência diferente de zero. Contorno tracejado e hachura são alternativas à cor e funcionam para daltônicos.
 
-Acessibilidade de mapa: camadas desenhadas no canvas do MapLibre não recebem foco do teclado. Tudo o que só pode ser feito clicando no mapa precisa de um caminho equivalente fora dele, normalmente uma lista sincronizada com o mapa. Marcadores DOM (como as ocorrências do F.O.G.O.) recebem foco, mas muitos marcadores focáveis tornam a navegação por Tab interminável.
+Acessibilidade de mapa: camadas desenhadas no canvas do MapLibre não recebem foco do teclado. Tudo o que só pode ser feito clicando no mapa precisa de um caminho equivalente fora dele, normalmente uma lista sincronizada com o mapa. Marcadores DOM (como as ocorrências do FOGO) recebem foco, mas muitos marcadores focáveis tornam a navegação por Tab interminável.
 
-Desempenho no MapLibre: clustering no próprio GeoJSON source reduz o número de feições desenhadas; `setData` reprocessa tudo no worker e, chamado com frequência alta, pode travar a thread principal; `updateData` aplica mudanças incrementais e é mais barato para atualizações ao vivo. Com 282 equipamentos e atualização a cada 2 segundos o F.O.G.O. está longe do limite, mas vale medir se a frota crescer.
+Desempenho no MapLibre: clustering no próprio GeoJSON source reduz o número de feições desenhadas; `setData` reprocessa tudo no worker e, chamado com frequência alta, pode travar a thread principal; `updateData` aplica mudanças incrementais e é mais barato para atualizações ao vivo. Com 282 equipamentos e atualização a cada 2 segundos o FOGO está longe do limite, mas vale medir se a frota crescer.
 
 Fontes:
 
@@ -131,7 +131,7 @@ Fontes:
 
 A prática (GOV.UK e sistemas derivados): rótulo sempre visível fora do campo; dica entre o rótulo e o campo, ligada por `aria-describedby`; placeholder não substitui rótulo nem dica e não deve parecer valor já preenchido. Validação no envio, com resumo de erros no topo (foco vai para ele, cada item é link para o campo) e mensagem junto do campo que diz o que fazer ("Digite o CEP com 8 números"), não só "campo inválido". A mensagem do resumo e a do campo usam o mesmo texto. Botão desabilitado tem contraste baixo e não explica por quê; a recomendação é deixar o botão ativo e explicar o erro ao clicar. Campos opcionais são marcados como "(opcional)" em vez de marcar os obrigatórios com asterisco. Formulários longos são divididos em grupos (`fieldset` com `legend`). Ao sair com alterações não salvas, o sistema avisa.
 
-Endereço e CEP: o padrão de busca de endereço do governo britânico (DWP, Escócia) pede busca por código postal, opção de digitar o endereço à mão a qualquer momento e, quando a busca não acha nada, repetir o que foi buscado e oferecer tentar de novo ou preencher manualmente. Para o Brasil, o CEP tem 8 dígitos (formato 00000-000); o campo aceita com ou sem hífen, usa `inputmode="numeric"` e `autocomplete="postal-code"`, e a busca pode disparar sozinha ao completar 8 dígitos. Depois de preencher, o sistema mostra o que preencheu e deixa corrigir, o que o F.O.G.O. já faz.
+Endereço e CEP: o padrão de busca de endereço do governo britânico (DWP, Escócia) pede busca por código postal, opção de digitar o endereço à mão a qualquer momento e, quando a busca não acha nada, repetir o que foi buscado e oferecer tentar de novo ou preencher manualmente. Para o Brasil, o CEP tem 8 dígitos (formato 00000-000); o campo aceita com ou sem hífen, usa `inputmode="numeric"` e `autocomplete="postal-code"`, e a busca pode disparar sozinha ao completar 8 dígitos. Depois de preencher, o sistema mostra o que preencheu e deixa corrigir, o que o FOGO já faz.
 
 Fontes:
 
@@ -148,13 +148,13 @@ Fontes:
 
 ## 8. Acessibilidade (WCAG 2.2 AA e ABNT NBR 17225)
 
-A prática: a ABNT NBR 17225:2025 é a norma brasileira de acessibilidade web, baseada na WCAG 2.2, com 96 requisitos obrigatórios (níveis A e AA) e 50 recomendações (AAA). Os pontos que mais pesam no F.O.G.O.:
+A prática: a ABNT NBR 17225:2025 é a norma brasileira de acessibilidade web, baseada na WCAG 2.2, com 96 requisitos obrigatórios (níveis A e AA) e 50 recomendações (AAA). Os pontos que mais pesam no FOGO:
 
 - Contraste de texto de 4,5:1 (3:1 para texto grande) e de 3:1 para componentes de interface e gráficos necessários para entender o conteúdo: borda de campo, ícone, marcador no mapa, segmento de gráfico (1.4.3 e 1.4.11).
 - Cor não pode ser o único meio de transmitir informação (1.4.1).
 - Foco visível e não totalmente encoberto por conteúdo do próprio site, como barras fixas e painéis sobre o mapa (2.4.7 e 2.4.11).
 - Alvos de toque e clique com pelo menos 24 por 24 px ou espaçamento equivalente (2.5.8).
-- Toda ação feita arrastando tem alternativa sem arrasto (2.5.7). No F.O.G.O. o marcador do formulário pode ser arrastado, mas clicar no mapa ou digitar as coordenadas também funciona.
+- Toda ação feita arrastando tem alternativa sem arrasto (2.5.7). No FOGO o marcador do formulário pode ser arrastado, mas clicar no mapa ou digitar as coordenadas também funciona.
 - Mensagens de status anunciadas sem mover o foco (4.1.3), com `role="status"` ou `aria-live="polite"`. Regiões ao vivo que mudam a cada poucos segundos devem anunciar só o que importa, com limite de frequência; `role="log"` serve para fluxo de eventos, e anúncios assertivos ficam reservados para o que é urgente.
 - Conteúdo que se move ou pisca sozinho por mais de 5 segundos, ao lado de outro conteúdo, precisa de um jeito de pausar ou esconder (2.2.2). O pulso infinito das ocorrências e do indicador "Ao vivo" se enquadra; respeitar `prefers-reduced-motion` ajuda, mas não substitui um controle na interface. Movimentos de câmera do mapa (`flyTo`, `easeTo`) também devem ser instantâneos quando o usuário pede menos movimento.
 - Teclado: tudo operável por teclado, sem armadilha (2.1.1 e 2.1.2), com link para pular a navegação (2.4.1) e foco devolvido ao elemento de origem quando um painel ou diálogo fecha.
@@ -197,7 +197,7 @@ Fontes:
 
 ## 11. Tema escuro
 
-A prática: usar cinza escuro em vez de preto puro como superfície; expressar elevação com superfícies um pouco mais claras, não com brilho; dessaturar as cores de destaque para não vibrarem sobre o fundo escuro; garantir 4,5:1 para texto em todas as superfícies, inclusive a mais clara; não reduzir contraste de texto com opacidade (texto secundário ganha uma cor própria que passe no contraste). Cores de alarme muito saturadas sobre fundo escuro funcionam bem como área ou borda, mas como texto pequeno costumam precisar de uma variante mais clara, como o F.O.G.O. já faz com `--critical-text`.
+A prática: usar cinza escuro em vez de preto puro como superfície; expressar elevação com superfícies um pouco mais claras, não com brilho; dessaturar as cores de destaque para não vibrarem sobre o fundo escuro; garantir 4,5:1 para texto em todas as superfícies, inclusive a mais clara; não reduzir contraste de texto com opacidade (texto secundário ganha uma cor própria que passe no contraste). Cores de alarme muito saturadas sobre fundo escuro funcionam bem como área ou borda, mas como texto pequeno costumam precisar de uma variante mais clara, como o FOGO já faz com `--critical-text`.
 
 Fontes:
 
@@ -228,9 +228,9 @@ Fontes:
 
 O que é: o design system do governo federal, mantido pelo Serpro, com fundamentos (cores, tipografia Rawline, espaçamento em base 8, superfícies e estados), componentes (cabeçalho, menu, mensagem, tabela, tag, upload, entre outros), padrões e templates, com código aberto (`@govbr-ds/core`) e compromisso com e-MAG e WCAG. Ele foi feito para serviços ao cidadão em fundo claro, com o azul institucional #1351B4 como cor primária.
 
-O que serve ao F.O.G.O.: os padrões de escrita e de formulário (mensagens de erro, mensagens de sucesso e aviso, estrutura de campos), a área mínima de interação de 44 px e a disciplina de estados (hover, foco, ativo, desabilitado) definidos como camada própria. O componente de mensagem e o padrão de tabela podem servir de checklist de conteúdo.
+O que serve ao FOGO: os padrões de escrita e de formulário (mensagens de erro, mensagens de sucesso e aviso, estrutura de campos), a área mínima de interação de 44 px e a disciplina de estados (hover, foco, ativo, desabilitado) definidos como camada própria. O componente de mensagem e o padrão de tabela podem servir de checklist de conteúdo.
 
-O que não serve: a identidade visual (azul institucional, Rawline, fundo claro) é de serviço federal ao cidadão; o F.O.G.O. é uma ferramenta interna municipal de operação, em tema escuro, com linguagem de sinalização viária e cor reservada para problemas. Adotar a paleta do gov.br colocaria azul saturado em elementos normais e quebraria a regra da ISA-101 que o projeto segue. A recomendação é adotar as regras de conteúdo, formulário e acessibilidade e manter a identidade visual própria.
+O que não serve: a identidade visual (azul institucional, Rawline, fundo claro) é de serviço federal ao cidadão; o FOGO é uma ferramenta interna municipal de operação, em tema escuro, com linguagem de sinalização viária e cor reservada para problemas. Adotar a paleta do gov.br colocaria azul saturado em elementos normais e quebraria a regra da ISA-101 que o projeto segue. A recomendação é adotar as regras de conteúdo, formulário e acessibilidade e manter a identidade visual própria.
 
 Fontes:
 
@@ -324,7 +324,7 @@ Cada item pode ser conferido no navegador (inspeção, teclado, DevTools, leitor
 - [ ] Termos estatísticos (percentil, escore z, Poisson, p-valor) vêm traduzidos para o efeito prático.
 - [ ] O mapa de risco usa paleta sequencial clara para o nível baixo com contraste mínimo de 3:1 entre as classes vizinhas na legenda, ou padrão adicional.
 
-## Problemas prováveis no F.O.G.O. hoje
+## Problemas prováveis no FOGO hoje
 
 Encontrados lendo o código em 22/10/2026 e consultando o snapshot de `http://localhost:3210/api/operations/snapshot` com o servidor em execução. Cada item traz a gravidade estimada (alta, média, baixa) e a confiança.
 

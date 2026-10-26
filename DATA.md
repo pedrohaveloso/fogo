@@ -1,6 +1,6 @@
 # Dados e créditos
 
-O código do F.O.G.O. usa a licença MIT (arquivo `LICENSE`). Os dados de terceiros têm licenças próprias, listadas aqui.
+O código do FOGO usa a licença MIT (arquivo `LICENSE`). Os dados de terceiros têm licenças próprias, listadas aqui.
 
 ## OpenStreetMap
 

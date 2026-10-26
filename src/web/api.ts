@@ -20,7 +20,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body === undefined ? null : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "Sem conexão com o servidor do F.O.G.O.", []);
+    throw new ApiError(0, "Sem conexão com o servidor do FOGO", []);
   }
   if (response.status === 204) {
     return undefined as T;

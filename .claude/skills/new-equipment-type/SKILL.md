@@ -1,6 +1,6 @@
 ---
 name: new-equipment-type
-description: Passo a passo para acrescentar um tipo de equipamento ao F.O.G.O. (catálogo, ícone, semente, simulação e testes). Use quando pedirem um tipo novo de equipamento.
+description: Passo a passo para acrescentar um tipo de equipamento ao FOGO (catálogo, ícone, semente, simulação e testes). Use quando pedirem um tipo novo de equipamento.
 ---
 
 # Novo tipo de equipamento

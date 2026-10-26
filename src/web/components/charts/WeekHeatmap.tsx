@@ -71,7 +71,7 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
                   y={TOP + dow * (CELL_H + GAP)}
                   width={cellW}
                   height={CELL_H}
-                  rx={3}
+                  rx={2}
                   fill={colorFor(row[hour] ?? 0, max)}
                   onPointerEnter={() => setHover({ dow, hour })}
                   onPointerLeave={() => setHover(null)}
@@ -84,7 +84,7 @@ export function WeekHeatmap({ matrix, current, title }: Props) {
             y={TOP + current.dow * (CELL_H + GAP) - 1.5}
             width={cellW + 3}
             height={CELL_H + 3}
-            rx={4}
+            rx={3.5}
             fill="none"
             stroke="#ffc20e"
             strokeWidth={2}

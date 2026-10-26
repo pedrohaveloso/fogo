@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import dataset from "../../data/marilia.json" with { type: "json" };
 import { closestArea, type LngLat } from "../shared/geo.ts";
-import type { CityDataset, Landmark, Neighborhood } from "../shared/types.ts";
+import type { CityDataset, Landmark, Neighborhood, StreetPlace } from "../shared/types.ts";
 import { createRoadNetwork, type RoadData } from "./roads.ts";
 
 export const city = dataset as CityDataset;
@@ -54,4 +54,16 @@ export function landmarksOf(source: CityDataset): Landmark[] {
   return source.pois
     .filter((poi) => LANDMARK_KINDS.has(poi.kind))
     .map(({ name, kind, lat, lng }) => ({ name, kind, lat, lng }));
+}
+
+export function streetPlacesOf(source: CityDataset): StreetPlace[] {
+  const seen = new Set<string>();
+  return source.streets.flatMap(({ name, lat, lng, neighborhoodId }) => {
+    const key = `${name}|${neighborhoodId}`;
+    if (seen.has(key)) {
+      return [];
+    }
+    seen.add(key);
+    return [{ name, lat, lng, neighborhoodId }];
+  });
 }

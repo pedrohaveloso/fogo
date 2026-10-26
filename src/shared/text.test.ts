@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMaintenanceDue, plural } from "./text.ts";
+import { fold, formatMaintenanceDue, plural } from "./text.ts";
 
 describe("plural", () => {
   it("uses the singular from one up to, but not including, two", () => {
@@ -20,5 +20,13 @@ describe("plural", () => {
     expect(formatMaintenanceDue(0)).toBe("hoje");
     expect(formatMaintenanceDue(1)).toBe("amanhã");
     expect(formatMaintenanceDue(5)).toBe("em 5 dias");
+  });
+});
+
+describe("fold", () => {
+  it("drops accents, case and surrounding spaces", () => {
+    expect(fold("  Rua São José ")).toBe("rua sao jose");
+    expect(fold("PARANÁ")).toBe("parana");
+    expect(fold("")).toBe("");
   });
 });

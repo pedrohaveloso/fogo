@@ -39,6 +39,20 @@ describe("matchesFilters", () => {
     expect(matchesFilters(item, { ...EMPTY_FILTERS, search: "FLORES" }, meta, NOW)).toBe(true);
   });
 
+  it("searches the street ignoring accents on either side", () => {
+    const item = makeEquipment({ street: "Rua São José" });
+    expect(matchesFilters(item, { ...EMPTY_FILTERS, search: "sao jose" }, meta, NOW)).toBe(true);
+    expect(
+      matchesFilters(
+        makeEquipment({ street: "Rua Parana" }),
+        { ...EMPTY_FILTERS, search: "Paraná" },
+        meta,
+        NOW,
+      ),
+    ).toBe(true);
+    expect(matchesFilters(item, { ...EMPTY_FILTERS, search: "sao paulo" }, meta, NOW)).toBe(false);
+  });
+
   it("filters by maintenance urgency", () => {
     const overdue = makeEquipment({ nextMaintenanceAt: "2026-10-01" });
     const soon = makeEquipment({ nextMaintenanceAt: "2026-10-18" });

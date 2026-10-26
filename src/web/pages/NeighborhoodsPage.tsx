@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { LngLat } from "../../shared/geo.ts";
+import { fold } from "../../shared/text.ts";
 import type { NeighborhoodShape } from "../../shared/types.ts";
 import { api, ApiError } from "../api.ts";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
@@ -10,12 +11,10 @@ import { removeVertex, sameShape, shapeProblem, MIN_SHAPE_POINTS } from "../shap
 import { showToast } from "../toast.tsx";
 import { useFetch } from "../useFetch.ts";
 
-function fold(text: string): string {
-  return text
-    .normalize("NFD")
-    .replaceAll(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
+type NewNeighborhood = { name: string; regionId: string };
+
+function revealSelected(node: HTMLButtonElement | null): void {
+  node?.scrollIntoView({ block: "nearest" });
 }
 
 export function NeighborhoodsPage() {

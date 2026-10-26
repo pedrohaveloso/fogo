@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { centroid, pointInPolygon } from "../shared/geo.ts";
-import { city, landmarksOf, nearestNeighborhood } from "./city.ts";
+import { city, landmarksOf, nearestNeighborhood, streetPlacesOf } from "./city.ts";
 
 describe("city dataset", () => {
   it("gives every neighborhood its own polygon", () => {
@@ -42,5 +42,23 @@ describe("landmarksOf", () => {
       ],
     });
     expect(landmarks).toEqual([{ name: "Santa Casa", kind: "hospital", lat: 1, lng: 2 }]);
+  });
+});
+
+describe("streetPlacesOf", () => {
+  it("keeps one point per street and neighborhood", () => {
+    const street = { kind: "residential", lat: 1, lng: 2, cep: "17500-000" };
+    const places = streetPlacesOf({
+      ...city,
+      streets: [
+        { ...street, name: "Rua A", neighborhoodId: "centro" },
+        { ...street, name: "Rua A", neighborhoodId: "centro", lat: 5 },
+        { ...street, name: "Rua A", neighborhoodId: "fragata" },
+      ],
+    });
+    expect(places).toEqual([
+      { name: "Rua A", lat: 1, lng: 2, neighborhoodId: "centro" },
+      { name: "Rua A", lat: 1, lng: 2, neighborhoodId: "fragata" },
+    ]);
   });
 });

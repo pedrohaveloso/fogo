@@ -41,6 +41,7 @@ describe("matchesAgentFilters", () => {
     expect(match({ search: "  almeida " })).toBe(true);
     expect(match({ search: "at-1550" })).toBe(true);
     expect(match({ search: "PM-" })).toBe(false);
+    expect(match({ search: "joao" }, makeAgent({ name: "João Lima" }))).toBe(true);
   });
 
   it("rejects a base outside every known region when a region is chosen", () => {

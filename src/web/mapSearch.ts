@@ -1,8 +1,9 @@
 import { AGENT_ROLES, EQUIPMENT_TYPES } from "../shared/catalog.ts";
-import type { Agent, Equipment } from "../shared/types.ts";
+import { fold } from "../shared/text.ts";
+import type { Agent, Equipment, StreetPlace } from "../shared/types.ts";
 
 export type SearchResult = {
-  kind: "equipment" | "agent";
+  kind: "equipment" | "agent" | "street";
   id: number;
   title: string;
   detail: string;
@@ -11,21 +12,37 @@ export type SearchResult = {
 };
 
 export const SEARCH_LIMIT = 8;
+export const STREET_LIMIT = 3;
 
 export function searchResults(
   equipment: readonly Equipment[],
   agents: readonly Agent[],
+  streets: readonly StreetPlace[],
+  neighborhoodNames: ReadonlyMap<string, string>,
   search: string,
 ): SearchResult[] {
-  const term = search.trim().toLowerCase();
+  const term = fold(search);
   if (!term) {
     return [];
   }
-  const agentHits = agents
-    .filter(
-      (agent) =>
-        agent.name.toLowerCase().includes(term) || agent.badge.toLowerCase().includes(term),
+  const streetHits = streets
+    .flatMap((street, index): SearchResult[] =>
+      fold(street.name).includes(term)
+        ? [
+            {
+              kind: "street",
+              id: index,
+              title: street.name,
+              detail: neighborhoodNames.get(street.neighborhoodId) ?? "",
+              lat: street.lat,
+              lng: street.lng,
+            },
+          ]
+        : [],
     )
+    .slice(0, STREET_LIMIT);
+  const agentHits = agents
+    .filter((agent) => fold(agent.name).includes(term) || fold(agent.badge).includes(term))
     .map((agent): SearchResult => ({
       kind: "agent",
       id: agent.id,
@@ -42,5 +59,5 @@ export function searchResults(
     lat: item.currentLat ?? item.lat,
     lng: item.currentLng ?? item.lng,
   }));
-  return [...agentHits, ...equipmentHits].slice(0, SEARCH_LIMIT);
+  return [...streetHits, ...agentHits, ...equipmentHits].slice(0, SEARCH_LIMIT);
 }

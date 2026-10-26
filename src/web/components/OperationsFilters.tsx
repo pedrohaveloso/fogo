@@ -11,6 +11,7 @@ import {
   maintenanceDaysLeft,
   maintenanceState,
 } from "../../shared/maintenance.ts";
+import { fold } from "../../shared/text.ts";
 import type { Equipment, Meta } from "../../shared/types.ts";
 
 export type MaintenanceFilter = "" | "urgent" | "immediate" | "overdue" | "soon";
@@ -79,10 +80,10 @@ export function matchesFilters(
       return false;
     }
   }
-  const search = filters.search.trim().toLowerCase();
+  const search = fold(filters.search);
   if (search) {
     return [item.serialNumber, item.brand, item.model, item.street, item.reference].some((field) =>
-      field.toLowerCase().includes(search),
+      fold(field).includes(search),
     );
   }
   return true;

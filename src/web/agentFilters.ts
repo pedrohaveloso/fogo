@@ -1,4 +1,5 @@
 import { AGENT_STATUSES, type AgentRole, type AgentStatus } from "../shared/catalog.ts";
+import { fold } from "../shared/text.ts";
 import type { Agent } from "../shared/types.ts";
 
 export type AgentFilters = {
@@ -24,10 +25,8 @@ export function matchesAgentFilters(
   if (filters.regionId && regionOf.get(agent.baseNeighborhoodId) !== filters.regionId) {
     return false;
   }
-  const term = filters.search.trim().toLowerCase();
-  return (
-    !term || agent.name.toLowerCase().includes(term) || agent.badge.toLowerCase().includes(term)
-  );
+  const term = fold(filters.search);
+  return !term || fold(agent.name).includes(term) || fold(agent.badge).includes(term);
 }
 
 export function compareAgents(a: Agent, b: Agent): number {

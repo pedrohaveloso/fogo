@@ -102,7 +102,13 @@ export function OperationsPage() {
   const occurrences = regionNeighborhoods
     ? snapshot.occurrences.filter((item) => regionNeighborhoods.has(item.neighborhoodId))
     : snapshot.occurrences;
-  const results = searchResults(equipment, agents, filters.search);
+  const results = searchResults(
+    equipment,
+    agents,
+    meta.streets,
+    new Map(meta.neighborhoods.map((item) => [item.id, item.name])),
+    filters.search,
+  );
   const waiting = snapshot.occurrences.filter((item) => item.status === "open").length;
   const pendingAlerts = snapshot.alerts.filter((alert) => !alert.acknowledged).length;
   const flaggedRegions = snapshot.regions.filter((region) => region.level !== "normal").length;
@@ -147,7 +153,7 @@ export function OperationsPage() {
                   type="button"
                   onClick={() => {
                     setFocus({ lat: item.lat, lng: item.lng, key: Date.now() });
-                    setSelected({ kind: item.kind, id: item.id });
+                    setSelected(item.kind === "street" ? null : { kind: item.kind, id: item.id });
                   }}
                 >
                   <strong>{item.title}</strong>

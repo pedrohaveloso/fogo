@@ -237,11 +237,14 @@ export type CityDataset = {
 
 export type Landmark = { name: string; kind: string; lat: number; lng: number };
 
+export type StreetPlace = Pick<Street, "name" | "lat" | "lng" | "neighborhoodId">;
+
 export type Meta = {
   city: CityDataset["city"];
   regions: Region[];
   neighborhoods: Neighborhood[];
   landmarks: Landmark[];
+  streets: StreetPlace[];
   serverTime: string;
   liveMultiplier: number;
 };

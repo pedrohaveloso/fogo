@@ -11,3 +11,11 @@ export function formatMaintenanceDue(days: number): string {
   }
   return days === 1 ? "amanhã" : `em ${days} dias`;
 }
+
+export function fold(text: string): string {
+  return text
+    .normalize("NFD")
+    .replaceAll(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}

@@ -112,12 +112,15 @@ describe("health check", () => {
 
 describe("inventory API", () => {
   it("serves city metadata", async () => {
-    const { status, body } = await call<{ neighborhoods: unknown[]; liveMultiplier: number }>(
-      "GET",
-      "/meta",
-    );
+    const { status, body } = await call<{
+      neighborhoods: unknown[];
+      streets: unknown[];
+      liveMultiplier: number;
+      mode: string;
+    }>("GET", "/meta");
     expect(status).toBe(200);
     expect(body.neighborhoods.length).toBe(city.neighborhoods.length);
+    expect(body.streets.length).toBeGreaterThan(0);
     expect(body.liveMultiplier).toBe(60);
   });
 

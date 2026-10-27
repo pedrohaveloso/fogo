@@ -51,19 +51,20 @@ function ZoneRow({ region, count }: { region: Region; count: number }) {
             id={id}
             value={name}
             maxLength={80}
+            placeholder="Nome da zona"
             aria-invalid={Boolean(error)}
             aria-describedby={`${id}-count${error ? ` ${id}-error` : ""}`}
             onChange={(event) => setName(event.target.value)}
           />
-          <span id={`${id}-count`} className="hint">
-            {count} {plural(count, "bairro", "bairros")}
-          </span>
           {error && (
             <span id={`${id}-error`} className="field-error">
               {error}
             </span>
           )}
         </div>
+        <span id={`${id}-count`} className="zone-count">
+          {count} {plural(count, "bairro", "bairros")}
+        </span>
         <button type="submit" className="button" disabled={busy || name.trim() === region.name}>
           Salvar
         </button>
@@ -127,7 +128,7 @@ export function ZoneDialog({
       <h2 id="zones-title" className="dialog-title">
         Zonas
       </h2>
-      <form className="inline-form" onSubmit={(event) => void create(event)} noValidate>
+      <form className="inline-form zone-create" onSubmit={(event) => void create(event)} noValidate>
         <div className="field" data-invalid={Boolean(error)}>
           <label htmlFor="new-zone" className="visually-hidden">
             Nome da nova zona

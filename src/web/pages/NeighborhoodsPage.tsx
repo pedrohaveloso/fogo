@@ -6,7 +6,7 @@ import type { NeighborhoodShape } from "../../shared/types.ts";
 import { api, errorMessage } from "../api.ts";
 import { ConfirmDialog } from "../components/form.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
-import { formatInteger } from "../format.ts";
+import { Select } from "../components/Select.tsx";
 import { reloadMeta, useMeta } from "../live.ts";
 import { ShapeEditor } from "../map/ShapeEditor.tsx";
 import {
@@ -227,40 +227,39 @@ export function NeighborhoodsPage() {
     </>
   );
 
-  const status = (
+  const statusText = problem ?? (dirty && !creating ? "Mudanças não salvas" : null);
+  const status = statusText && (
     <p className="hint" role="status">
-      {problem ?? `${formatInteger(draft.length)} pontos`}
-      {dirty && !problem && !creating ? ", com mudanças não salvas" : ""}
+      {statusText}
     </p>
   );
 
   const fields = (value: Details, onChange: (next: Details) => void, prefix: string) => (
     <div className="shape-fields">
       <div className="field">
-        <label htmlFor={`${prefix}-name`}>Nome</label>
+        <label htmlFor={`${prefix}-name`} className="visually-hidden">
+          Nome do bairro
+        </label>
         <input
           id={`${prefix}-name`}
           value={value.name}
           maxLength={80}
+          placeholder="Nome do bairro"
+          autoComplete="off"
           onChange={(event) => onChange({ ...value, name: event.target.value })}
         />
       </div>
       <div className="field">
-        <label htmlFor={`${prefix}-region`}>Zona</label>
-        <select
+        <label htmlFor={`${prefix}-region`} className="visually-hidden">
+          Zona
+        </label>
+        <Select
           id={`${prefix}-region`}
           value={value.regionId}
-          onChange={(event) => onChange({ ...value, regionId: event.target.value })}
-        >
-          <option value="">
-            {meta.regions.length === 0 ? "Cadastre uma zona antes" : "Selecione"}
-          </option>
-          {meta.regions.map((region) => (
-            <option key={region.id} value={region.id}>
-              {region.name}
-            </option>
-          ))}
-        </select>
+          placeholder={meta.regions.length === 0 ? "Cadastre uma zona antes" : "Zona"}
+          options={meta.regions.map((region) => ({ value: region.id, label: region.name }))}
+          onChange={(regionId) => onChange({ ...value, regionId })}
+        />
       </div>
     </div>
   );
@@ -289,7 +288,7 @@ export function NeighborhoodsPage() {
           <input
             id="shape-search"
             type="search"
-            className="input"
+            className="filter-search"
             placeholder="Buscar bairro"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -421,12 +420,6 @@ export function NeighborhoodsPage() {
               onFinishDrawing={() => setDrawing(false)}
             />
           </div>
-          {(selected || creating) && !drawing && (
-            <p className="hint">
-              Arraste um ponto para mudar o limite. Arraste o ponto pequeno no meio de uma linha
-              para criar outro. Clique duas vezes num ponto para apagá-lo.
-            </p>
-          )}
         </section>
       </div>
       <ConfirmDialog

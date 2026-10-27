@@ -74,6 +74,42 @@ html {
   scrollbar-gutter: stable;
 }
 
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  .select-popup {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+html::-webkit-scrollbar,
+.select-popup::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+.select-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+.select-popup::-webkit-scrollbar-thumb {
+  background: var(--line-strong) padding-box;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+.select-popup::-webkit-scrollbar-thumb:hover {
+  background-color: var(--line-hover);
+}
+
+html::-webkit-scrollbar-button,
+.select-popup::-webkit-scrollbar-button {
+  display: none;
+}
+
 html,
 body {
   margin: 0;

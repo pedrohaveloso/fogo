@@ -4,6 +4,7 @@ import { csrf } from "hono/csrf";
 import { HTTPException } from "hono/http-exception";
 import type { RunMode, SessionUser } from "../shared/types.ts";
 import { canAccessCity } from "./access.ts";
+import { recordAudit } from "./audit.ts";
 import { sessionUser } from "./auth.ts";
 import { CityInUseError, CityTakenError, type CityContext, type CityRegistry } from "./cities.ts";
 import type { Database } from "./db.ts";
@@ -20,6 +21,7 @@ import { SerialNumberTakenError } from "./repositories/equipment.ts";
 import { TagTakenError } from "./repositories/tags.ts";
 import { LastAdminError, UsernameTakenError } from "./repositories/users.ts";
 import { agencyRoutes } from "./routes/agencies.ts";
+import { auditRoutes } from "./routes/audit.ts";
 import { cityAdminRoutes, cityRoutes, placeRoutes } from "./routes/cities.ts";
 import { inventoryRoutes } from "./routes/inventory.ts";
 import { neighborhoodRoutes } from "./routes/neighborhoods.ts";
@@ -150,6 +152,9 @@ const CONFLICTS: Conflict[] = [
   },
 ];
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const UNAUDITED_PATHS = new Set(["/api/session/city"]);
+
 const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (c.get("user").role !== "admin") {
     return c.json({ error: "Só administradores podem fazer isso" }, 403);
@@ -208,6 +213,33 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   app.use("/api/*", csrf());
 
+  app.use("/api/*", async (c, next) => {
+    await next();
+    const user = c.get("user");
+    const path = c.req.path;
+    if (
+      !user ||
+      !MUTATING_METHODS.has(c.req.method) ||
+      c.res.status >= 400 ||
+      UNAUDITED_PATHS.has(path)
+    ) {
+      return;
+    }
+    try {
+      await recordAudit(db, {
+        at: now(),
+        userId: user.id,
+        username: user.username,
+        cityId: c.get("context")?.city.city.id ?? null,
+        method: c.req.method,
+        path,
+        status: c.res.status,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
   app.get("/api/health", async (c) => {
     await db.one("SELECT 1");
     return c.json({ status: "ok" });
@@ -221,12 +253,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.use("/api/*", requireUser);
 
   app.use("/api/users/*", requireAdmin);
+  app.use("/api/audit", requireAdmin);
   app.use("/api/places/*", requireAdmin);
   app.on(["POST"], "/api/cities", requireAdmin);
   app.use("/api/cities/:cityId/*", requireCity);
   app.on(["PUT", "DELETE"], ["/api/cities/:cityId", "/api/cities/:cityId/boundary"], requireAdmin);
 
   app.route("/api/users", userRoutes(deps));
+  app.route("/api/audit", auditRoutes(deps));
   app.route("/api/places", placeRoutes(deps));
   app.route("/api/cities", cityRoutes(deps));
   const scoped = "/api/cities/:cityId";

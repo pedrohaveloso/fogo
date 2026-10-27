@@ -42,6 +42,8 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
+  --page-gap: var(--space-5);
+  --stack-gap: var(--space-3);
   --radius: 6px;
   --radius-mark: 2px;
   --font-sign: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -342,7 +344,7 @@ main:focus {
   margin: 0 auto;
   padding: var(--page-top) var(--gutter) 48px;
   display: grid;
-  gap: 24px;
+  gap: var(--page-gap);
   align-content: start;
 }
 
@@ -1253,7 +1255,7 @@ button.city-count[aria-pressed="true"] {
 
 .inventory-stack {
   display: grid;
-  gap: 12px;
+  gap: var(--stack-gap);
   min-width: 0;
 }
 
@@ -2484,7 +2486,6 @@ button.city-count[aria-pressed="true"] {
   display: flex;
   flex-wrap: wrap;
   gap: 0 4px;
-  margin-bottom: -12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -2528,7 +2529,7 @@ button.city-count[aria-pressed="true"] {
 
 .tab-panel {
   display: grid;
-  gap: 24px;
+  gap: var(--stack-gap);
   min-width: 0;
 }
 
@@ -2571,7 +2572,7 @@ button.city-count[aria-pressed="true"] {
 
 .form {
   display: grid;
-  gap: 16px;
+  gap: var(--stack-gap);
 }
 
 .form-section {
@@ -3419,7 +3420,7 @@ dialog::backdrop {
 
 .stack {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--stack-gap);
 }
 
 .inline-form {

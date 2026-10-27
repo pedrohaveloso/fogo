@@ -150,24 +150,37 @@ export function EquipmentListPage() {
         </Link>
       </div>
       <div className="inventory-stack">
-        {downTypes.length > 0 && (
-          <p className="quick-filters">
-            <span id="quick-filters-label">Parados por tipo:</span>
-            {downTypes.map((entry) => (
-              <button
-                key={entry.type}
-                type="button"
-                aria-pressed={showsDownOfType(filters, entry.type)}
-                aria-describedby="quick-filters-label"
-                onClick={() => setFilters(toggleDownOfType(filters, entry.type))}
-              >
-                <Glyph d={TYPE_GLYPHS[entry.type]} size={16} />
-                {EQUIPMENT_TYPES[entry.type].plural}
-                <strong data-tone="critical">{entry.down}</strong>
-              </button>
-            ))}
-          </p>
-        )}
+        <div className="inventory-toolbar">
+          {downTypes.length > 0 && (
+            <p className="quick-filters">
+              <span id="quick-filters-label">Parados por tipo:</span>
+              {downTypes.map((entry) => (
+                <button
+                  key={entry.type}
+                  type="button"
+                  aria-pressed={showsDownOfType(filters, entry.type)}
+                  aria-describedby="quick-filters-label"
+                  onClick={() => setFilters(toggleDownOfType(filters, entry.type))}
+                >
+                  <Glyph d={TYPE_GLYPHS[entry.type]} size={16} />
+                  {EQUIPMENT_TYPES[entry.type].plural}
+                  <strong data-tone="critical">{entry.down}</strong>
+                </button>
+              ))}
+            </p>
+          )}
+          <div className="inventory-tools">
+            <SavedViews currentQuery={currentQuery} onApply={(saved) => go(saved, showMap)} />
+            <button
+              type="button"
+              className="button button-small"
+              aria-pressed={showMap}
+              onClick={() => go(currentQuery, !showMap, page.page)}
+            >
+              {showMap ? "Ocultar mapa" : "Mostrar mapa"}
+            </button>
+          </div>
+        </div>
         <EquipmentFilterBar
           idPrefix="list"
           label="Filtrar equipamentos"
@@ -179,17 +192,6 @@ export function EquipmentListPage() {
           total={snapshot.equipment.length}
           alwaysShowCount
         />
-        <div className="inventory-tools">
-          <SavedViews currentQuery={currentQuery} onApply={(saved) => go(saved, showMap)} />
-          <button
-            type="button"
-            className="button button-small"
-            aria-pressed={showMap}
-            onClick={() => go(currentQuery, !showMap, page.page)}
-          >
-            {showMap ? "Ocultar mapa" : "Mostrar mapa"}
-          </button>
-        </div>
         <div className="inventory-body" data-map={showMap}>
           {showMap && (
             <div className="inventory-map ops-map">

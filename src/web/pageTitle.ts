@@ -16,6 +16,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/users\/new$/, "Cadastrar usuário"],
   [/^\/users\/\d+$/, "Editar usuário"],
   [/^\/account$/, "Minha senha"],
+  [/^\/docs$/, "Documentações"],
 ];
 
 export function pageTitle(pathname: string, cityName: string | null): string {

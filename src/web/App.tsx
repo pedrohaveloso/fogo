@@ -14,6 +14,7 @@ import { liveStatus, useLive } from "./live.ts";
 import { AccountPage } from "./pages/AccountPage.tsx";
 import { AgenciesPage } from "./pages/AgenciesPage.tsx";
 import { CitiesPage } from "./pages/CitiesPage.tsx";
+import { DocsPage } from "./pages/DocsPage.tsx";
 import { CityFormPage } from "./pages/CityFormPage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { UserFormPage } from "./pages/UserFormPage.tsx";
@@ -169,6 +170,9 @@ function Route({ pathname, session }: { pathname: string; session: Session }) {
   if (pathname === "/account") {
     return <AccountPage />;
   }
+  if (pathname === "/docs") {
+    return <DocsPage />;
+  }
   const admin = user.role === "admin" ? adminRoute(pathname) : null;
   if (admin) {
     return admin;
@@ -275,6 +279,9 @@ function UserMenu({ session, user }: { session: Session; user: SessionUser }) {
               Usuários
             </Link>
           )}
+          <Link href="/docs" onClick={close}>
+            Documentações
+          </Link>
           <Link href="/account" onClick={close}>
             Minha senha
           </Link>

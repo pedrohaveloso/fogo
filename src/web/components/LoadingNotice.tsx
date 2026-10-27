@@ -35,6 +35,7 @@ export function InlineLoading({ label, onRetry = retryConnection }: Props) {
   const [slow, reset] = useSlow();
   return (
     <div className="loading-notice" role="status">
+      <span className="spinner" aria-hidden="true" />
       <p className="hint">{label}</p>
       {slow && (
         <SlowMessage
@@ -50,7 +51,7 @@ export function InlineLoading({ label, onRetry = retryConnection }: Props) {
 
 export function LoadingNotice(props: Props) {
   return (
-    <main className="page">
+    <main className="page page-loading">
       <InlineLoading {...props} />
     </main>
   );

@@ -387,7 +387,7 @@ export function App() {
 
   if (!session) {
     return (
-      <main className="page">
+      <main className="page page-loading">
         {error ? (
           <div className="loading-notice" role="alert">
             <p>{error}</p>

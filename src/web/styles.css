@@ -2970,6 +2970,10 @@ dialog::backdrop {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2400ms;
+  }
+
   .occurrence-marker::after,
   .alert[data-fresh="true"] {
     animation: none;
@@ -2996,9 +3000,37 @@ dialog::backdrop {
 
 .loading-notice {
   display: grid;
-  justify-items: start;
-  gap: 8px;
+  justify-items: center;
+  gap: var(--space-3);
   max-width: 60ch;
+  margin-inline: auto;
+  padding-block: var(--space-6);
+  text-align: center;
+}
+
+.page-loading {
+  min-height: calc(100dvh - var(--header-h) - var(--bottom-nav-h));
+  align-content: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.page-loading .spinner {
+  width: 32px;
+  height: 32px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-notice p {

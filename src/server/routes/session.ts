@@ -1,9 +1,9 @@
-import { getConnInfo } from "@hono/node-server/conninfo";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { SessionUser } from "../../shared/types.ts";
 import { canAccessCity, visibleCityIds } from "../access.ts";
 import type { AppDeps, AppEnv } from "../app.ts";
+import { clientAddress } from "../clientAddress.ts";
 import {
   createLoginThrottle,
   createSession,
@@ -27,14 +27,6 @@ import {
 } from "../validation.ts";
 
 export const SESSION_COOKIE = "fogo_session";
-
-function clientAddress(c: Context): string {
-  try {
-    return getConnInfo(c).remote.address ?? "local";
-  } catch {
-    return "local";
-  }
-}
 
 function secure(c: Context): boolean {
   return new URL(c.req.url).protocol === "https:" || c.req.header("X-Forwarded-Proto") === "https";

@@ -154,3 +154,26 @@ describe("audit trail", () => {
     expect((await send(biaCookie, "GET", "/audit")).status).toBe(403);
   });
 });
+
+async function post(id: string) {
+  return app.request(`/api/tags/${id}/location`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer errado" },
+    body: JSON.stringify({ lat: 0, lng: 0 }),
+  });
+}
+
+describe("device rate limit", () => {
+  it("answers 429 with Retry-After after 60 readings from one tag in a minute", async () => {
+    const accepted = await Promise.all(Array.from({ length: 60 }, () => post("TAG-AAAAAAAA")));
+    expect(accepted.map((response) => response.status)).toEqual(Array(60).fill(401));
+
+    const blocked = await post("TAG-AAAAAAAA");
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Retry-After")).toBe("60");
+    expect((await post("TAG-BBBBBBBB")).status).toBe(401);
+
+    clock += 60_000;
+    expect((await post("TAG-AAAAAAAA")).status).toBe(401);
+  });
+});

@@ -25,6 +25,7 @@ export function placePopup(anchor: Rect, popup: Size, bounds: Bounds): Placement
 }
 
 const MAX_POPUP_HEIGHT = 360;
+const UNPLACED: CSSProperties = { visibility: "hidden" };
 
 function cssPixels(name: string): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
@@ -46,7 +47,7 @@ export function useAnchoredPopup(
   popup: RefObject<HTMLElement | null>,
   matchAnchorWidth: boolean,
 ): CSSProperties {
-  const [style, setStyle] = useState<CSSProperties>({});
+  const [style, setStyle] = useState<CSSProperties>(UNPLACED);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -87,6 +88,7 @@ export function useAnchoredPopup(
     return () => {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", onScroll, true);
+      setStyle(UNPLACED);
     };
   }, [open, anchor, popup, matchAnchorWidth]);
 

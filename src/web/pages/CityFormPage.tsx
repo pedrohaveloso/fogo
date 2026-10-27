@@ -250,7 +250,6 @@ function NewCity() {
               path="ibgeCode"
               label="Município"
               error={errors["ibgeCode"] ?? municipalities.error ?? undefined}
-              status={lookup}
             >
               {(props) => (
                 <Select
@@ -272,6 +271,13 @@ function NewCity() {
                 />
               )}
             </Field>
+            <p
+              className={`field-aside ${lookup?.problem ? "field-error" : "hint"}`}
+              role="status"
+              hidden={!lookup}
+            >
+              {lookup?.message}
+            </p>
           </div>
         </fieldset>
         {municipality && (

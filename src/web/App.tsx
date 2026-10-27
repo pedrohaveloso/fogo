@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Session, SessionUser } from "../shared/types.ts";
 import { formatClock, formatTime } from "./format.ts";
 import {
@@ -30,6 +30,7 @@ import { NeighborhoodsPage } from "./pages/NeighborhoodsPage.tsx";
 import { OperationsPage } from "./pages/OperationsPage.tsx";
 import { PredictionsPage } from "./pages/PredictionsPage.tsx";
 import { pageTitle } from "./pageTitle.ts";
+import { keptOperationsCity, OPERATIONS_PATH } from "./keptOperations.ts";
 import { InlineLoading } from "./components/LoadingNotice.tsx";
 import { Select } from "./components/Select.tsx";
 import { Link, navigate, useLocation } from "./router.tsx";
@@ -135,7 +136,7 @@ function adminRoute(pathname: string) {
 
 function cityRoute(pathname: string) {
   if (pathname === "/") {
-    return <OperationsPage />;
+    return <OperationsPage active />;
   }
   if (pathname === "/equipment") {
     return <EquipmentListPage />;
@@ -202,7 +203,7 @@ const ROUTE_FOCUS_DELAY_MS = 150;
 
 function skipToContent(event: MouseEvent<HTMLAnchorElement>): void {
   event.preventDefault();
-  const main = document.querySelector("main");
+  const main = document.querySelector<HTMLElement>("main:not([hidden])");
   main?.setAttribute("tabindex", "-1");
   main?.focus();
 }
@@ -298,6 +299,14 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
   const city = session.cities.find((item) => item.id === session.cityId) ?? null;
   const cityName = city?.name ?? null;
   const firstRoute = useRef(true);
+  const onOperations = pathname === OPERATIONS_PATH;
+  const [keptOperations, setKeptOperations] = useState(() =>
+    keptOperationsCity(null, pathname, session.cityId),
+  );
+  const nextKeptOperations = keptOperationsCity(keptOperations, pathname, session.cityId);
+  if (nextKeptOperations !== keptOperations) {
+    setKeptOperations(nextKeptOperations);
+  }
 
   useEffect(() => {
     document.title = pageTitle(pathname, cityName);
@@ -307,7 +316,7 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
       return;
     }
     const timer = setTimeout(() => {
-      const main = document.querySelector("main");
+      const main = document.querySelector<HTMLElement>("main:not([hidden])");
       main?.setAttribute("tabindex", "-1");
       main?.focus({ preventScroll: true });
     }, ROUTE_FOCUS_DELAY_MS);
@@ -358,7 +367,12 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
           <UserMenu user={user} />
         </div>
       </header>
-      <Route key={session.cityId ?? "none"} pathname={pathname} session={session} />
+      {nextKeptOperations !== null && (
+        <OperationsPage key={`operations-${nextKeptOperations}`} active={onOperations} />
+      )}
+      {!(nextKeptOperations !== null && onOperations) && (
+        <Route key={session.cityId ?? "none"} pathname={pathname} session={session} />
+      )}
       <Toast />
     </div>
   );

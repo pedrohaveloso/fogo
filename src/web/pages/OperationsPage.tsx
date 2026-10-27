@@ -23,7 +23,7 @@ import { cityPath } from "../cityScope.ts";
 
 const STACKED_LAYOUT = "(max-width: 1024px)";
 
-export function OperationsPage() {
+export function OperationsPage({ active }: { active: boolean }) {
   const meta = useMeta();
   const { snapshot } = useLive();
   const now = useNow(10_000);
@@ -96,7 +96,7 @@ export function OperationsPage() {
   );
 
   if (!meta || !snapshot) {
-    return <LoadingNotice label="Conectando à central de operações..." />;
+    return active ? <LoadingNotice label="Conectando à central de operações..." /> : null;
   }
 
   const agents = regionNeighborhoods
@@ -122,7 +122,7 @@ export function OperationsPage() {
   ] as const;
 
   return (
-    <main className="ops">
+    <main className="ops" hidden={!active}>
       <h1 className="visually-hidden">Central de operações</h1>
       <div className="ops-map" ref={mapBox}>
         <OperationsMap
@@ -167,7 +167,7 @@ export function OperationsPage() {
           </ul>
         )}
         <LayerPanel layers={layers} onChange={setLayers} />
-        {selected && (
+        {selected && active && (
           <DetailDrawer
             key={`${selected.kind}-${selected.id}`}
             selection={selected}

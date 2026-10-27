@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, UserRole } from "../../shared/types.ts";
 import { api, ApiError } from "../api.ts";
@@ -119,6 +120,12 @@ export function UserFormPage({ id }: { id: number | null }) {
 
   return (
     <main className="page">
+      <Breadcrumb
+        items={[
+          { label: "Gerenciamento", href: "/management" },
+          { label: "Usuários", href: "/users" },
+        ]}
+      />
       <div className="page-head">
         <h1>{id === null ? "Cadastrar usuário" : `Editar ${draft.name}`}</h1>
         <Link href="/users" className="button">

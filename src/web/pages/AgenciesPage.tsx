@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { fold } from "../../shared/text.ts";
 import { ListSearchBar } from "../components/ListSearchBar.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
@@ -22,6 +23,7 @@ export function AgenciesPage() {
 
   return (
     <main className="page">
+      <Breadcrumb items={[{ label: "Gerenciamento", href: "/management" }]} />
       <div className="page-head">
         <h1>Órgãos</h1>
         <Link href="/agencies/new" className="button button-primary">

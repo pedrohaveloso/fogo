@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { fold } from "../../shared/text.ts";
 import type { CitySummary } from "../../shared/types.ts";
 import { ListSearchBar } from "../components/ListSearchBar.tsx";
@@ -27,6 +28,7 @@ export function CitiesPage() {
 
   return (
     <main className="page">
+      <Breadcrumb items={[{ label: "Gerenciamento", href: "/management" }]} />
       <div className="page-head">
         <h1>Cidades</h1>
         <Link href="/cities/new" className="button button-primary">

@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   EQUIPMENT_STATUSES,
@@ -293,6 +294,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
 
   return (
     <main className="page">
+      <Breadcrumb items={[{ label: "Equipamentos", href: "/equipment" }]} />
       <div className="page-head">
         <h1>{id === null ? "Cadastrar equipamento" : `Editar ${draft.serialNumber}`}</h1>
         <Link href="/equipment" className="button">

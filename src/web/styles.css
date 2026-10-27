@@ -55,6 +55,9 @@
   --header-h: 56px;
   --bottom-nav-h: 0px;
   --gutter: 16px;
+  --crumb-h: 16px;
+  --crumb-gap: 2px;
+  --page-top: calc(24px + var(--crumb-h) + var(--crumb-gap));
 }
 
 *,
@@ -301,7 +304,7 @@ main:focus {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 24px var(--gutter) 48px;
+  padding: var(--page-top) var(--gutter) 48px;
   display: grid;
   gap: 24px;
   align-content: start;
@@ -310,6 +313,7 @@ main:focus {
 .page-head {
   display: flex;
   align-items: center;
+  min-height: var(--control-h);
   justify-content: space-between;
   gap: 16px 24px;
   flex-wrap: wrap;
@@ -2878,7 +2882,7 @@ dialog::backdrop {
   }
 
   .page {
-    padding-top: 16px;
+    --page-top: calc(16px + var(--crumb-h) + var(--crumb-gap));
   }
 
   .page-head .button {
@@ -3196,7 +3200,7 @@ dialog::backdrop {
 
 .page-fill {
   min-height: calc(100dvh - var(--header-h) - var(--bottom-nav-h));
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   align-content: stretch;
 }
 
@@ -3749,4 +3753,52 @@ dialog::backdrop {
 
 .shape-list .filter-search {
   width: 100%;
+}
+
+.page:has(> .breadcrumb) {
+  padding-top: calc(var(--page-top) - var(--space-5));
+}
+
+.breadcrumb {
+  position: relative;
+  top: calc(var(--space-5) - var(--crumb-h) - var(--crumb-gap));
+  height: var(--crumb-h);
+  margin-bottom: calc(var(--crumb-h) * -1);
+}
+
+.breadcrumb ol {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--crumb-h);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--crumb-h);
+  white-space: nowrap;
+}
+
+.breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.breadcrumb li + li::before {
+  content: "/";
+  color: var(--line-hover);
+}
+
+.breadcrumb a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

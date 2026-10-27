@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useState, type FormEvent } from "react";
 import type { Agency } from "../../shared/types.ts";
 import { api, ApiError } from "../api.ts";
@@ -76,6 +77,12 @@ export function AgencyFormPage({ id }: { id: number | null }) {
 
   return (
     <main className="page">
+      <Breadcrumb
+        items={[
+          { label: "Gerenciamento", href: "/management" },
+          { label: "Órgãos", href: "/agencies" },
+        ]}
+      />
       <div className="page-head">
         <h1>{id === null ? "Cadastrar órgão" : `Editar ${current?.name ?? ""}`}</h1>
         <Link href="/agencies" className="button">

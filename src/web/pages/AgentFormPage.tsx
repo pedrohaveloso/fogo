@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   AGENT_ROLES,
@@ -200,6 +201,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
 
   return (
     <main className="page">
+      <Breadcrumb items={[{ label: "Agentes", href: "/agents" }]} />
       <div className="page-head">
         <h1>{id === null ? "Cadastrar agente" : `Editar ${draft.name}`}</h1>
         <Link href="/agents" className="button">

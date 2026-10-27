@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { fold } from "../../shared/text.ts";
 import type { User } from "../../shared/types.ts";
 import { ListSearchBar } from "../components/ListSearchBar.tsx";
@@ -27,6 +28,7 @@ export function UsersPage() {
 
   return (
     <main className="page">
+      <Breadcrumb items={[{ label: "Gerenciamento", href: "/management" }]} />
       <div className="page-head">
         <h1>Usuários</h1>
         <Link href="/users/new" className="button button-primary">

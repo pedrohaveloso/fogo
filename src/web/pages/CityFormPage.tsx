@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useState } from "react";
 import { centroid, type LngLat } from "../../shared/geo.ts";
 import { STATE_CODES, STATES } from "../../shared/states.ts";
@@ -203,6 +204,12 @@ function NewCity() {
 
   return (
     <main className="page">
+      <Breadcrumb
+        items={[
+          { label: "Gerenciamento", href: "/management" },
+          { label: "Cidades", href: "/cities" },
+        ]}
+      />
       <div className="page-head">
         <h1>Cadastrar cidade</h1>
         <Link href="/cities" className="button">
@@ -323,6 +330,12 @@ function EditCity({ city }: { city: CityDetail }) {
 
   return (
     <main className="page">
+      <Breadcrumb
+        items={[
+          { label: "Gerenciamento", href: "/management" },
+          { label: "Cidades", href: "/cities" },
+        ]}
+      />
       <div className="page-head">
         <h1>
           {city.name}, {city.uf}

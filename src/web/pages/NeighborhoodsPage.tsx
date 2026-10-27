@@ -1,3 +1,4 @@
+import { Breadcrumb } from "../components/Breadcrumb.tsx";
 import { useMemo, useState } from "react";
 import { ZoneDialog } from "../components/ZoneDialog.tsx";
 import type { LngLat } from "../../shared/geo.ts";
@@ -266,6 +267,7 @@ export function NeighborhoodsPage() {
 
   return (
     <main className="page page-fill">
+      <Breadcrumb items={[{ label: "Gerenciamento", href: "/management" }]} />
       <div className="page-head">
         <h1>Bairros</h1>
         <div className="page-actions">

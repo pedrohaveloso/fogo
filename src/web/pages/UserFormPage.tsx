@@ -5,6 +5,7 @@ import {
   ConfirmDialog,
   ErrorSummary,
   Field,
+  FormActions,
   OptionGroup,
   issuesToErrors,
   type Errors,
@@ -211,7 +212,7 @@ export function UserFormPage({ id }: { id: number | null }) {
             </div>
           )}
         </fieldset>
-        <div className="form-actions">
+        <FormActions>
           {id !== null && id !== session?.user?.id && (
             <button
               type="button"
@@ -227,7 +228,7 @@ export function UserFormPage({ id }: { id: number | null }) {
           <button type="submit" className="button button-primary" disabled={saving}>
             {saving ? "Salvando..." : id === null ? "Cadastrar usuário" : "Salvar alterações"}
           </button>
-        </div>
+        </FormActions>
       </form>
       <ConfirmDialog
         open={confirmDelete}

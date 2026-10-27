@@ -60,6 +60,14 @@ export function Field({ path, label, error, hint, status, children }: FieldProps
   );
 }
 
+export function FormActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="form-actions">
+      <div className="form-actions-inner">{children}</div>
+    </div>
+  );
+}
+
 type Option<T extends string> = { value: T; label: string; icon?: ReactNode };
 
 export function OptionGroup<T extends string>({

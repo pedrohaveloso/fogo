@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { api, ApiError } from "../api.ts";
-import { ErrorSummary, Field, issuesToErrors, type Errors } from "../components/form.tsx";
+import {
+  ErrorSummary,
+  Field,
+  FormActions,
+  issuesToErrors,
+  type Errors,
+} from "../components/form.tsx";
 import { showToast } from "../toast.tsx";
 
 const LABELS = { current: "Senha atual", next: "Nova senha", repeat: "Repita a nova senha" };
@@ -89,11 +95,11 @@ export function AccountPage() {
             </Field>
           </div>
         </fieldset>
-        <div className="form-actions">
+        <FormActions>
           <button type="submit" className="button button-primary" disabled={busy}>
             {busy ? "Salvando..." : "Trocar senha"}
           </button>
-        </div>
+        </FormActions>
       </form>
     </main>
   );

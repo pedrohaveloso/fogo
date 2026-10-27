@@ -5,7 +5,13 @@ import { plural } from "../../shared/text.ts";
 import type { BoundaryLookup, CityDetail, Municipality } from "../../shared/types.ts";
 import { api, ApiError, errorMessage } from "../api.ts";
 import { cityPath } from "../cityScope.ts";
-import { ConfirmDialog, Field, issuesToErrors, type Errors } from "../components/form.tsx";
+import {
+  ConfirmDialog,
+  Field,
+  FormActions,
+  issuesToErrors,
+  type Errors,
+} from "../components/form.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
 import { Select } from "../components/Select.tsx";
 import { formatInteger } from "../format.ts";
@@ -265,7 +271,7 @@ function NewCity() {
             <BoundaryMap editor={editor} center={center} />
           </fieldset>
         )}
-        <div className="form-actions">
+        <FormActions>
           <Link href="/cities" className="button">
             Cancelar
           </Link>
@@ -277,7 +283,7 @@ function NewCity() {
           >
             {busy ? "Salvando..." : "Cadastrar cidade"}
           </button>
-        </div>
+        </FormActions>
       </div>
     </main>
   );
@@ -335,7 +341,7 @@ function EditCity({ city }: { city: CityDetail }) {
           <legend>Limite</legend>
           <BoundaryMap editor={editor} center={city.center} />
         </fieldset>
-        <div className="form-actions">
+        <FormActions>
           <button
             type="button"
             className="button button-danger"
@@ -360,7 +366,7 @@ function EditCity({ city }: { city: CityDetail }) {
           >
             {busy ? "Salvando..." : "Salvar limite"}
           </button>
-        </div>
+        </FormActions>
       </div>
       <ConfirmDialog
         open={confirmDelete}

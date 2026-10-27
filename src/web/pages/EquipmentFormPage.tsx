@@ -26,6 +26,7 @@ import {
   ConfirmDialog,
   ErrorSummary,
   Field,
+  FormActions,
   OptionGroup,
   issuesToErrors,
   type Errors,
@@ -632,7 +633,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           </div>
         </fieldset>
 
-        <div className="form-actions">
+        <FormActions>
           {id !== null && (
             <button
               type="button"
@@ -648,7 +649,7 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           <button type="submit" className="button button-primary" disabled={saving}>
             {saving ? "Salvando..." : id === null ? "Cadastrar equipamento" : "Salvar alterações"}
           </button>
-        </div>
+        </FormActions>
       </form>
       {id !== null && <TagPanel target={{ equipmentId: id }} initial={tag} moves={spec.mobile} />}
       <ConfirmDialog

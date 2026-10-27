@@ -17,6 +17,7 @@ import {
   ConfirmDialog,
   ErrorSummary,
   Field,
+  FormActions,
   OptionGroup,
   issuesToErrors,
   type Errors,
@@ -396,7 +397,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
             definir a posição inicial.
           </p>
         </fieldset>
-        <div className="form-actions">
+        <FormActions>
           {id !== null && (
             <button
               type="button"
@@ -412,7 +413,7 @@ export function AgentFormPage({ id }: { id: number | null }) {
           <button type="submit" className="button button-primary" disabled={saving}>
             {saving ? "Salvando..." : id === null ? "Cadastrar agente" : "Salvar alterações"}
           </button>
-        </div>
+        </FormActions>
       </form>
       {id !== null && <TagPanel target={{ agentId: id }} initial={tag} moves />}
       <ConfirmDialog

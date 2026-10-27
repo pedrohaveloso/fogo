@@ -58,12 +58,13 @@ Sem `at`, o servidor usa a hora em que recebeu a leitura. Uma hora no futuro é 
 
 Respostas:
 
-| Código | Corpo                                             | Quando                                                  |
-| ------ | ------------------------------------------------- | ------------------------------------------------------- |
-| 200    | `{ "applied": true, "at": "..." }`                | Leitura aceita                                          |
-| 200    | `{ "applied": false, "reason": "..." }`           | `at` é anterior à última leitura aceita; nada muda      |
-| 401    | `{ "error": "Tag ou token inválido" }`            | Sem token, token errado, tag removida ou ID inexistente |
-| 422    | `{ "error": "Dados inválidos", "issues": [...] }` | Campo faltando ou fora do intervalo; `issues` diz qual  |
+| Código | Corpo                                                 | Quando                                                                |
+| ------ | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| 200    | `{ "applied": true, "at": "..." }`                    | Leitura aceita                                                        |
+| 200    | `{ "applied": false, "reason": "..." }`               | `at` é anterior à última leitura aceita; nada muda                    |
+| 401    | `{ "error": "Tag ou token inválido" }`                | Sem token, token errado, tag removida ou ID inexistente               |
+| 429    | `{ "error": "Muitas leituras..." }` com `Retry-After` | Mais de 60 leituras por minuto da mesma tag, ou 600 do mesmo endereço |
+| 422    | `{ "error": "Dados inválidos", "issues": [...] }`     | Campo faltando ou fora do intervalo; `issues` diz qual                |
 
 O 401 é o mesmo para tag inexistente e para token errado, de propósito: quem tenta adivinhar não descobre quais IDs existem.
 

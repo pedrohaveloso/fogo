@@ -187,7 +187,7 @@ São mais de 330 testes com Vitest: regras de alerta e de nível, modelos de pre
 ## Limitações
 
 - Na simulação, equipamentos, agentes, ocorrências e telemetria são inventados, com exceção dos cadastros que têm tag, e os modelos foram avaliados nessa base. A produção ainda não tem despacho, app do agente nem telemetria dos equipamentos fixos; o plano está em [docs/production.md](docs/production.md). Com dados reais, os limiares e a qualidade precisariam ser medidos de novo.
-- Ainda não há registro de quem fez cada mudança nem limite de requisições nas rotas de dispositivo.
+- O registro de alterações (`audit_log`) guarda usuário, método, caminho e horário de cada mudança, mas ainda não há tela para consultá-lo; só o administrador lê pela rota `/api/audit`. O limite de leituras por tag e por endereço fica na memória do processo.
 - O servidor roda num único processo, com o simulador e os fluxos ao vivo em memória, e por isso não escala horizontalmente.
 - O mapa de fundo depende de internet; sem ela aparecem só os bairros e os marcadores.
 - Os limites de bairro são aproximados (ver Dados). Mudar o limite de um bairro não muda o bairro gravado em equipamentos, agentes e ocorrências que já existiam.

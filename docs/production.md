@@ -50,10 +50,8 @@ O simulador faz hoje quatro coisas que ninguém faz em produção: cria ocorrên
 
 ### Fase 1: acesso e implantação
 
-O login e os perfis já existem. Falta o resto da implantação:
+O login, os perfis, o registro de alterações (`audit_log`) e o limite de leituras nas rotas de dispositivo já existem. Falta o resto da implantação:
 
-- Registro de quem fez cada mudança (`audit_log` com usuário, ação, alvo e horário).
-- Limite de requisições por tag nas rotas de dispositivo.
 - Guia de implantação: HTTPS num proxy reverso (Caddy ou Nginx), que precisa repassar `X-Forwarded-Proto` para o cookie de sessão sair com `Secure`, backup diário do PostgreSQL com `pg_dump` e o que monitorar.
 
 ### Fase 2: ocorrências e despacho

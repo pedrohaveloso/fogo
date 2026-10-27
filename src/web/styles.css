@@ -3275,10 +3275,6 @@ dialog::backdrop {
   }
 }
 
-.tag-panel {
-  margin-top: 16px;
-}
-
 .tag-panel-title {
   font-size: var(--text-lg);
 }
@@ -3299,8 +3295,7 @@ dialog::backdrop {
   margin: 0;
 }
 
-.tag-panel code,
-.tag-example {
+.tag-panel code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
@@ -3326,16 +3321,6 @@ dialog::backdrop {
   padding: 8px 8px;
   background: var(--raised);
   border-radius: var(--radius);
-}
-
-.tag-example {
-  margin: 0;
-  padding: 12px 12px;
-  overflow-x: auto;
-  background: var(--raised);
-  border-radius: var(--radius);
-  overflow-wrap: normal;
-  white-space: pre;
 }
 
 @media (max-width: 720px) {

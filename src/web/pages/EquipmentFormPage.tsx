@@ -633,6 +633,8 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           </div>
         </fieldset>
 
+        {id !== null && <TagPanel target={{ equipmentId: id }} initial={tag} />}
+
         <FormActions>
           {id !== null && (
             <button
@@ -651,7 +653,6 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           </button>
         </FormActions>
       </form>
-      {id !== null && <TagPanel target={{ equipmentId: id }} initial={tag} moves={spec.mobile} />}
       <ConfirmDialog
         open={confirmDelete}
         title="Excluir este equipamento?"

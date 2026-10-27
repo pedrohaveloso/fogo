@@ -6,24 +6,15 @@ import { showToast } from "../toast.tsx";
 import { useNow } from "../useNow.ts";
 import { ConfirmDialog } from "./form.tsx";
 import { cityPath } from "../cityScope.ts";
+import { Link } from "../router.tsx";
 
 type Props = {
   target: { equipmentId: number } | { agentId: number };
   initial: Tag | null;
-  moves: boolean;
 };
 
 export function locationUrl(origin: string, tagId: string): string {
   return `${origin}/api/tags/${tagId}/location`;
-}
-
-export function curlExample(url: string, token: string): string {
-  return [
-    `curl -X POST ${url} \\`,
-    `  -H "Authorization: Bearer ${token}" \\`,
-    `  -H "Content-Type: application/json" \\`,
-    `  -d '{"lat": -22.2139, "lng": -49.9458, "battery": 87}'`,
-  ].join("\n");
 }
 
 function copy(text: string): void {
@@ -33,7 +24,7 @@ function copy(text: string): void {
     .catch(() => showToast("Não deu para copiar. Selecione o texto e copie à mão."));
 }
 
-export function TagPanel({ target, initial, moves }: Props) {
+export function TagPanel({ target, initial }: Props) {
   const now = useNow(30_000);
   const [tag, setTag] = useState(initial);
   const [token, setToken] = useState<string | null>(null);
@@ -99,7 +90,7 @@ export function TagPanel({ target, initial, moves }: Props) {
           {token ? (
             <div className="tag-secret">
               <p>
-                <strong>Grave o token no dispositivo agora.</strong> Ele não aparece de novo. Se
+                <strong>Grave o token no aparelho agora.</strong> Ele não aparece de novo. Se
                 perder, remova a tag e crie outra.
               </p>
               <div className="tag-copy">
@@ -114,12 +105,19 @@ export function TagPanel({ target, initial, moves }: Props) {
                   Copiar endereço
                 </button>
               </div>
-              <pre className="tag-example">{curlExample(url, token)}</pre>
             </div>
           ) : (
+            <div className="tag-copy">
+              <code>{url}</code>
+              <button type="button" className="button button-small" onClick={() => copy(url)}>
+                Copiar endereço
+              </button>
+            </div>
+          )}
+          {!token && (
             <p className="hint">
-              O dispositivo envia a posição para <code>{url}</code> com o token no cabeçalho
-              Authorization. O passo a passo está em docs/trackers.md.
+              O token não aparece de novo. Para trocar o aparelho ou o token, remova a tag e crie
+              outra. O passo a passo está em <Link href="/docs">Documentações</Link>.
             </p>
           )}
           <div>
@@ -136,10 +134,8 @@ export function TagPanel({ target, initial, moves }: Props) {
       ) : (
         <>
           <p className="hint">
-            {moves
-              ? "Sem rastreador. No modo de demonstração, quem move este cadastro é o simulador."
-              : "Sem rastreador. A comunicação vem do simulador no modo de demonstração."}{" "}
-            Crie uma tag para um GPS ou placa como ESP32 informar a posição real.
+            Sem rastreador. Crie uma tag para que um aparelho com GPS informe a posição real. O
+            passo a passo está em <Link href="/docs">Documentações</Link>.
           </p>
           <div>
             <button
@@ -161,7 +157,7 @@ export function TagPanel({ target, initial, moves }: Props) {
       <ConfirmDialog
         open={confirmRemove}
         title="Remover esta tag?"
-        message="O dispositivo para de ser aceito na hora. Para voltar a usar, crie uma tag nova e grave o novo token nele."
+        message="O aparelho deixa de ser aceito na hora. Para voltar a usar, crie uma tag nova e grave o novo token nele."
         confirmLabel="Remover tag"
         onConfirm={() => void remove()}
         onCancel={() => setConfirmRemove(false)}

@@ -397,6 +397,8 @@ export function AgentFormPage({ id }: { id: number | null }) {
             definir a posição inicial.
           </p>
         </fieldset>
+        {id !== null && <TagPanel target={{ agentId: id }} initial={tag} />}
+
         <FormActions>
           {id !== null && (
             <button
@@ -415,7 +417,6 @@ export function AgentFormPage({ id }: { id: number | null }) {
           </button>
         </FormActions>
       </form>
-      {id !== null && <TagPanel target={{ agentId: id }} initial={tag} moves />}
       <ConfirmDialog
         open={confirmDelete}
         title="Excluir este agente?"

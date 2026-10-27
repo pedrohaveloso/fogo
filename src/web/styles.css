@@ -203,21 +203,11 @@ main:focus {
   flex-shrink: 0;
 }
 
-.brand-text {
-  display: grid;
-  line-height: 1.1;
-}
-
 .brand-name {
   font-family: var(--font-sign);
   font-weight: 700;
   font-size: 1.25rem;
   letter-spacing: 0.08em;
-}
-
-.brand-city {
-  color: var(--muted);
-  font-size: var(--text-xs);
 }
 
 .nav {
@@ -2858,7 +2848,6 @@ dialog::backdrop {
     display: none;
   }
 
-  .brand-city,
   .clock {
     display: none;
   }
@@ -3495,10 +3484,6 @@ dialog::backdrop {
 }
 
 @media (max-width: 760px) {
-  .user-menu-name {
-    display: none;
-  }
-
   .city-switcher .select-button {
     max-width: 140px;
   }
@@ -3684,6 +3669,38 @@ dialog::backdrop {
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
+}
+
+.manage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-4);
+}
+
+.manage-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  text-decoration: none;
+}
+
+.manage-card:hover {
+  border-color: var(--line-hover);
+  background: var(--raised);
+}
+
+.manage-card-text {
+  display: grid;
+}
+
+.manage-card-text strong {
+  font-family: var(--font-sign);
+  font-size: var(--text-lg);
+}
+
+.manage-card-text small {
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .docs {

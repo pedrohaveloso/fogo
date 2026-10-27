@@ -3,9 +3,9 @@ import type { Session, SessionUser } from "../shared/types.ts";
 import { formatClock, formatTime } from "./format.ts";
 import {
   AGENT_GLYPH,
-  AREA_GLYPH,
   BrandMark,
   Glyph,
+  MANAGE_GLYPH,
   MAP_GLYPH,
   TREND_GLYPH,
   TYPE_GLYPHS,
@@ -15,6 +15,7 @@ import { AccountPage } from "./pages/AccountPage.tsx";
 import { AgenciesPage } from "./pages/AgenciesPage.tsx";
 import { CitiesPage } from "./pages/CitiesPage.tsx";
 import { DocsPage } from "./pages/DocsPage.tsx";
+import { ManagementPage } from "./pages/ManagementPage.tsx";
 import { CityFormPage } from "./pages/CityFormPage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { UserFormPage } from "./pages/UserFormPage.tsx";
@@ -33,6 +34,8 @@ import { Select } from "./components/Select.tsx";
 import { Link, navigate, useLocation } from "./router.tsx";
 import { showToast, Toast } from "./toast.tsx";
 import { useNow } from "./useNow.ts";
+
+const MANAGEMENT_PATHS = ["/management", "/neighborhoods", "/agencies", "/cities", "/users"];
 
 const NAV = [
   {
@@ -57,18 +60,18 @@ const NAV = [
     match: (path: string) => path.startsWith("/agents"),
   },
   {
-    href: "/neighborhoods",
-    label: "Bairros",
-    short: "Bairros",
-    glyph: AREA_GLYPH,
-    match: (path: string) => path.startsWith("/neighborhoods"),
-  },
-  {
     href: "/predictions",
     label: "Cidade preditiva",
     short: "Preditiva",
     glyph: TREND_GLYPH,
     match: (path: string) => path.startsWith("/predictions"),
+  },
+  {
+    href: "/management",
+    label: "Gerenciamento",
+    short: "Gerenciar",
+    glyph: MANAGE_GLYPH,
+    match: (path: string) => MANAGEMENT_PATHS.some((prefix) => path.startsWith(prefix)),
   },
 ];
 
@@ -173,6 +176,9 @@ function Route({ pathname, session }: { pathname: string; session: Session }) {
   if (pathname === "/docs") {
     return <DocsPage />;
   }
+  if (pathname === "/management") {
+    return <ManagementPage />;
+  }
   const admin = user.role === "admin" ? adminRoute(pathname) : null;
   if (admin) {
     return admin;
@@ -249,36 +255,20 @@ function CitySwitcher({ session }: { session: Session }) {
   );
 }
 
-function UserMenu({ session, user }: { session: Session; user: SessionUser }) {
+function UserMenu({ user }: { user: SessionUser }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const close = () => ref.current?.removeAttribute("open");
   return (
     <details ref={ref} className="user-menu">
       <summary aria-label={`Menu de ${user.name}`}>
         <Glyph d={AGENT_GLYPH} size={20} />
-        <span className="user-menu-name">{user.name}</span>
       </summary>
       <div className="user-menu-body">
         <p className="user-menu-who">
           <strong>{user.name}</strong>
           <span>{user.role === "admin" ? "Administrador" : "Usuário"}</span>
         </p>
-        <nav aria-label="Configurações">
-          {session.cityId !== null && (
-            <Link href="/agencies" onClick={close}>
-              Órgãos
-            </Link>
-          )}
-          {user.role === "admin" && (
-            <Link href="/cities" onClick={close}>
-              Cidades
-            </Link>
-          )}
-          {user.role === "admin" && (
-            <Link href="/users" onClick={close}>
-              Usuários
-            </Link>
-          )}
+        <nav aria-label="Conta">
           <Link href="/docs" onClick={close}>
             Documentações
           </Link>
@@ -322,19 +312,10 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
         Pular para o conteúdo
       </a>
       <header className="topbar">
-        <Link
-          href="/"
-          className="brand"
-          aria-label={city ? `FOGO ${city.name}, página inicial` : "FOGO, página inicial"}
-        >
+        <Link href="/" className="brand" aria-label="FOGO, página inicial">
           <BrandMark />
-          <span className="brand-text" aria-hidden="true">
-            <span className="brand-name">FOGO</span>
-            {city && (
-              <span className="brand-city">
-                {city.name}, {city.uf}
-              </span>
-            )}
+          <span className="brand-name" aria-hidden="true">
+            FOGO
           </span>
         </Link>
         <nav className="nav" aria-label="Principal">
@@ -353,7 +334,6 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
           ))}
         </nav>
         <div className="topbar-status">
-          <CitySwitcher session={session} />
           {city?.simulated && session.mode === "simulation" && (
             <span
               className="plate"
@@ -366,7 +346,8 @@ function Shell({ session, user }: { session: Session; user: SessionUser }) {
           <time className="clock" dateTime={new Date(now).toISOString()}>
             {formatTime(new Date(now).toISOString())}
           </time>
-          <UserMenu session={session} user={user} />
+          <CitySwitcher session={session} />
+          <UserMenu user={user} />
         </div>
       </header>
       <Route key={session.cityId ?? "none"} pathname={pathname} session={session} />

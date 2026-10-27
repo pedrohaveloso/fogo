@@ -39,6 +39,10 @@ export const MAP_GLYPH = "M9 4.5L3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2z M9 4.5v1
 
 export const AREA_GLYPH = "M5 6.5l6.5-3 8 4-1.5 9.5-7 4-6.5-5.5z";
 
+export const AGENCY_GLYPH = "M5 20V6.5l7-3 7 3V20 M3.5 20h17 M9 10h2 M13 10h2 M9 14h2 M13 14h2";
+
+export const MANAGE_GLYPH = "M4 7h10 M18 7h2 M4 17h2 M10 17h10 M14 5v4 M6 15v4";
+
 export const TREND_GLYPH = "M3.5 17l5-5 4 3.5 7.5-8.5 M15 7h5v5";
 
 export const CLOSE_GLYPH = "M6.5 6.5l11 11 M17.5 6.5l-11 11";

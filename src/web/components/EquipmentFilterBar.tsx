@@ -10,6 +10,7 @@ import type { Meta } from "../../shared/types.ts";
 import { StatusShape } from "../icons.tsx";
 import { useMediaQuery } from "../useMediaQuery.ts";
 import { FilterMenu } from "./FilterMenu.tsx";
+import { Select } from "./Select.tsx";
 import {
   EMPTY_FILTERS,
   PlaceFilterFields,
@@ -72,33 +73,11 @@ export function EquipmentFilterBar({
       ))}
     </fieldset>
   );
-  const typeFields = (
-    <fieldset className="filter-options">
-      <legend className={phone ? "filter-group-title" : "visually-hidden"}>
-        Tipo de equipamento
-      </legend>
-      <label className="check">
-        <input
-          type="radio"
-          name={`${idPrefix}-type`}
-          checked={filters.type === ""}
-          onChange={() => set("type", "")}
-        />
-        Todos os tipos
-      </label>
-      {EQUIPMENT_TYPE_KEYS.map((type) => (
-        <label key={type} className="check">
-          <input
-            type="radio"
-            name={`${idPrefix}-type`}
-            checked={filters.type === type}
-            onChange={() => set("type", type)}
-          />
-          {EQUIPMENT_TYPES[type].label}
-        </label>
-      ))}
-    </fieldset>
-  );
+  const typeOptions = [
+    { value: "", label: "Todos os tipos" },
+    ...EQUIPMENT_TYPE_KEYS.map((type) => ({ value: type, label: EQUIPMENT_TYPES[type].label })),
+  ];
+  const changeType = (value: string) => set("type", value as EquipmentFilters["type"]);
   const placeFields = (
     <div className="filter-fields">
       <PlaceFilterFields idPrefix={idPrefix} meta={meta} filters={filters} onChange={onChange} />
@@ -125,7 +104,15 @@ export function EquipmentFilterBar({
         >
           <div className="filter-stack">
             {statusFields}
-            {typeFields}
+            <div className="field">
+              <label htmlFor={`${idPrefix}-type`}>Tipo de equipamento</label>
+              <Select
+                id={`${idPrefix}-type`}
+                value={filters.type}
+                options={typeOptions}
+                onChange={changeType}
+              />
+            </div>
             {placeFields}
           </div>
         </FilterMenu>
@@ -134,9 +121,14 @@ export function EquipmentFilterBar({
           <FilterMenu label="Situação" count={filters.statuses.length}>
             {statusFields}
           </FilterMenu>
-          <FilterMenu label="Tipo" count={filters.type ? 1 : 0}>
-            {typeFields}
-          </FilterMenu>
+          <Select
+            variant="filter"
+            size="sm"
+            label="Tipo"
+            value={filters.type}
+            options={typeOptions}
+            onChange={changeType}
+          />
           <FilterMenu label="Mais filtros" count={placeFilterCount(filters)}>
             {placeFields}
           </FilterMenu>

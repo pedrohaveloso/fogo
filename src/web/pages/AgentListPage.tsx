@@ -14,7 +14,7 @@ import {
   type AgentFilters,
 } from "../agentFilters.ts";
 import { AgentShield, AgentStatusBadge } from "../components/badges.tsx";
-import { FilterMenu } from "../components/FilterMenu.tsx";
+import { Select } from "../components/Select.tsx";
 import { formatInteger, formatRelative } from "../format.ts";
 import { AGENT_ROLE_GLYPHS, EDIT_GLYPH, Glyph } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
@@ -99,57 +99,32 @@ export function AgentListPage() {
             value={filters.search}
             onChange={(event) => set("search", event.target.value)}
           />
-          <FilterMenu label="Função" count={filters.role ? 1 : 0}>
-            <fieldset className="filter-options">
-              <legend className="visually-hidden">Função do agente</legend>
-              <label className="check">
-                <input
-                  type="radio"
-                  name="agent-role"
-                  checked={filters.role === ""}
-                  onChange={() => set("role", "")}
-                />
-                Todas as funções
-              </label>
-              {AGENT_ROLE_KEYS.map((key) => (
-                <label key={key} className="check">
-                  <input
-                    type="radio"
-                    name="agent-role"
-                    checked={filters.role === key}
-                    onChange={() => set("role", key)}
-                  />
-                  <Glyph d={AGENT_ROLE_GLYPHS[key]} size={14} />
-                  {AGENT_ROLES[key].label}
-                </label>
-              ))}
-            </fieldset>
-          </FilterMenu>
-          <FilterMenu label="Região da base" count={filters.regionId ? 1 : 0}>
-            <fieldset className="filter-options">
-              <legend className="visually-hidden">Região da base</legend>
-              <label className="check">
-                <input
-                  type="radio"
-                  name="agent-region"
-                  checked={filters.regionId === ""}
-                  onChange={() => set("regionId", "")}
-                />
-                Toda a cidade
-              </label>
-              {meta.regions.map((region) => (
-                <label key={region.id} className="check">
-                  <input
-                    type="radio"
-                    name="agent-region"
-                    checked={filters.regionId === region.id}
-                    onChange={() => set("regionId", region.id)}
-                  />
-                  {region.name}
-                </label>
-              ))}
-            </fieldset>
-          </FilterMenu>
+          <Select
+            variant="filter"
+            size="sm"
+            label="Função"
+            value={filters.role}
+            options={[
+              { value: "", label: "Todas as funções" },
+              ...AGENT_ROLE_KEYS.map((key) => ({
+                value: key,
+                label: AGENT_ROLES[key].label,
+                icon: <Glyph d={AGENT_ROLE_GLYPHS[key]} size={14} />,
+              })),
+            ]}
+            onChange={(value) => set("role", value as AgentFilters["role"])}
+          />
+          <Select
+            variant="filter"
+            size="sm"
+            label="Região da base"
+            value={filters.regionId}
+            options={[
+              { value: "", label: "Toda a cidade" },
+              ...meta.regions.map((region) => ({ value: region.id, label: region.name })),
+            ]}
+            onChange={(value) => set("regionId", value)}
+          />
           <span className="filter-result" role="status">
             {rows.length} de {snapshot.agents.length} agentes
             {active && (

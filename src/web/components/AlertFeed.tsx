@@ -4,6 +4,7 @@ import { api } from "../api.ts";
 import { ALERT_CATEGORY_LABELS, ALERT_LABELS } from "../colors.ts";
 import { formatRelative } from "../format.ts";
 import { cityPath } from "../cityScope.ts";
+import { Select } from "./Select.tsx";
 
 export type AlertFilterKey =
   | "all"
@@ -206,18 +207,16 @@ export function AlertFeed({ alerts, now, generatedAt, onLocate }: Props) {
         <label htmlFor="alert-filter" className="visually-hidden">
           Mostrar alertas
         </label>
-        <select
+        <Select
           id="alert-filter"
-          className="input input-small"
+          size="sm"
           value={filter}
-          onChange={(event) => setFilter(event.target.value as AlertFilterKey)}
-        >
-          {FILTERS.map((item) => (
-            <option key={item.key} value={item.key}>
-              {item.label} ({alerts.filter((alert) => matchesAlertFilter(alert, item.key)).length})
-            </option>
-          ))}
-        </select>
+          options={FILTERS.map((item) => ({
+            value: item.key,
+            label: `${item.label} (${alerts.filter((alert) => matchesAlertFilter(alert, item.key)).length})`,
+          }))}
+          onChange={(value) => setFilter(value as AlertFilterKey)}
+        />
         <small role="status">
           {critical} crítico{critical === 1 ? "" : "s"} sem reconhecimento
         </small>

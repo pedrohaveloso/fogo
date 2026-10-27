@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useAnchoredPopup } from "./popup.ts";
 
 export function FilterMenu({
   label,
@@ -10,6 +11,11 @@ export function FilterMenu({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  const summary = useRef<HTMLElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+
+  const bodyStyle = useAnchoredPopup(open, summary, body, false);
 
   useEffect(() => {
     const close = (event: Event) => {
@@ -35,12 +41,18 @@ export function FilterMenu({
   }, []);
 
   return (
-    <details ref={ref} className="filter-menu">
-      <summary data-active={count > 0}>
+    <details
+      ref={ref}
+      className="filter-menu"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary ref={summary} data-active={count > 0}>
         {label}
         {count > 0 && <span className="filter-menu-count">{count}</span>}
       </summary>
-      <div className="filter-menu-body">{children}</div>
+      <div ref={body} className="filter-menu-body" style={bodyStyle}>
+        {children}
+      </div>
     </details>
   );
 }

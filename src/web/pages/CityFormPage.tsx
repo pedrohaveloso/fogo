@@ -7,6 +7,7 @@ import { api, ApiError, errorMessage } from "../api.ts";
 import { cityPath } from "../cityScope.ts";
 import { ConfirmDialog, Field, issuesToErrors, type Errors } from "../components/form.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { Select } from "../components/Select.tsx";
 import { formatInteger } from "../format.ts";
 import { ShapeEditor } from "../map/ShapeEditor.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -213,23 +214,21 @@ function NewCity() {
           <div className="form-grid">
             <Field path="uf" label="UF" error={errors["uf"]}>
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={uf}
-                  onChange={(event) => {
-                    setUf(event.target.value);
+                  placeholder="Selecione a UF"
+                  options={STATE_CODES.map((item) => ({
+                    value: item,
+                    label: `${item} (${STATES[item]})`,
+                  }))}
+                  onChange={(value) => {
+                    setUf(value);
                     setCode("");
                     setLookup(null);
                     editor.replace([]);
                   }}
-                >
-                  <option value="">Selecione a UF</option>
-                  {STATE_CODES.map((item) => (
-                    <option key={item} value={item}>
-                      {item} ({STATES[item]})
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </Field>
             <Field
@@ -239,25 +238,23 @@ function NewCity() {
               status={lookup}
             >
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={code}
                   disabled={!municipalities.data}
-                  onChange={(event) => void chooseMunicipality(event.target.value)}
-                >
-                  <option value="">
-                    {uf === ""
+                  placeholder={
+                    uf === ""
                       ? "Escolha a UF antes"
                       : municipalities.data
                         ? "Selecione o município"
-                        : "Carregando municípios..."}
-                  </option>
-                  {municipalities.data?.map((item) => (
-                    <option key={item.ibgeCode} value={item.ibgeCode}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                        : "Carregando municípios..."
+                  }
+                  options={(municipalities.data ?? []).map((item) => ({
+                    value: String(item.ibgeCode),
+                    label: item.name,
+                  }))}
+                  onChange={(value) => void chooseMunicipality(value)}
+                />
               )}
             </Field>
           </div>

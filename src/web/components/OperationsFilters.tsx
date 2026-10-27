@@ -10,8 +10,17 @@ import {
 } from "../../shared/maintenance.ts";
 import { fold } from "../../shared/text.ts";
 import type { Equipment, Meta } from "../../shared/types.ts";
+import { Select } from "./Select.tsx";
 
 export type MaintenanceFilter = "" | "urgent" | "immediate" | "overdue" | "soon";
+
+const MAINTENANCE_OPTIONS = [
+  { value: "", label: "Qualquer situação" },
+  { value: "urgent", label: "Urgente (imediata ou vencida)" },
+  { value: "immediate", label: "Manutenção imediata" },
+  { value: "overdue", label: "Manutenção vencida" },
+  { value: "soon", label: "Prevista nos próximos 7 dias" },
+];
 
 export type EquipmentFilters = {
   type: EquipmentType | "";
@@ -138,66 +147,48 @@ export function PlaceFilterFields({
     <>
       <div className="field">
         <label htmlFor={`${idPrefix}-region`}>Região</label>
-        <select
+        <Select
           id={`${idPrefix}-region`}
           value={filters.regionId}
-          onChange={(event) =>
-            onChange({ ...filters, regionId: event.target.value, neighborhoodId: "" })
-          }
-        >
-          <option value="">Toda a cidade</option>
-          {meta.regions.map((region) => (
-            <option key={region.id} value={region.id}>
-              {region.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Toda a cidade" },
+            ...meta.regions.map((region) => ({ value: region.id, label: region.name })),
+          ]}
+          onChange={(value) => onChange({ ...filters, regionId: value, neighborhoodId: "" })}
+        />
       </div>
       <div className="field">
         <label htmlFor={`${idPrefix}-neighborhood`}>Bairro</label>
-        <select
+        <Select
           id={`${idPrefix}-neighborhood`}
           value={filters.neighborhoodId}
-          onChange={(event) => onChange({ ...filters, neighborhoodId: event.target.value })}
-        >
-          <option value="">Todos os bairros</option>
-          {neighborhoods.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Todos os bairros" },
+            ...neighborhoods.map((item) => ({ value: item.id, label: item.name })),
+          ]}
+          onChange={(value) => onChange({ ...filters, neighborhoodId: value })}
+        />
       </div>
       <div className="field">
         <label htmlFor={`${idPrefix}-agency`}>Órgão responsável</label>
-        <select
+        <Select
           id={`${idPrefix}-agency`}
           value={filters.agency}
-          onChange={(event) => onChange({ ...filters, agency: event.target.value })}
-        >
-          <option value="">Todos os órgãos</option>
-          {meta.agencies.map((agency) => (
-            <option key={agency.id} value={agency.id}>
-              {agency.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Todos os órgãos" },
+            ...meta.agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
+          ]}
+          onChange={(value) => onChange({ ...filters, agency: value })}
+        />
       </div>
       <div className="field">
         <label htmlFor={`${idPrefix}-maintenance`}>Manutenção</label>
-        <select
+        <Select
           id={`${idPrefix}-maintenance`}
           value={filters.maintenance}
-          onChange={(event) =>
-            onChange({ ...filters, maintenance: event.target.value as MaintenanceFilter })
-          }
-        >
-          <option value="">Qualquer situação</option>
-          <option value="urgent">Urgente (imediata ou vencida)</option>
-          <option value="immediate">Manutenção imediata</option>
-          <option value="overdue">Manutenção vencida</option>
-          <option value="soon">Prevista nos próximos 7 dias</option>
-        </select>
+          options={MAINTENANCE_OPTIONS}
+          onChange={(value) => onChange({ ...filters, maintenance: value as MaintenanceFilter })}
+        />
       </div>
     </>
   );

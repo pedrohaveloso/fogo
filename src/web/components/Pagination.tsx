@@ -1,6 +1,12 @@
 import { useId } from "react";
 import { formatInteger } from "../format.ts";
 import { PAGE_SIZES, parsePageSize, type Page, type PageSize } from "../pagination.ts";
+import { Select } from "./Select.tsx";
+
+const SIZE_OPTIONS = [
+  ...PAGE_SIZES.map((option) => ({ value: String(option), label: `${option} por página` })),
+  { value: "all", label: "Todos" },
+];
 
 export function Pagination({
   page,
@@ -23,19 +29,13 @@ export function Pagination({
     <nav className="pagination" aria-label={`Páginas de ${label}`}>
       <span className="pagination-range">
         <label htmlFor={`${id}-size`}>Mostrar</label>
-        <select
+        <Select
           id={`${id}-size`}
-          className="input input-small"
+          size="sm"
           value={String(size)}
-          onChange={(event) => onSizeChange(parsePageSize(event.target.value))}
-        >
-          {PAGE_SIZES.map((option) => (
-            <option key={option} value={option}>
-              {option} por página
-            </option>
-          ))}
-          <option value="all">Todos</option>
-        </select>
+          options={SIZE_OPTIONS}
+          onChange={(value) => onSizeChange(parsePageSize(value))}
+        />
         <span>
           {formatInteger(page.first)} a {formatInteger(page.last)} de {formatInteger(page.total)}
         </span>
@@ -52,18 +52,16 @@ export function Pagination({
           </button>
           <span className="pagination-current">
             <label htmlFor={`${id}-page`}>Página</label>
-            <select
+            <Select
               id={`${id}-page`}
-              className="input input-small"
-              value={page.page}
-              onChange={(event) => onChange(Number(event.target.value))}
-            >
-              {Array.from({ length: page.pageCount }, (_, index) => (
-                <option key={index + 1} value={index + 1}>
-                  {index + 1}
-                </option>
-              ))}
-            </select>
+              size="sm"
+              value={String(page.page)}
+              options={Array.from({ length: page.pageCount }, (_, index) => ({
+                value: String(index + 1),
+                label: String(index + 1),
+              }))}
+              onChange={(value) => onChange(Number(value))}
+            />
             de {page.pageCount}
           </span>
           <button

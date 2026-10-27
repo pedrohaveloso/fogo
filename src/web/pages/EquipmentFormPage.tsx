@@ -32,6 +32,7 @@ import {
 } from "../components/form.tsx";
 import { Glyph, StatusShape, TYPE_GLYPHS } from "../icons.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { Select } from "../components/Select.tsx";
 import { TagPanel } from "../components/TagPanel.tsx";
 import { useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
@@ -76,18 +77,15 @@ function AttributeInput({
     >
       {(props) =>
         spec.kind === "select" ? (
-          <select
+          <Select
             {...props}
             value={String(value ?? "")}
-            onChange={(event) => onChange(event.target.value)}
-          >
-            <option value="">Não informado</option>
-            {Object.entries(spec.options).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Não informado" },
+              ...Object.entries(spec.options).map(([key, label]) => ({ value: key, label })),
+            ]}
+            onChange={onChange}
+          />
         ) : (
           <input
             {...props}
@@ -351,20 +349,18 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
             </Field>
             <Field path="agencyId" label={LABELS["agencyId"]!} error={errors["agencyId"]}>
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={draft.agencyId}
-                  onChange={(event) => set("agencyId", event.target.value)}
-                >
-                  <option value="">
-                    {draft.cityId === null ? "Escolha a cidade antes" : "Selecione o órgão"}
-                  </option>
-                  {agencies.map((agency) => (
-                    <option key={agency.id} value={agency.id}>
-                      {agency.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={
+                    draft.cityId === null ? "Escolha a cidade antes" : "Selecione o órgão"
+                  }
+                  options={agencies.map((agency) => ({
+                    value: String(agency.id),
+                    label: agency.name,
+                  }))}
+                  onChange={(value) => set("agencyId", value)}
+                />
               )}
             </Field>
             <Field path="installedAt" label={LABELS["installedAt"]!} error={errors["installedAt"]}>
@@ -399,32 +395,27 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
           <div className="form-grid">
             <Field path="uf" label={LABELS["uf"]!} error={errors["uf"]}>
               {(props) => (
-                <select {...props} value={uf} onChange={(event) => changeState(event.target.value)}>
-                  <option value="">Selecione a UF</option>
-                  {states.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  {...props}
+                  value={uf}
+                  placeholder="Selecione a UF"
+                  options={states.map((item) => ({ value: item, label: item }))}
+                  onChange={changeState}
+                />
               )}
             </Field>
             <Field path="cityId" label={LABELS["cityId"]!} error={errors["cityId"]}>
               {(props) => (
-                <select
+                <Select
                   {...props}
-                  value={draft.cityId ?? ""}
-                  onChange={(event) =>
-                    changeCity(event.target.value === "" ? null : Number(event.target.value))
-                  }
-                >
-                  <option value="">Selecione a cidade</option>
-                  {citiesOfState.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                  value={draft.cityId === null ? "" : String(draft.cityId)}
+                  placeholder="Selecione a cidade"
+                  options={citiesOfState.map((item) => ({
+                    value: String(item.id),
+                    label: item.name,
+                  }))}
+                  onChange={(value) => changeCity(value === "" ? null : Number(value))}
+                />
               )}
             </Field>
             <Field path="cep" label={LABELS["cep"]!} error={errors["cep"]} status={lookup}>
@@ -477,18 +468,13 @@ export function EquipmentFormPage({ id }: { id: number | null }) {
               error={errors["neighborhoodId"]}
             >
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={draft.neighborhoodId}
-                  onChange={(event) => set("neighborhoodId", event.target.value)}
-                >
-                  <option value="">Selecione o bairro</option>
-                  {neighborhoods.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Selecione o bairro"
+                  options={neighborhoods.map((item) => ({ value: item.id, label: item.name }))}
+                  onChange={(value) => set("neighborhoodId", value)}
+                />
               )}
             </Field>
             <Field path="lat" label={LABELS["lat"]!} error={errors["lat"]}>

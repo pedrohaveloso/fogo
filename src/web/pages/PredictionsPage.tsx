@@ -17,6 +17,7 @@ import { RISK_COLORS } from "../colors.ts";
 import { LevelPlate, Meter, RiskTag } from "../components/badges.tsx";
 import { LineChart } from "../components/charts/LineChart.tsx";
 import { WeekHeatmap } from "../components/charts/WeekHeatmap.tsx";
+import { Select } from "../components/Select.tsx";
 import { InlineLoading } from "../components/LoadingNotice.tsx";
 import { TabList, tabId, tabPanelId } from "../components/Tabs.tsx";
 import {
@@ -580,17 +581,16 @@ function TrendSection() {
               <label htmlFor="availability-type" className="visually-hidden">
                 Tipo de equipamento
               </label>
-              <select
+              <Select
                 id="availability-type"
-                value={availability?.key}
-                onChange={(event) => setAvailabilityKey(event.target.value)}
-              >
-                {data.availability.map((series) => (
-                  <option key={series.key} value={series.key}>
-                    {series.key === "all" ? "Todos os tipos" : series.label}
-                  </option>
-                ))}
-              </select>
+                size="sm"
+                value={availability?.key ?? ""}
+                options={data.availability.map((series) => ({
+                  value: series.key,
+                  label: series.key === "all" ? "Todos os tipos" : series.label,
+                }))}
+                onChange={setAvailabilityKey}
+              />
             </div>
           </div>
           {availability && <TrendChart series={availability} unit="percent" />}

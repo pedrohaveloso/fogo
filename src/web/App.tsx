@@ -28,6 +28,7 @@ import { OperationsPage } from "./pages/OperationsPage.tsx";
 import { PredictionsPage } from "./pages/PredictionsPage.tsx";
 import { pageTitle } from "./pageTitle.ts";
 import { InlineLoading } from "./components/LoadingNotice.tsx";
+import { Select } from "./components/Select.tsx";
 import { Link, navigate, useLocation } from "./router.tsx";
 import { showToast, Toast } from "./toast.tsx";
 import { useNow } from "./useNow.ts";
@@ -230,18 +231,16 @@ function CitySwitcher({ session }: { session: Session }) {
       <label htmlFor="city-switcher" className="visually-hidden">
         Cidade
       </label>
-      <select
+      <Select
         id="city-switcher"
-        className="input"
-        value={session.cityId ?? ""}
-        onChange={(event) => void changeCity(Number(event.target.value))}
-      >
-        {session.cities.map((city) => (
-          <option key={city.id} value={city.id}>
-            {city.name}, {city.uf}
-          </option>
-        ))}
-      </select>
+        size="sm"
+        value={session.cityId === null ? "" : String(session.cityId)}
+        options={session.cities.map((city) => ({
+          value: String(city.id),
+          label: `${city.name}, ${city.uf}`,
+        }))}
+        onChange={(value) => void changeCity(Number(value))}
+      />
     </div>
   );
 }

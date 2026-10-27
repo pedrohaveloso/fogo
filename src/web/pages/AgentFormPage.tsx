@@ -23,6 +23,7 @@ import {
 } from "../components/form.tsx";
 import { AgentShield } from "../components/badges.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
+import { Select } from "../components/Select.tsx";
 import { TagPanel } from "../components/TagPanel.tsx";
 import { useLive, useMeta } from "../live.ts";
 import { LocationPicker } from "../map/LocationPicker.tsx";
@@ -240,24 +241,18 @@ export function AgentFormPage({ id }: { id: number | null }) {
             </Field>
             <Field path="agencyId" label={LABELS["agencyId"]!} error={errors["agencyId"]}>
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={draft.agencyId}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      agencyId: event.target.value,
-                      vehicleId: "",
-                    }))
+                  placeholder="Selecione o órgão"
+                  options={meta.agencies.map((agency) => ({
+                    value: String(agency.id),
+                    label: agency.name,
+                  }))}
+                  onChange={(agencyId) =>
+                    setDraft((current) => ({ ...current, agencyId, vehicleId: "" }))
                   }
-                >
-                  <option value="">Selecione o órgão</option>
-                  {meta.agencies.map((agency) => (
-                    <option key={agency.id} value={agency.id}>
-                      {agency.name}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </Field>
             <Field path="phone" label={LABELS["phone"]!} error={errors["phone"]}>
@@ -310,19 +305,18 @@ export function AgentFormPage({ id }: { id: number | null }) {
           <div className="form-grid form-grid-wide">
             <Field path="vehicleId" label={LABELS["vehicleId"]!} error={errors["vehicleId"]}>
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={draft.vehicleId}
-                  onChange={(event) => set("vehicleId", event.target.value)}
-                >
-                  <option value="">Sem veículo (a pé)</option>
-                  {vehicles.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {EQUIPMENT_TYPES[item.type].label}{" "}
-                      {String(item.attributes["plate"] ?? item.serialNumber)}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "Sem veículo (a pé)" },
+                    ...vehicles.map((item) => ({
+                      value: String(item.id),
+                      label: `${EQUIPMENT_TYPES[item.type].label} ${String(item.attributes["plate"] ?? item.serialNumber)}`,
+                    })),
+                  ]}
+                  onChange={(value) => set("vehicleId", value)}
+                />
               )}
             </Field>
           </div>
@@ -346,28 +340,23 @@ export function AgentFormPage({ id }: { id: number | null }) {
               error={errors["baseNeighborhoodId"]}
             >
               {(props) => (
-                <select
+                <Select
                   {...props}
                   value={draft.baseNeighborhoodId}
-                  onChange={(event) => {
+                  placeholder="Selecione o bairro"
+                  options={meta.neighborhoods.map((item) => ({ value: item.id, label: item.name }))}
+                  onChange={(baseNeighborhoodId) => {
                     const neighborhood = meta.neighborhoods.find(
-                      (item) => item.id === event.target.value,
+                      (item) => item.id === baseNeighborhoodId,
                     );
                     setDraft((current) => ({
                       ...current,
-                      baseNeighborhoodId: event.target.value,
+                      baseNeighborhoodId,
                       lat: current.lat || (neighborhood ? neighborhood.lat.toFixed(6) : ""),
                       lng: current.lng || (neighborhood ? neighborhood.lng.toFixed(6) : ""),
                     }));
                   }}
-                >
-                  <option value="">Selecione o bairro</option>
-                  {meta.neighborhoods.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </Field>
             <Field path="lat" label={LABELS["lat"]!} error={errors["lat"]}>

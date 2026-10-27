@@ -53,6 +53,8 @@ export const SORT_ASC_GLYPH = "M12 19V5 M6.5 10.5L12 5l5.5 5.5";
 
 export const SORT_DESC_GLYPH = "M12 5v14 M6.5 13.5L12 19l5.5-5.5";
 
+export const CHEVRON_GLYPH = "M6.5 9.5L12 15l5.5-5.5";
+
 export const EDIT_GLYPH = "M4 20h4L18.5 9.5a2.1 2.1 0 0 0 -4 -4L4 16z M13.5 6.5l4 4";
 
 export function BrandMark() {

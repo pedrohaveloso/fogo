@@ -3,6 +3,7 @@ import type { Alert, AlertCategory } from "../../shared/types.ts";
 import { api } from "../api.ts";
 import { ALERT_CATEGORY_LABELS, ALERT_LABELS } from "../colors.ts";
 import { formatRelative } from "../format.ts";
+import { CHEVRON_GLYPH, Glyph } from "../icons.tsx";
 import { cityPath } from "../cityScope.ts";
 import { Select } from "./Select.tsx";
 
@@ -242,7 +243,10 @@ export function AlertFeed({ alerts, now, generatedAt, onLocate }: Props) {
                       </span>
                       <span className="alert-group-count">{entry.items.length}</span>
                     </span>
-                    <span className="alert-title">{entry.title}</span>
+                    <span className="alert-title">
+                      {entry.title}
+                      <Glyph d={CHEVRON_GLYPH} size={14} />
+                    </span>
                   </summary>
                   <ul className="alert-group-items">
                     {entry.items.map((alert) => (

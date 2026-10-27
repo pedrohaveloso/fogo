@@ -23,6 +23,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
     globalSetup: ["src/server/test-setup.ts"],
+    maxWorkers: "50%",
     testTimeout: 20_000,
     hookTimeout: 30_000,
   },

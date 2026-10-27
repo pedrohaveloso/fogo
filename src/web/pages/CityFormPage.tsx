@@ -1,9 +1,9 @@
 import { Breadcrumb } from "../components/Breadcrumb.tsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { centroid, type LngLat } from "../../shared/geo.ts";
-import { STATE_CODES, STATES } from "../../shared/states.ts";
+import { isStateCode, STATE_CODES, STATES } from "../../shared/states.ts";
 import { plural } from "../../shared/text.ts";
-import type { BoundaryLookup, CityDetail, Municipality } from "../../shared/types.ts";
+import type { CityDetail, Municipality } from "../../shared/types.ts";
 import { api, ApiError, errorMessage } from "../api.ts";
 import { cityPath } from "../cityScope.ts";
 import {
@@ -19,6 +19,7 @@ import { formatInteger } from "../format.ts";
 import { ShapeEditor } from "../map/ShapeEditor.tsx";
 import { Link, navigate } from "../router.tsx";
 import { chooseCity, loadSession } from "../session.ts";
+import { browserFetch, lookupBoundary, municipalitiesOf, PlaceServiceError } from "../places.ts";
 import { MIN_SHAPE_POINTS, removeVertex, shapeProblem } from "../shapeEditing.ts";
 import { showToast } from "../toast.tsx";
 import { useFetch } from "../useFetch.ts";
@@ -138,6 +139,42 @@ function boundaryReady(polygon: LngLat[], drawing: boolean): boolean {
   return !drawing && polygon.length >= MIN_SHAPE_POINTS && shapeProblem(polygon) === null;
 }
 
+type MunicipalityList = { uf: string; data: Municipality[] | null; error: string | null };
+
+function serviceMessage(error: unknown, fallback: string): string {
+  return error instanceof PlaceServiceError ? error.message : fallback;
+}
+
+function useMunicipalities(uf: string): MunicipalityList {
+  const [list, setList] = useState<MunicipalityList | null>(null);
+  useEffect(() => {
+    if (!isStateCode(uf)) {
+      return;
+    }
+    let cancelled = false;
+    municipalitiesOf(uf).then(
+      (data) => {
+        if (!cancelled) {
+          setList({ uf, data, error: null });
+        }
+      },
+      (error: unknown) => {
+        if (!cancelled) {
+          setList({
+            uf,
+            data: null,
+            error: serviceMessage(error, "Não foi possível carregar os municípios."),
+          });
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [uf]);
+  return list?.uf === uf ? list : { uf, data: null, error: null };
+}
+
 function NewCity() {
   const [uf, setUf] = useState("");
   const [code, setCode] = useState("");
@@ -146,9 +183,7 @@ function NewCity() {
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const editor = useBoundaryEditor([]);
-  const municipalities = useFetch<Municipality[]>(
-    uf ? `/places/states/${uf}/municipalities` : null,
-  );
+  const municipalities = useMunicipalities(uf);
   const municipality = municipalities.data?.find((item) => String(item.ibgeCode) === code) ?? null;
 
   const chooseMunicipality = async (value: string) => {
@@ -156,14 +191,20 @@ function NewCity() {
     editor.replace([]);
     setPlaceCenter(null);
     const chosen = municipalities.data?.find((item) => String(item.ibgeCode) === value);
-    if (!chosen) {
+    if (!chosen || !isStateCode(uf)) {
       setLookup(null);
       return;
     }
     setLookup({ message: "Buscando o limite no OpenStreetMap...", problem: false });
-    const params = new URLSearchParams({ name: chosen.name, uf, ibgeCode: value });
     try {
-      const found = await api.get<BoundaryLookup>(`/places/boundary?${params.toString()}`);
+      const found = await lookupBoundary(browserFetch, chosen.name, uf, chosen.ibgeCode);
+      if (!found) {
+        setLookup({
+          message: "O OpenStreetMap não tem o limite deste município. Desenhe o limite no mapa.",
+          problem: true,
+        });
+        return;
+      }
       editor.replace(found.boundary);
       setPlaceCenter(found.center);
       setLookup({
@@ -172,7 +213,7 @@ function NewCity() {
       });
     } catch (error) {
       setLookup({
-        message: `${errorMessage(error, "Não foi possível buscar o limite.")} Desenhe o limite no mapa.`,
+        message: `${serviceMessage(error, "Não foi possível buscar o limite.")} Desenhe o limite no mapa.`,
         problem: true,
       });
     }

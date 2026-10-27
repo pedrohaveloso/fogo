@@ -167,7 +167,6 @@ describe("users", () => {
     expect((await bia.send("POST", "/cities", {})).status).toBe(403);
     expect((await bia.send("DELETE", "/cities/1")).status).toBe(403);
     expect((await bia.send("PUT", "/cities/1/boundary", { boundary: BOUNDARY })).status).toBe(403);
-    expect((await bia.send("GET", "/places/states/SP/municipalities")).status).toBe(403);
     expect((await bia.send("GET", "/cities/1")).status).toBe(200);
   });
 

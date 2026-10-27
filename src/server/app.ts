@@ -14,7 +14,6 @@ import {
   RegionInUseError,
   RegionNameTakenError,
 } from "./neighborhoods.ts";
-import { PlaceServiceError } from "./places.ts";
 import { AgencyInUseError, AgencyNameTakenError } from "./repositories/agencies.ts";
 import { BadgeTakenError } from "./repositories/agents.ts";
 import { SerialNumberTakenError } from "./repositories/equipment.ts";
@@ -22,7 +21,7 @@ import { TagTakenError } from "./repositories/tags.ts";
 import { LastAdminError, UsernameTakenError } from "./repositories/users.ts";
 import { agencyRoutes } from "./routes/agencies.ts";
 import { auditRoutes } from "./routes/audit.ts";
-import { cityAdminRoutes, cityRoutes, placeRoutes } from "./routes/cities.ts";
+import { cityAdminRoutes, cityRoutes } from "./routes/cities.ts";
 import { inventoryRoutes } from "./routes/inventory.ts";
 import { neighborhoodRoutes } from "./routes/neighborhoods.ts";
 import { operationsRoutes } from "./routes/operations.ts";
@@ -44,7 +43,7 @@ export type AppEnv = { Variables: { user: SessionUser; context: CityContext } };
 
 type Conflict = {
   error: new (...args: never[]) => Error;
-  status: 409 | 502;
+  status: 409;
   title: string;
   path: string;
   message: string;
@@ -143,13 +142,6 @@ const CONFLICTS: Conflict[] = [
     path: "role",
     message: "O FOGO precisa de ao menos um administrador",
   },
-  {
-    error: PlaceServiceError,
-    status: 502,
-    title: "Serviço externo indisponível",
-    path: "service",
-    message: "O IBGE ou o OpenStreetMap não responderam. Tente de novo em instantes.",
-  },
 ];
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -172,9 +164,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     }
     if (error instanceof ValidationError) {
       return c.json({ error: "Dados inválidos", issues: error.issues }, 422);
-    }
-    if (error instanceof PlaceServiceError) {
-      console.error(`Serviço externo falhou: ${error.message}`);
     }
     const conflict = CONFLICTS.find((item) => error instanceof item.error);
     if (conflict) {
@@ -257,14 +246,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   app.use("/api/users/*", requireAdmin);
   app.use("/api/audit", requireAdmin);
-  app.use("/api/places/*", requireAdmin);
   app.on(["POST"], "/api/cities", requireAdmin);
   app.use("/api/cities/:cityId/*", requireCity);
   app.on(["PUT", "DELETE"], ["/api/cities/:cityId", "/api/cities/:cityId/boundary"], requireAdmin);
 
   app.route("/api/users", userRoutes(deps));
   app.route("/api/audit", auditRoutes(deps));
-  app.route("/api/places", placeRoutes(deps));
   app.route("/api/cities", cityRoutes(deps));
   const scoped = "/api/cities/:cityId";
   app.route(scoped, cityAdminRoutes(deps));

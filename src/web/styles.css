@@ -1299,6 +1299,11 @@ button.city-count[aria-pressed="true"] {
   color: var(--ink);
 }
 
+.filter-search[size] {
+  width: auto;
+  min-width: 220px;
+}
+
 .filter-search::placeholder {
   color: var(--muted);
 }
@@ -2906,7 +2911,8 @@ dialog::backdrop {
     max-width: none;
   }
 
-  .filter-search {
+  .filter-search,
+  .filter-search[size] {
     width: 100%;
   }
 

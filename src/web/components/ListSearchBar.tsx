@@ -31,6 +31,7 @@ export function ListSearchBar({
         type="search"
         className="filter-search"
         placeholder={placeholder}
+        size={placeholder.length}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

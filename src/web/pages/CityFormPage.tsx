@@ -107,9 +107,11 @@ function BoundaryMap({
             </button>
           </>
         )}
-        <span className="hint" role="status">
-          {problem ?? `${formatInteger(editor.polygon.length)} pontos`}
-        </span>
+        {problem && (
+          <span className="hint" role="status">
+            {problem}
+          </span>
+        )}
       </div>
       <div className="city-canvas">
         <ShapeEditor

@@ -394,10 +394,6 @@ export function AgentFormPage({ id }: { id: number | null }) {
               }))
             }
           />
-          <p className="hint">
-            A posição é atualizada pelo rastreador quando o agente está em serviço. Use o mapa para
-            definir a posição inicial.
-          </p>
         </fieldset>
         {id !== null && <TagPanel target={{ agentId: id }} initial={tag} />}
 

@@ -2882,10 +2882,6 @@ dialog::backdrop {
     display: none;
   }
 
-  .horizon-hint {
-    display: none;
-  }
-
   .option-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -264,7 +264,6 @@ function StaffingSection({ hours }: { hours: number }) {
     <section className="panel" aria-labelledby="staffing-title">
       <div className="panel-head">
         <h2 id="staffing-title">Reforço de agentes nas próximas {hours} horas</h2>
-        <p>Comparação entre a demanda prevista e o efetivo ativo de cada região</p>
       </div>
       <div className="table-wrap">
         <table>
@@ -355,11 +354,7 @@ function AnomalySection() {
     <section className="panel" aria-labelledby="anomalies-title">
       <div className="panel-head">
         <h2 id="anomalies-title">Comportamentos fora do padrão</h2>
-        <p>
-          {data.length === 0
-            ? "Atualizado a cada 15 segundos"
-            : `${data.length} agora, atualizado a cada 15 segundos`}
-        </p>
+        {data.length > 0 && <p>{data.length} agora</p>}
       </div>
       {data.length === 0 ? (
         <p className="empty">
@@ -561,7 +556,6 @@ function TrendSection() {
     <section className="panel" aria-labelledby="trends-title">
       <div className="panel-head">
         <h2 id="trends-title">Tendências</h2>
-        <p>Histórico com projeção pela tendência recente</p>
       </div>
       {data.insights.length > 0 && (
         <div style={{ marginBottom: 20 }}>
@@ -770,9 +764,6 @@ export function PredictionsPage() {
                   </button>
                 ))}
               </div>
-              <span className="hint horizon-hint">
-                Vale para o risco por bairro e o reforço de agentes.
-              </span>
             </div>
             <RiskSection hours={hours} />
             <StaffingSection hours={hours} />

@@ -519,6 +519,10 @@ main:focus {
   cursor: pointer;
 }
 
+.form-grid > .check {
+  align-self: end;
+}
+
 .check input {
   width: 18px;
   height: 18px;

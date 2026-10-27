@@ -425,10 +425,6 @@ function FailureSection() {
     <section className="panel" aria-labelledby="failures-title">
       <div className="panel-head">
         <h2 id="failures-title">Equipamentos com maior risco de falha em 7 dias</h2>
-        <p>
-          No histórico, manutenção vencida multiplica o risco de falha por{" "}
-          {formatDecimal(data.overdueHazardRatio)}
-        </p>
       </div>
       <div className="table-wrap">
         <table>

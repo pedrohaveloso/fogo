@@ -3038,6 +3038,10 @@ dialog::backdrop {
   padding: 4px 0 12px;
 }
 
+.activity > .button {
+  margin-top: var(--space-3);
+}
+
 .activity-since {
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line-strong);

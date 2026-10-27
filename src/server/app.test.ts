@@ -756,7 +756,10 @@ describe("cities API in simulation", () => {
     fetchImpl.mockResolvedValueOnce(new Response(JSON.stringify([])));
     expect((await api("GET", "/places/boundary?name=X&uf=SP&ibgeCode=1")).status).toBe(404);
     fetchImpl.mockRejectedValueOnce(new TypeError("offline"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await api("GET", "/places/states/rj/municipalities")).status).toBe(502);
+    expect(log).toHaveBeenCalledWith("Serviço externo falhou: IBGE: offline");
+    log.mockRestore();
     expect((await api("GET", "/places/boundary?uf=SP")).status).toBe(400);
   });
 });

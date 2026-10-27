@@ -2,7 +2,7 @@ import { centroid, pointInPolygon, polygonArea, type LngLat } from "../shared/ge
 import { STATES, type StateCode } from "../shared/states.ts";
 import type { BoundaryLookup, Municipality } from "../shared/types.ts";
 
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 30_000;
 const USER_AGENT = "FOGO/1.0 (cadastro de cidades)";
 const BOUNDARY_SIMPLIFICATION = 0.0005;
 
@@ -22,20 +22,31 @@ type NominatimResult = {
 
 export class PlaceServiceError extends Error {}
 
-async function getJson<T>(fetchImpl: typeof fetch, url: string): Promise<T> {
+function describe(error: unknown): string {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return `sem resposta em ${TIMEOUT_MS / 1000} s`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function getJson<T>(fetchImpl: typeof fetch, service: string, url: string): Promise<T> {
   let response: Response;
   try {
     response = await fetchImpl(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-  } catch {
-    throw new PlaceServiceError();
+  } catch (error) {
+    throw new PlaceServiceError(`${service}: ${describe(error)}`);
   }
   if (!response.ok) {
-    throw new PlaceServiceError();
+    throw new PlaceServiceError(`${service}: HTTP ${response.status}`);
   }
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    throw new PlaceServiceError(`${service}: ${describe(error)}`);
+  }
 }
 
 export function createMunicipalityCache(fetchImpl: typeof fetch) {
@@ -48,6 +59,7 @@ export function createMunicipalityCache(fetchImpl: typeof fetch) {
     }
     const body = await getJson<{ id: number; nome: string }[]>(
       fetchImpl,
+      "IBGE",
       `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`,
     );
     const list = body.map((item) => ({ ibgeCode: item.id, name: item.nome }));
@@ -104,6 +116,7 @@ export async function lookupBoundary(
   });
   const results = await getJson<NominatimResult[]>(
     fetchImpl,
+    "Nominatim",
     `https://nominatim.openstreetmap.org/search?${params.toString()}`,
   );
   const match =

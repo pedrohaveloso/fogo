@@ -173,6 +173,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     if (error instanceof ValidationError) {
       return c.json({ error: "Dados inválidos", issues: error.issues }, 422);
     }
+    if (error instanceof PlaceServiceError) {
+      console.error(`Serviço externo falhou: ${error.message}`);
+    }
     const conflict = CONFLICTS.find((item) => error instanceof item.error);
     if (conflict) {
       return c.json(

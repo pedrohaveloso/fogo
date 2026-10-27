@@ -7,6 +7,7 @@ import {
   agentQuery,
   equipmentFromQuery,
   equipmentQuery,
+  searchQuery,
   showsMapView,
   withMapView,
   withoutMapView,
@@ -81,5 +82,12 @@ describe("map view in the address", () => {
     expect(withMapView("", true)).toBe("?view=map");
     expect(withoutMapView("?view=map")).toBe("");
     expect(showsMapView(new URLSearchParams("?view=list"))).toBe(false);
+  });
+});
+
+describe("searchQuery", () => {
+  it("keeps only a filled search term", () => {
+    expect(searchQuery("")).toBe("");
+    expect(searchQuery("guarda civil")).toBe("?search=guarda+civil");
   });
 });

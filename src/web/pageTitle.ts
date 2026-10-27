@@ -10,6 +10,8 @@ const TITLES: [RegExp, string][] = [
   [/^\/neighborhoods$/, "Bairros"],
   [/^\/predictions$/, "Cidade preditiva"],
   [/^\/agencies$/, "Órgãos"],
+  [/^\/agencies\/new$/, "Cadastrar órgão"],
+  [/^\/agencies\/\d+$/, "Editar órgão"],
   [/^\/cities$/, "Cidades"],
   [/^\/cities\/new$/, "Cadastrar cidade"],
   [/^\/cities\/\d+$/, "Editar cidade"],

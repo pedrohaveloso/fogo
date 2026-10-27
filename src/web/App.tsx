@@ -13,6 +13,7 @@ import {
 import { liveStatus, useLive } from "./live.ts";
 import { AccountPage } from "./pages/AccountPage.tsx";
 import { AgenciesPage } from "./pages/AgenciesPage.tsx";
+import { AgencyFormPage } from "./pages/AgencyFormPage.tsx";
 import { CitiesPage } from "./pages/CitiesPage.tsx";
 import { DocsPage } from "./pages/DocsPage.tsx";
 import { ManagementPage } from "./pages/ManagementPage.tsx";
@@ -164,6 +165,13 @@ function cityRoute(pathname: string) {
   }
   if (pathname === "/agencies") {
     return <AgenciesPage />;
+  }
+  if (pathname === "/agencies/new") {
+    return <AgencyFormPage id={null} />;
+  }
+  const agency = /^\/agencies\/(\d+)$/.exec(pathname);
+  if (agency) {
+    return <AgencyFormPage id={Number(agency[1])} />;
   }
   return null;
 }

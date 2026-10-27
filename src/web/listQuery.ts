@@ -118,3 +118,7 @@ export function withoutMapView(query: string): string {
   const rest = params.toString();
   return rest ? `?${rest}` : "";
 }
+
+export function searchQuery(search: string): string {
+  return build([["search", search]]);
+}

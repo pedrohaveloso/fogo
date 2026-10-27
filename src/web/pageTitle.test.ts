@@ -11,6 +11,8 @@ describe("pageTitle", () => {
     expect(pageTitle("/predictions", "Marília")).toBe("Cidade preditiva: FOGO Marília");
     expect(pageTitle("/users/4", "Marília")).toBe("Editar usuário: FOGO Marília");
     expect(pageTitle("/management", "Marília")).toBe("Gerenciamento: FOGO Marília");
+    expect(pageTitle("/agencies/new", "Marília")).toBe("Cadastrar órgão: FOGO Marília");
+    expect(pageTitle("/agencies/3", "Marília")).toBe("Editar órgão: FOGO Marília");
     expect(pageTitle("/docs", "Marília")).toBe("Documentações: FOGO Marília");
   });
 

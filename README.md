@@ -36,6 +36,8 @@ pnpm dev:production    # produção
 
 Na simulação, a primeira execução cria as tabelas, importa Marília e gera 120 dias de histórico, o que leva alguns segundos. Para começar do zero, use `pnpm start:fresh`. Sem Docker, aponte `DATABASE_URL` para um PostgreSQL seu. A rota `/api/health` responde quando o servidor e o banco estão de pé, e é ela que o `HEALTHCHECK` do contêiner usa.
 
+Para publicar no Render, crie um Blueprint a partir do repositório: o `render.yaml` sobe o FOGO em modo simulação com um PostgreSQL gratuito e liga o `DATABASE_URL` entre os dois. No plano gratuito o serviço dorme após 15 minutos sem acesso, e a simulação para enquanto ele dorme. O banco gratuito expira 30 dias após a criação; para mantê-lo, aponte `DATABASE_URL` para outro PostgreSQL.
+
 O mapa de ruas vem do OpenFreeMap e precisa de internet. Sem conexão, o sistema continua funcionando e mostra só os bairros e os marcadores sobre fundo liso.
 
 ## Roteiro de demonstração (2 minutos)

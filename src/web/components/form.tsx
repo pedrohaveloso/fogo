@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { ApiIssue } from "../api.ts";
+import { ApiError, type ApiIssue } from "../api.ts";
 
 export type Errors = Record<string, string>;
 
@@ -9,6 +9,13 @@ export function issuesToErrors(issues: ApiIssue[]): Errors {
     errors[issue.path || "form"] ??= issue.message;
   }
   return errors;
+}
+
+export function removalError(error: unknown, fallback: string): Errors {
+  if (!(error instanceof ApiError)) {
+    return { form: fallback };
+  }
+  return { form: error.issues[0]?.message ?? error.message };
 }
 
 export function fieldId(path: string): string {
@@ -136,6 +143,13 @@ export function ErrorSummary({
   }, [errors]);
   if (entries.length === 0) {
     return null;
+  }
+  if (entries.length === 1 && errors["form"]) {
+    return (
+      <div ref={ref} className="error-box" role="alert" tabIndex={-1}>
+        {errors["form"]}
+      </div>
+    );
   }
   return (
     <div ref={ref} className="error-box" role="alert" tabIndex={-1}>

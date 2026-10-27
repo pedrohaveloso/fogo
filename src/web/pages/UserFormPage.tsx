@@ -8,6 +8,7 @@ import {
   FormActions,
   OptionGroup,
   issuesToErrors,
+  removalError,
   type Errors,
 } from "../components/form.tsx";
 import { LoadingNotice } from "../components/LoadingNotice.tsx";
@@ -100,11 +101,7 @@ export function UserFormPage({ id }: { id: number | null }) {
       showToast(`${draft.name} excluído.`);
       navigate("/users");
     } catch (error) {
-      setErrors(
-        error instanceof ApiError && error.issues.length > 0
-          ? issuesToErrors(error.issues)
-          : { form: error instanceof ApiError ? error.message : "Não foi possível excluir." },
-      );
+      setErrors(removalError(error, "Não foi possível excluir."));
     }
   };
 

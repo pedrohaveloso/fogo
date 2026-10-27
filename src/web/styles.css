@@ -1458,7 +1458,7 @@ button.city-count[aria-pressed="true"] {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 7px 12px 9px;
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -1500,15 +1500,13 @@ button.city-count[aria-pressed="true"] {
 }
 
 .layer-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  display: grid;
+  gap: 4px;
   padding-left: 27px;
   color: var(--ink-2);
 }
 
 .key-group {
-  flex-basis: 100%;
   margin-top: 4px;
   color: var(--muted);
   font-size: var(--text-xs);
